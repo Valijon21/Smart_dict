@@ -1,0 +1,63 @@
+import sys
+import os
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import Qt
+
+import logger
+from logger import get_logger
+import database as db
+from ui.main_window import MainWindow
+
+app_log = get_logger("app")
+
+
+def main():
+    # 1. Professional log tizimini ishga tushirish (Rotating file + Console)
+    logger.setup_logging()
+    app_log.info("Vocab Master ilovasi ishga tushmoqda...")
+
+    try:
+        # High DPI ekranlar uchun tiniq shriftlar
+        if hasattr(Qt.HighDpiScaleFactorRoundingPolicy, "PassThrough"):
+            QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+
+        # 2. Qt ilovasi yaratish
+        app = QApplication(sys.argv)
+        app.setStyle("Fusion")
+        app.setApplicationName("VocabMasterPro")
+
+        # 3. Yagona instansiya (Single Instance Guard) tekshiruvi
+        from PyQt6.QtCore import QSharedMemory
+        shared_mem = QSharedMemory("VocabMasterPro_SingleInstance_Key")
+        if not shared_mem.create(1):
+            app_log.warning("Dastur allaqachon ishga tushirilgan. Yangi instansiya to'xtatildi.")
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                None,
+                "Vocab Master Pro",
+                "Dastur allaqachon ishlamoqda!\n\nIltimos, ekranning pastki o'ng burchagidagi (Windows Tray) nishonchani tekshiring."
+            )
+            sys.exit(0)
+
+        # 4. Ma'lumotlar bazasini initsializatsiya qilish
+        db.init_db()
+        app_log.info("Ma'lumotlar bazasi tayyorlandi.")
+
+        # 5. Asosiy oyna
+        window = MainWindow()
+        window.show()
+        app_log.info("Bosh oyna foydalanuvchiga ko'rsatildi.")
+
+        # 6. Voqealar sikli
+        exit_code = app.exec()
+        shared_mem.detach()
+        app_log.info(f"Vocab Master normal tartibda yakunlandi. Exit code: {exit_code}")
+        sys.exit(exit_code)
+
+    except Exception as e:
+        app_log.critical("Ilova ishga tushishida kutilmagan xatolik yuz berdi:", exc_info=True)
+        raise
+
+
+if __name__ == "__main__":
+    main()

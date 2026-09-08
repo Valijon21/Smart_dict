@@ -1,0 +1,33 @@
+# Vocab Master — Namunaviy so'zlar ro'yxati (Test uchun)
+# Formatlar: inglizcha - o'zbekcha (yoki :, =>, tab)
+
+developer - dasturchi
+algorithm - algoritm
+database - ma'lumotlar bazasi
+variable - o'zgaruvchi
+function - funksiya
+loop - sikl, takrorlanish
+condition - shart
+framework - freymvork
+interface - interfeys
+performance - unumdorlik, tezlik
+security - xavfsizlik
+network - tarmoq
+storage - xotira, saqlash
+request - so'rov
+response - javob
+application - ilova, dastur
+keyboard - klaviatura
+screen - ekran
+button - tugma
+window - oyna
+success - muvaffaqiyat
+knowledge - bilim
+learning - o'rganish
+practice - mashq, amaliyot
+vocabulary - lug'at, so'z boyligi
+challenge - sinov, qiyinchilik
+improvement - rivojlanish, yaxshilanish
+habit - odat
+goal - maqsad
+achievement - yutuq, natija
