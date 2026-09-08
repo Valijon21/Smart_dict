@@ -147,6 +147,20 @@ def get_level_info(xp: int = None) -> dict:
     }
 
 
+def award_xp(amount: int) -> tuple[int, bool, str]:
+    """
+    To'g'ridan-to'g'ri foydalanuvchiga XP berish (Word Match, Mini vidjet yoki maxsus sovrinlar).
+    Qaytaradi: (new_total_xp, level_up: bool, new_level_title: str)
+    """
+    old_level = get_level_info()["level"]
+    new_total_xp = db.add_xp(amount)
+    new_info = get_level_info(new_total_xp)
+    level_up = new_info["level"] > old_level
+    level_title = f"{new_info['badge']} {new_info['level']}-Daraja: {new_info['title']}"
+    logger.info(f"Foydalanuvchiga +{amount} XP berildi. Yangi jami XP: {new_total_xp}")
+    return new_total_xp, level_up, level_title
+
+
 def record_practice_answer(is_correct: bool, mode: str, consecutive_correct: int) -> dict:
     """
     Mashqda javob berilganda chaqiriladi:

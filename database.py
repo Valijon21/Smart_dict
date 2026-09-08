@@ -174,10 +174,12 @@ def init_db():
                 ("tts_autoplay", "true"),
                 ("sound_effects_enabled", "true"),
                 ("user_xp", "0"),
-                ("match_best_time", "0"),
-                ("floating_widget_interval", "3"),
+                ("match_best_time", ""),
+                ("floating_widget_interval", "15"),
             ],
         )
+        # Agar ilgari match_best_time '0' bo'lib qolgan bo'lsa, tozalaymiz
+        conn.execute("UPDATE settings SET value='' WHERE key='match_best_time' AND value='0'")
 
     # Mavjud so'zlarga bo'sh bo'lgan IPA va POS qiymatlarini avtomatik to'ldirish
     backfill_phonetics()
