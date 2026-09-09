@@ -675,9 +675,7 @@ class DictionaryWidget(QWidget):
 
         rows = db.search_words(query=query, status_filter=status, hard_only=hard_only)
         self._current_rows_data = rows
-        self.table.setUpdatesEnabled(False)
-        try:
-            self.table.setRowCount(len(rows))
+        self.table.setRowCount(len(rows))
 
         # Agar shaxsiy bazada topilmasa va qidiruv kiritilgan bo'lsa, 64k bazadan tavsiya
         clean_q = query.strip()
@@ -708,6 +706,7 @@ class DictionaryWidget(QWidget):
             "mastered": ("O'zlashtirilgan", "#062E1F", "#34D399", "#059669"),
         }
 
+        self.table.setUpdatesEnabled(False)
         for i, row in enumerate(rows):
             # 0: ID
             id_item = QTableWidgetItem(str(row["id"]))
@@ -841,8 +840,7 @@ class DictionaryWidget(QWidget):
             act_lay.addWidget(del_btn)
 
             self.table.setCellWidget(i, 5, act_cell)
-        finally:
-            self.table.setUpdatesEnabled(True)
+        self.table.setUpdatesEnabled(True)
 
         self.count_label.setText(f"Ko'rsatilmoqda: {len(rows)} ta so'z")
 
