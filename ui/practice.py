@@ -249,7 +249,7 @@ class PracticeWidget(QWidget):
 
         self.pos_badge = QLabel("")
         self.pos_badge.setStyleSheet(
-            "background-color: #312E81; color: #C7D2FE; font-size: 11px; font-weight: 700; "
+            "background-color: #312E81; color: #C7D2FE; font-size: 12px; font-weight: 700; "
             "border-radius: 4px; padding: 2px 6px;"
         )
         self.phonetic_row.addWidget(self.pos_badge)
@@ -517,16 +517,16 @@ class PracticeWidget(QWidget):
         if state == "correct":
             return (
                 "QPushButton { background-color: #064E3B; color: #34D399; border: 2px solid #10B981;"
-                "border-radius: 10px; padding: 16px 20px; font-size: 15px; font-weight: 600; text-align: left; }"
+                "border-radius: 10px; padding: 16px 20px; font-size: 16px; font-weight: 600; text-align: left; }"
             )
         elif state == "wrong":
             return (
                 "QPushButton { background-color: #7F1D1D; color: #FCA5A5; border: 2px solid #EF4444;"
-                "border-radius: 10px; padding: 16px 20px; font-size: 15px; font-weight: 600; text-align: left; }"
+                "border-radius: 10px; padding: 16px 20px; font-size: 16px; font-weight: 600; text-align: left; }"
             )
         return (
             f"QPushButton {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 1px solid {t.border}; "
-            f"border-radius: 10px; padding: 16px 20px; font-size: 15px; text-align: left; }} "
+            f"border-radius: 10px; padding: 16px 20px; font-size: 16px; font-weight: 500; text-align: left; }} "
             f"QPushButton:hover {{ background-color: {t.bg_card}; border-color: {t.primary}; color: {t.primary_light}; }}"
         )
 

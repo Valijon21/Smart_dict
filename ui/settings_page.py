@@ -103,8 +103,39 @@ class SettingsWidget(QWidget):
         theme_layout.addLayout(self.themes_grid)
         layout.addWidget(card_theme)
 
-        # 3. Eslatmalar va Tray kartasi
+        # --- 3. Tipografiya va Matn O'lchami (Font Scale) kartasi ---
+        t = theme_manager.get_active_theme()
+        card_font = self._create_card("🔤 Matn va Shrift O'lchami (Typography & Scaling)")
+        font_layout = QVBoxLayout(card_font)
+        font_layout.setContentsMargins(20, 16, 20, 16)
+        font_layout.setSpacing(12)
+
+        font_desc = QLabel("Ko'zingizga qulay matn o'lchamini tanlang. O'lcham butun ilova bo'ylab zudlik bilan qo'llaniladi:")
+        font_desc.setStyleSheet("color: #9CA3AF; font-size: 13px;")
+        font_layout.addWidget(font_desc)
+
+        self.font_scale_btns = {}
+        row_font = QHBoxLayout()
+        row_font.setSpacing(12)
+
+        current_scale = theme_manager.get_font_scale()
+
+        for s_id, s_info in theme_manager.FONT_SCALE_OPTIONS.items():
+            btn = QPushButton(f"{s_info['name']}")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setFixedHeight(42)
+            btn.setCheckable(True)
+            btn.setChecked(s_id == current_scale)
+            btn.clicked.connect(lambda checked, sid=s_id: self._on_font_scale_selected(sid))
+            row_font.addWidget(btn)
+            self.font_scale_btns[s_id] = btn
+
+        font_layout.addLayout(row_font)
+        layout.addWidget(card_font)
+
+        # 4. Eslatmalar va Tray kartasi
         card_reminder = self._create_card("🔔 Bildirishnomalar va Windows Tray")
+
         rem_layout = QVBoxLayout(card_reminder)
         rem_layout.setContentsMargins(20, 16, 20, 16)
         rem_layout.setSpacing(12)
@@ -396,9 +427,10 @@ class SettingsWidget(QWidget):
 
         # Tavsif
         desc = QLabel(t.description)
-        desc.setStyleSheet("color: #9CA3AF; font-size: 10px;")
+        desc.setStyleSheet("color: #9CA3AF; font-size: 12px;")
         desc.setWordWrap(True)
         card_layout.addWidget(desc)
+
 
         # Rangli doirachalar (Swatches)
         swatch_row = QHBoxLayout()
@@ -460,6 +492,36 @@ class SettingsWidget(QWidget):
     def refresh_theme_cards(self):
         for tid in self.theme_widgets:
             self._update_single_theme_card(tid)
+        self._update_font_scale_buttons()
+
+    def _on_font_scale_selected(self, scale_id: str):
+        theme_manager.set_font_scale(scale_id)
+        self._update_font_scale_buttons(scale_id)
+        if self.on_settings_saved:
+            self.on_settings_saved()
+
+    def _update_font_scale_buttons(self, active_id: str = None):
+        if not hasattr(self, "font_scale_btns"):
+            return
+        if active_id is None:
+            active_id = theme_manager.get_font_scale()
+        t = theme_manager.get_active_theme()
+        for sid, btn in self.font_scale_btns.items():
+            is_active = (sid == active_id)
+            btn.setChecked(is_active)
+            if is_active:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background-color: {t.primary}; color: white; border: 1.5px solid {t.primary_light}; "
+                    f"border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 700; }} "
+                    f"QPushButton:hover {{ background-color: {t.primary_hover}; }}"
+                )
+            else:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 1px solid {t.border}; "
+                    f"border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 500; }} "
+                    f"QPushButton:hover {{ background-color: {t.border}; color: white; }}"
+                )
+
 
     def _input_style(self) -> str:
         return (

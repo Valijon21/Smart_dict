@@ -397,39 +397,40 @@ class MainWindow(QMainWindow):
         if active:
             return (
                 f"QPushButton {{ background-color: {t.primary}; color: white; border: none;"
-                f"border-radius: 8px; padding: 10px 14px; text-align: left; font-size: 13px; font-weight: 600; }}"
+                f"border-radius: 8px; padding: 10px 14px; text-align: left; font-size: 14px; font-weight: 600; }}"
             )
         return (
             f"QPushButton {{ background-color: transparent; color: {t.text_muted}; border: none;"
-            f"border-radius: 8px; padding: 10px 14px; text-align: left; font-size: 13px; }}"
+            f"border-radius: 8px; padding: 10px 14px; text-align: left; font-size: 14px; font-weight: 500; }}"
             f"QPushButton:hover {{ background-color: {t.bg_card}; color: {t.text_main}; }}"
         )
 
     def apply_theme(self, t: theme_manager.Theme):
         self.setStyleSheet(f"background-color: {t.bg_app};")
         self.sidebar.setStyleSheet(f"background-color: {t.bg_sidebar}; border-right: 1px solid {t.border};")
-        self.logo.setStyleSheet(f"color: {t.text_main}; font-size: 18px; font-weight: 700; padding-bottom: 16px;")
+        self.logo.setStyleSheet(f"color: {t.text_main}; font-size: 20px; font-weight: 800; padding-bottom: 16px;")
         self.theme_btn.setText(f"🎨 {t.name}")
         self.theme_btn.setStyleSheet(
             f"QPushButton {{ background-color: {t.bg_card}; color: {t.primary_light}; border: 1px solid {t.border};"
-            f"border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600; text-align: left; }}"
+            f"border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; text-align: left; }}"
             f"QPushButton:hover {{ background-color: {t.primary}; color: white; border-color: {t.primary}; }}"
         )
         if hasattr(self, "theme_menu"):
             self.theme_menu.setStyleSheet(
                 f"QMenu {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; padding: 6px; }} "
-                f"QMenu::item {{ padding: 6px 14px; border-radius: 6px; font-size: 12px; color: {t.text_main}; }} "
+                f"QMenu::item {{ padding: 6px 14px; border-radius: 6px; font-size: 13px; color: {t.text_main}; }} "
                 f"QMenu::item:selected {{ background-color: {t.primary}; color: white; }}"
             )
         if hasattr(self, "spotlight_btn"):
             self.spotlight_btn.setStyleSheet(
                 f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_main}; "
-                f"border: 1.5px solid {t.primary}; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600; text-align: left; }}"
+                f"border: 1.5px solid {t.primary}; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; text-align: left; }}"
                 f"QPushButton:hover {{ background-color: {t.primary}; color: white; }}"
             )
         app = QApplication.instance()
         if app:
             app.setStyleSheet(theme_manager.get_global_stylesheet(t))
+
         curr = getattr(self, "current_page_key", "dashboard")
         for k, btn in self.nav_buttons.items():
             btn.setStyleSheet(self._nav_style(k == curr))

@@ -90,13 +90,13 @@ class MiniWidget(QWidget):
         header_row.setSpacing(6)
 
         self.drag_handle = QLabel("⋮⋮ Vocab Mini")
-        self.drag_handle.setStyleSheet("color: #818CF8; font-size: 11px; font-weight: 700; cursor: move;")
+        self.drag_handle.setStyleSheet("color: #818CF8; font-size: 12px; font-weight: 700; cursor: move;")
         header_row.addWidget(self.drag_handle)
 
         self.timer_badge = QLabel(f"⏱️ {self.cycle_interval_sec}s")
         self.timer_badge.setStyleSheet(
-            "background-color: #1E1B4B; color: #A5B4FC; font-size: 10px; font-weight: 600; "
-            "border-radius: 4px; padding: 1px 5px;"
+            "background-color: #1E1B4B; color: #A5B4FC; font-size: 12px; font-weight: 600; "
+            "border-radius: 4px; padding: 2px 6px;"
         )
         header_row.addWidget(self.timer_badge)
 
@@ -149,19 +149,20 @@ class MiniWidget(QWidget):
         sub_row.setSpacing(6)
 
         self.lbl_phonetic = QLabel("")
-        self.lbl_phonetic.setStyleSheet("color: #A5B4FC; font-size: 11px; font-weight: 500;")
+        self.lbl_phonetic.setStyleSheet("color: #A5B4FC; font-size: 12px; font-weight: 600;")
         sub_row.addWidget(self.lbl_phonetic)
 
         self.lbl_pos = QLabel("")
         self.lbl_pos.setStyleSheet(
-            "background-color: #312E81; color: #C7D2FE; font-size: 10px; font-weight: 700; "
-            "border-radius: 3px; padding: 1px 5px;"
+            "background-color: #312E81; color: #C7D2FE; font-size: 12px; font-weight: 700; "
+            "border-radius: 3px; padding: 2px 6px;"
         )
         sub_row.addWidget(self.lbl_pos)
         sub_row.addStretch()
 
         word_box.addLayout(sub_row)
         card_layout.addLayout(word_box)
+
 
         # 3. O'zbekcha tarjima (bosganda ko'rsatish/yashirish imkoniyati bilan)
         self.lbl_uzbek = QLabel("")

@@ -80,7 +80,7 @@ def _generate_flashcards_html(words: list[dict]) -> str:
             position: absolute;
             top: 8px;
             right: 12px;
-            font-size: 10px;
+            font-size: 12px;
             font-weight: bold;
             color: #4F46E5;
             text-transform: uppercase;

@@ -395,9 +395,9 @@ def _stat_card(title: str, val_label: QLabel, color: str = "#4F46E5", t: theme_m
     )
     layout = QVBoxLayout(frame)
     layout.setContentsMargins(14, 12, 14, 12)
-    val_label.setStyleSheet(f"color: {t.text_main}; font-size: 24px; font-weight: 700;")
+    val_label.setStyleSheet(f"color: {t.text_main}; font-size: 26px; font-weight: 700;")
     title_label = QLabel(title)
-    title_label.setStyleSheet(f"color: {t.text_muted}; font-size: 11px;")
+    title_label.setStyleSheet(f"color: {t.text_muted}; font-size: 13px; font-weight: 600;")
     frame._val_label = val_label
     frame._title_label = title_label
     layout.addWidget(val_label)
@@ -492,7 +492,7 @@ class DashboardWidget(QWidget):
         )
         self.search_input.setStyleSheet(
             f"QLineEdit {{ background: transparent; border: none; color: {t.text_main}; "
-            f"font-size: 13px; font-weight: 500; selection-background-color: {t.primary}; }}"
+            f"font-size: 14px; font-weight: 500; selection-background-color: {t.primary}; }}"
         )
         self.search_input.setClearButtonEnabled(False)
         bar_layout.addWidget(self.search_input, 1)
@@ -500,8 +500,8 @@ class DashboardWidget(QWidget):
         # Status nishoni: "🌐 64k Oxford + 📚 Shaxsiy"
         self.badge_search_mode = QLabel("🌐 64k Oxford + 📚 Shaxsiy")
         self.badge_search_mode.setStyleSheet(
-            "background-color: #1E1B4B; color: #A5B4FC; font-size: 11px; font-weight: 600; "
-            "border: 1px solid #3730A3; border-radius: 6px; padding: 3px 8px;"
+            "background-color: #1E1B4B; color: #A5B4FC; font-size: 12px; font-weight: 700; "
+            "border: 1px solid #3730A3; border-radius: 6px; padding: 4px 10px;"
         )
         bar_layout.addWidget(self.badge_search_mode)
 
@@ -533,7 +533,7 @@ class DashboardWidget(QWidget):
         # Natijalar sarlavhasi qatori
         self.results_header_row = QHBoxLayout()
         self.lbl_results_status = QLabel("Natijalar")
-        self.lbl_results_status.setStyleSheet(f"color: {t.text_main}; font-size: 13px; font-weight: 700;")
+        self.lbl_results_status.setStyleSheet(f"color: {t.text_main}; font-size: 14px; font-weight: 700;")
         self.results_header_row.addWidget(self.lbl_results_status)
         self.results_header_row.addStretch()
 
@@ -541,7 +541,7 @@ class DashboardWidget(QWidget):
         btn_close_results.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_close_results.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {t.text_muted}; border: 1px solid {t.border}; "
-            f"border-radius: 6px; padding: 4px 12px; font-size: 11px; font-weight: 600; }} "
+            f"border-radius: 6px; padding: 4px 12px; font-size: 12px; font-weight: 600; }} "
             f"QPushButton:hover {{ background-color: {t.border}; color: {t.text_main}; }}"
         )
         btn_close_results.clicked.connect(self._clear_search)
@@ -613,7 +613,7 @@ class DashboardWidget(QWidget):
         goal_top_row.addWidget(self.goal_spin)
         save_btn = QPushButton("Saqlash")
         save_btn.setStyleSheet(
-            "background-color: #4F46E5; color: white; border-radius: 6px; padding: 5px 12px;"
+            "background-color: #4F46E5; color: white; border-radius: 6px; padding: 5px 12px; font-size: 13px;"
         )
         save_btn.clicked.connect(self.save_goal)
         goal_top_row.addWidget(save_btn)
@@ -623,15 +623,15 @@ class DashboardWidget(QWidget):
         self.goal_bar.setTextVisible(True)
         self.goal_bar.setStyleSheet(
             """
-            QProgressBar { background-color: #151521; border-radius: 8px; height: 22px;
-                color: white; text-align: center; font-size: 12px; }
+            QProgressBar { background-color: #151521; border-radius: 8px; height: 24px;
+                color: white; text-align: center; font-size: 13px; }
             QProgressBar::chunk { background-color: #10B981; border-radius: 8px; }
             """
         )
         goal_layout.addWidget(self.goal_bar)
 
         self.goal_status = QLabel("")
-        self.goal_status.setStyleSheet("color: #9CA3AF; font-size: 12px;")
+        self.goal_status.setStyleSheet("color: #9CA3AF; font-size: 13px;")
         goal_layout.addWidget(self.goal_status)
 
         self.layout_root.addWidget(self.goal_frame)
@@ -644,7 +644,7 @@ class DashboardWidget(QWidget):
         actions_layout.setSpacing(12)
 
         act_label = QLabel("⚡ Tezkor amallar:")
-        act_label.setStyleSheet("color: white; font-size: 13px; font-weight: 600;")
+        act_label.setStyleSheet("color: white; font-size: 15px; font-weight: 600;")
         actions_layout.addWidget(act_label)
 
         btn_practice = QPushButton("🚀 Mashqni boshlash (EN→UZ)")
@@ -695,14 +695,14 @@ class DashboardWidget(QWidget):
         df_layout.setSpacing(12)
 
         self.due_label = QLabel("🧠 Ebbinghaus/Anki takrorlash: Bugun takrorlash muddati kelgan so'zlar bor!")
-        self.due_label.setStyleSheet("color: #C7D2FE; font-size: 13px; font-weight: 600;")
+        self.due_label.setStyleSheet("color: #C7D2FE; font-size: 14px; font-weight: 600;")
         df_layout.addWidget(self.due_label, 1)
 
         self.btn_practice_due = QPushButton("🧠 Hozir takrorlash (SM-2)")
         self.btn_practice_due.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_practice_due.setStyleSheet(
             "QPushButton { background-color: #4F46E5; color: white; border: none; "
-            "border-radius: 6px; padding: 7px 16px; font-size: 12px; font-weight: 700; }"
+            "border-radius: 6px; padding: 7px 16px; font-size: 13px; font-weight: 700; }"
             "QPushButton:hover { background-color: #4338CA; }"
         )
         self.btn_practice_due.clicked.connect(self._practice_due_words)
@@ -721,14 +721,14 @@ class DashboardWidget(QWidget):
         wf_layout.setSpacing(12)
 
         self.weak_label = QLabel("⚠️ Diqqat: Sizda tez-tez xato qilinayotgan zaif so'zlar bor!")
-        self.weak_label.setStyleSheet("color: #FCA5A5; font-size: 13px; font-weight: 600;")
+        self.weak_label.setStyleSheet("color: #FCA5A5; font-size: 14px; font-weight: 600;")
         wf_layout.addWidget(self.weak_label, 1)
 
         self.btn_practice_weak = QPushButton("⚠️ Zaif so'zlarni mashq qilish")
         self.btn_practice_weak.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_practice_weak.setStyleSheet(
             "QPushButton { background-color: #DC2626; color: white; border: none; "
-            "border-radius: 6px; padding: 7px 16px; font-size: 12px; font-weight: 700; }"
+            "border-radius: 6px; padding: 7px 16px; font-size: 13px; font-weight: 700; }"
             "QPushButton:hover { background-color: #B91C1C; }"
         )
         self.btn_practice_weak.clicked.connect(self._practice_weak_words)
@@ -762,7 +762,7 @@ class DashboardWidget(QWidget):
 
         r_top = QHBoxLayout()
         self.radar_title = QLabel("🎯 Zaif So'zlar Radari (Eng ko'p xato qilinganlar)")
-        self.radar_title.setStyleSheet("color: white; font-size: 14px; font-weight: 700;")
+        self.radar_title.setStyleSheet("color: white; font-size: 16px; font-weight: 700;")
         r_top.addWidget(self.radar_title)
         r_top.addStretch()
 
@@ -794,9 +794,9 @@ class DashboardWidget(QWidget):
                 f"border: 1px solid {t.border}; border-left: 4px solid {acc}; }}"
             )
             if hasattr(card, "_val_label"):
-                card._val_label.setStyleSheet(f"color: {t.text_main}; font-size: 24px; font-weight: 700;")
+                card._val_label.setStyleSheet(f"color: {t.text_main}; font-size: 28px; font-weight: 700;")
             if hasattr(card, "_title_label"):
-                card._title_label.setStyleSheet(f"color: {t.text_muted}; font-size: 11px;")
+                card._title_label.setStyleSheet(f"color: {t.text_muted}; font-size: 13px; font-weight: 600;")
 
         if hasattr(self, "goal_frame"):
             self.goal_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
@@ -1006,7 +1006,7 @@ class DashboardWidget(QWidget):
                     lbl_wrong = QLabel(f"❌ {wr_cnt} ta xato")
                     lbl_wrong.setStyleSheet(
                         "background-color: #7F1D1D; color: #FCA5A5; border-radius: 4px; "
-                        "padding: 2px 8px; font-size: 11px; font-weight: 700;"
+                        "padding: 3px 8px; font-size: 12px; font-weight: 700;"
                     )
                     rf_lay.addWidget(lbl_wrong)
 
@@ -1014,10 +1014,11 @@ class DashboardWidget(QWidget):
                     btn_p.setCursor(Qt.CursorShape.PointingHandCursor)
                     btn_p.setStyleSheet(
                         f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 4px; "
-                        f"padding: 4px 12px; font-size: 11px; font-weight: 700; }}"
+                        f"padding: 4px 12px; font-size: 12px; font-weight: 700; }}"
                     )
                     btn_p.clicked.connect(lambda _, wid=w["id"]: self._practice_single_word(wid))
                     rf_lay.addWidget(btn_p)
+
 
                     self.radar_list_layout.addWidget(row_f)
             else:
@@ -1135,26 +1136,26 @@ class DashboardWidget(QWidget):
         top_row.setSpacing(8)
 
         lbl_eng = QLabel(item["english"])
-        lbl_eng.setStyleSheet(f"color: {t.text_main}; font-size: 15px; font-weight: 800;")
+        lbl_eng.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 800;")
         top_row.addWidget(lbl_eng)
 
         if item.get("phonetic"):
             lbl_ph = QLabel(item["phonetic"])
-            lbl_ph.setStyleSheet("color: #818CF8; font-size: 12px; font-weight: 500;")
+            lbl_ph.setStyleSheet("color: #818CF8; font-size: 13px; font-weight: 600;")
             top_row.addWidget(lbl_ph)
 
         if item.get("pos"):
             lbl_pos = QLabel(f"[{item['pos']}]")
             lbl_pos.setStyleSheet(
-                "background-color: #312E81; color: #C7D2FE; font-size: 10px; font-weight: 700; "
-                "border-radius: 4px; padding: 2px 5px;"
+                "background-color: #312E81; color: #C7D2FE; font-size: 12px; font-weight: 700; "
+                "border-radius: 4px; padding: 2px 6px;"
             )
             top_row.addWidget(lbl_pos)
 
         star_val = str(item.get("star", "0"))
         if star_val and star_val != "0":
             lbl_star = QLabel(f"★ {star_val}/3")
-            lbl_star.setStyleSheet("color: #F59E0B; font-size: 11px; font-weight: 700;")
+            lbl_star.setStyleSheet("color: #F59E0B; font-size: 12px; font-weight: 700;")
             top_row.addWidget(lbl_star)
 
         top_row.addStretch()
@@ -1164,13 +1165,13 @@ class DashboardWidget(QWidget):
             lbl_badge = QLabel(f"✨ Shaxsiy: Box {item.get('box_level', 0)}")
             lbl_badge.setStyleSheet(
                 "background-color: #064E3B; color: #34D399; border: 1px solid #059669; "
-                "border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700;"
+                "border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 700;"
             )
         else:
             lbl_badge = QLabel("🌐 64k Lug'at")
             lbl_badge.setStyleSheet(
                 "background-color: #1E1B4B; color: #A5B4FC; border: 1px solid #4338CA; "
-                "border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600;"
+                "border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 700;"
             )
         top_row.addWidget(lbl_badge)
         info_col.addLayout(top_row)
@@ -1180,7 +1181,7 @@ class DashboardWidget(QWidget):
         bottom_row.setSpacing(8)
 
         lbl_uz = QLabel(item.get("uzbek", ""))
-        lbl_uz.setStyleSheet("color: #10B981; font-size: 13px; font-weight: 700;")
+        lbl_uz.setStyleSheet("color: #10B981; font-size: 14px; font-weight: 700;")
         lbl_uz.setWordWrap(True)
         bottom_row.addWidget(lbl_uz, 1)
 
@@ -1188,7 +1189,7 @@ class DashboardWidget(QWidget):
 
         if item.get("example"):
             lbl_ex = QLabel(f"“{item['example']}”")
-            lbl_ex.setStyleSheet("color: #94A3B8; font-size: 11px; font-style: italic;")
+            lbl_ex.setStyleSheet("color: #94A3B8; font-size: 13px; font-style: italic;")
             lbl_ex.setWordWrap(True)
             info_col.addWidget(lbl_ex)
 
@@ -1204,7 +1205,7 @@ class DashboardWidget(QWidget):
             btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
             btn_add.setStyleSheet(
                 "QPushButton { background-color: #10B981; color: white; border: none; "
-                "border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 700; } "
+                "border-radius: 6px; padding: 6px 14px; font-size: 12.5px; font-weight: 700; } "
                 "QPushButton:hover { background-color: #059669; }"
             )
             btn_add.clicked.connect(
@@ -1218,7 +1219,7 @@ class DashboardWidget(QWidget):
         btn_details.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_details.setStyleSheet(
             f"QPushButton {{ background-color: #4338CA; color: white; border: none; "
-            f"border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 700; }} "
+            f"border-radius: 6px; padding: 6px 14px; font-size: 12.5px; font-weight: 700; }} "
             f"QPushButton:hover {{ background-color: #6366F1; }}"
         )
         btn_details.clicked.connect(lambda _, w=eng_text: self._open_word_details(w))
@@ -1241,14 +1242,15 @@ class DashboardWidget(QWidget):
             btn.setEnabled(False)
             btn.setStyleSheet(
                 "background-color: #064E3B; color: #34D399; border: 1px solid #059669; "
-                "border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 700;"
+                "border-radius: 6px; padding: 6px 14px; font-size: 12.5px; font-weight: 700;"
             )
             badge.setText("✨ Shaxsiy: Box 0")
             badge.setStyleSheet(
                 "background-color: #064E3B; color: #34D399; border: 1px solid #059669; "
-                "border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700;"
+                "border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 700;"
             )
             self.refresh()
+
 
     def _open_word_details(self, english: str):
         try:

@@ -62,8 +62,9 @@ class QuickCaptureDialog(QDialog):
         h_row.addStretch()
 
         badge = QLabel("Har doim ustida")
-        badge.setStyleSheet("background-color: #312E81; color: #A5B4FC; border-radius: 6px; padding: 2px 8px; font-size: 10px; font-weight: 600;")
+        badge.setStyleSheet("background-color: #312E81; color: #A5B4FC; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 600;")
         h_row.addWidget(badge)
+
         layout.addLayout(h_row)
 
         # 1. English Input + TTS Tugmasi

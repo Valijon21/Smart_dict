@@ -26,6 +26,12 @@ def main():
         app.setStyle("Fusion")
         app.setApplicationName("VocabMasterPro")
 
+        # Global standart shrift (Segoe UI 10pt - tiniq va o'qishga qulay)
+        from PyQt6.QtGui import QFont
+        default_font = QFont("Segoe UI", 10)
+        default_font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+        app.setFont(default_font)
+
         # 3. Yagona instansiya (Single Instance Guard) tekshiruvi
         from PyQt6.QtCore import QSharedMemory
         shared_mem = QSharedMemory("VocabMasterPro_SingleInstance_Key")

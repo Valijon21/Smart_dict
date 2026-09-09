@@ -215,8 +215,8 @@ class WordDetailsDialog(QDialog):
         btn_close = QPushButton("Yopish")
         btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_close.setStyleSheet(
-            f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; "
-            f"border-radius: 8px; padding: 9px 24px; font-size: 13px; font-weight: 600; }} "
+            f"QPushButton {{ background-color: {t.bg_card}; color: {t.primary_light}; border: 1px solid {t.border}; "
+            f"border-radius: 11px; padding: 4px 12px; font-size: 12px; font-weight: 700; }} "
             f"QPushButton:hover {{ background-color: {t.bg_card_secondary}; border-color: {t.primary}; }}"
         )
         btn_close.clicked.connect(self.accept)
@@ -505,7 +505,7 @@ class DictionaryWidget(QWidget):
 
         # Qator balandligi (Keng va qulay 48px)
         self.table.verticalHeader().setVisible(False)
-        self.table.verticalHeader().setDefaultSectionSize(48)
+        self.table.verticalHeader().setDefaultSectionSize(54)
 
         # Qator tanlash va ranglar
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -521,7 +521,7 @@ class DictionaryWidget(QWidget):
                 gridline-color: #232338;
                 border: 1px solid #232338;
                 border-radius: 12px;
-                font-size: 13px;
+                font-size: 14px;
                 selection-background-color: #262642;
                 selection-color: #FFFFFF;
                 outline: none;
@@ -538,7 +538,7 @@ class DictionaryWidget(QWidget):
             QHeaderView::section {
                 background-color: #1B1B2A;
                 color: #9CA3AF;
-                font-size: 12px;
+                font-size: 13px;
                 font-weight: 700;
                 padding: 10px 8px;
                 border: none;
@@ -600,9 +600,9 @@ class DictionaryWidget(QWidget):
                     gridline-color: {t.border};
                     border: 1px solid {t.border};
                     border-radius: 12px;
-                    font-size: 13px;
-                    selection-background-color: {t.bg_card};
-                    selection-color: #FFFFFF;
+                    font-size: 14px;
+                    selection-background-color: {t.bg_card_secondary};
+                    selection-color: {t.text_main};
                     outline: none;
                 }}
                 QTableWidget::item {{
@@ -617,7 +617,7 @@ class DictionaryWidget(QWidget):
                 QHeaderView::section {{
                     background-color: {t.bg_card};
                     color: {t.text_muted};
-                    font-size: 12px;
+                    font-size: 13px;
                     font-weight: 700;
                     padding: 10px 8px;
                     border: none;
@@ -706,7 +706,7 @@ class DictionaryWidget(QWidget):
             eng_box.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
 
             eng_label = QLabel(eng_word)
-            eng_label.setStyleSheet("color: #FFFFFF; font-size: 13px; font-weight: 700;")
+            eng_label.setStyleSheet("color: #FFFFFF; font-size: 15px; font-weight: 700;")
             eng_box.addWidget(eng_label)
 
             ph_info = phonetics.get_word_info(eng_word)
@@ -714,8 +714,8 @@ class DictionaryWidget(QWidget):
             pos_val = row["part_of_speech"] if "part_of_speech" in row.keys() and row["part_of_speech"] else ph_info["part_of_speech"]
 
             sub_lbl = QLabel(
-                f"<span style='color: #A5B4FC; font-size: 11px;'>{ph_val}</span>  "
-                f"<span style='background-color: #312E81; color: #C7D2FE; font-size: 10px; font-weight: 700; border-radius: 3px; padding: 1px 4px;'>[{pos_val}]</span>"
+                f"<span style='color: #A5B4FC; font-size: 12px; font-weight: 600;'>{ph_val}</span>  "
+                f"<span style='background-color: #312E81; color: #C7D2FE; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 6px;'>[{pos_val}]</span>"
             )
             eng_box.addWidget(sub_lbl)
             eng_lay.addLayout(eng_box)
@@ -731,13 +731,13 @@ class DictionaryWidget(QWidget):
             uz_lay.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
 
             uz_label = QLabel(row["uzbek"])
-            uz_label.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500;")
+            uz_label.setStyleSheet("color: #E5E7EB; font-size: 14.5px; font-weight: 600;")
             uz_lay.addWidget(uz_label)
 
             ex = row["example"] if "example" in row.keys() and row["example"] else ""
             if ex:
                 ex_label = QLabel(f"💡 {ex}")
-                ex_label.setStyleSheet("color: #818CF8; font-size: 11px; font-style: italic;")
+                ex_label.setStyleSheet("color: #818CF8; font-size: 13px; font-style: italic;")
                 uz_lay.addWidget(ex_label)
                 uz_cell.setToolTip(f"Misol: {ex}")
 

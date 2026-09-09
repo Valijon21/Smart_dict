@@ -154,6 +154,55 @@ def get_theme(theme_id: str) -> Theme:
     return _THEME_MAP.get(theme_id, THEMES[0])
 
 
+FONT_SCALE_OPTIONS = {
+    "normal": {"name": "Standart (14px)", "scale": 1.0, "base_px": 14, "base_pt": 10.0},
+    "large": {"name": "Katta (16px / Qulay)", "scale": 1.15, "base_px": 16, "base_pt": 11.5},
+    "xlarge": {"name": "Juda Katta (18px)", "scale": 1.3, "base_px": 18, "base_pt": 13.0},
+}
+
+_FONT_LISTENERS: list[Callable[[str], None]] = []
+
+
+def get_font_scale() -> str:
+    scale = db.get_setting("font_scale", "normal")
+    return scale if scale in FONT_SCALE_OPTIONS else "normal"
+
+
+def set_font_scale(scale_id: str):
+    if scale_id not in FONT_SCALE_OPTIONS:
+        scale_id = "normal"
+    db.set_setting("font_scale", scale_id)
+    logger.info(f"Yangi matn o'lchami o'rnatildi: {scale_id}")
+
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtGui import QFont
+    app = QApplication.instance()
+    if app:
+        opt = FONT_SCALE_OPTIONS[scale_id]
+        f = QFont("Segoe UI")
+        f.setPointSizeF(opt["base_pt"])
+        f.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+        app.setFont(f)
+
+    active_theme = get_active_theme()
+    for listener in _LISTENERS:
+        try:
+            listener(active_theme)
+        except Exception as e:
+            logger.error(f"Theme listener font yangilanishida xatolik: {e}")
+
+    for fl in _FONT_LISTENERS:
+        try:
+            fl(scale_id)
+        except Exception as e:
+            logger.error(f"Font listener xatoligi: {e}")
+
+
+def register_font_listener(callback: Callable[[str], None]):
+    if callback not in _FONT_LISTENERS:
+        _FONT_LISTENERS.append(callback)
+
+
 def get_active_theme() -> Theme:
     active_id = db.get_setting("app_theme", "midnight")
     return get_theme(active_id)
@@ -179,14 +228,20 @@ def register_listener(callback: Callable[[Theme], None]):
 
 
 def get_global_stylesheet(t: Theme) -> str:
-    """Ilova uchun to'liq global QSS dizayn uslublari."""
+    """Ilova uchun to'liq global QSS dizayn uslublari va tipografiya bazasi."""
+    scale_id = get_font_scale()
+    opt = FONT_SCALE_OPTIONS.get(scale_id, FONT_SCALE_OPTIONS["normal"])
+    base_px = opt["base_px"]
+    tip_px = max(12, base_px - 2)
+
     return f"""
     QMainWindow {{
         background-color: {t.bg_app};
     }}
     QWidget {{
         color: {t.text_main};
-        font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+        font-size: {base_px}px;
     }}
     QScrollBar:vertical {{
         border: none;
@@ -227,10 +282,11 @@ def get_global_stylesheet(t: Theme) -> str:
         color: {t.text_main};
         border: 1px solid {t.border};
         border-radius: 6px;
-        padding: 6px;
-        font-size: 12px;
+        padding: 6px 10px;
+        font-size: {tip_px}px;
     }}
     """
+
 
 
 # Reusable QSS Helpers (DRY & Clean Code)

@@ -38,7 +38,7 @@ class TopicCardWidget(QFrame):
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setObjectName("TopicCard")
-        self.setFixedHeight(194)
+        self.setFixedHeight(204)
 
         color = self.topic.get("color", "#6366F1")
         self.color = color
@@ -88,7 +88,7 @@ class TopicCardWidget(QFrame):
         self.count_badge = QLabel(f"{words_count} words")
         self.count_badge.setStyleSheet(
             f"background-color: {t.bg_app}; color: {t.text_muted}; border: 1px solid {t.border}; "
-            f"border-radius: 6px; padding: 4px 9px; font-size: 11px; font-weight: 700;"
+            f"border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 700;"
         )
         top_row.addWidget(self.count_badge)
         layout.addLayout(top_row)
@@ -98,13 +98,13 @@ class TopicCardWidget(QFrame):
         title_box.setSpacing(2)
 
         self.title_lbl = QLabel(self.topic.get("title", ""))
-        self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 14px; font-weight: 700;")
+        self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 700;")
         title_box.addWidget(self.title_lbl)
 
         uz_title = self.topic.get("title_uz", "")
         if uz_title:
             self.sub_title_lbl = QLabel(uz_title)
-            self.sub_title_lbl.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: 600;")
+            self.sub_title_lbl.setStyleSheet(f"color: {color}; font-size: 13px; font-weight: 600;")
             title_box.addWidget(self.sub_title_lbl)
         else:
             self.sub_title_lbl = None
@@ -115,7 +115,7 @@ class TopicCardWidget(QFrame):
         desc = self.topic.get("description", "")
         self.desc_lbl = QLabel(desc)
         self.desc_lbl.setWordWrap(True)
-        self.desc_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; line-height: 1.3;")
+        self.desc_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 12px; line-height: 1.35;")
         layout.addWidget(self.desc_lbl, 1)
 
         # Progress satri (foydalanuvchining shaxsiy o'rganish progressi)
@@ -132,7 +132,7 @@ class TopicCardWidget(QFrame):
         self.progress_row.addWidget(self.progress_bar, 1)
 
         self.progress_lbl = QLabel("0/0")
-        self.progress_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; font-weight: 600;")
+        self.progress_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 12px; font-weight: 700;")
         self.progress_row.addWidget(self.progress_lbl)
 
         layout.addLayout(self.progress_row)
@@ -150,17 +150,20 @@ class TopicCardWidget(QFrame):
             f"background-color: {t.bg_card_secondary}; }}"
         )
         self.setStyleSheet(self._default_style)
-        self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 14px; font-weight: 700;")
-        self.desc_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; line-height: 1.3;")
+        self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 700;")
+        if getattr(self, "sub_title_lbl", None):
+            self.sub_title_lbl.setStyleSheet(f"color: {self.color}; font-size: 13px; font-weight: 600;")
+        self.desc_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 12px; line-height: 1.35;")
         self.count_badge.setStyleSheet(
             f"background-color: {t.bg_app}; color: {t.text_muted}; border: 1px solid {t.border}; "
-            f"border-radius: 6px; padding: 4px 9px; font-size: 11px; font-weight: 700;"
+            f"border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 700;"
         )
         self.progress_bar.setStyleSheet(
             f"QProgressBar {{ background-color: {t.bg_app}; border: none; border-radius: 2px; }} "
             f"QProgressBar::chunk {{ background-color: {self.color}; border-radius: 2px; }}"
         )
-        self.progress_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; font-weight: 600;")
+        self.progress_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 12px; font-weight: 700;")
+
 
 
     def update_progress(self):
@@ -248,7 +251,7 @@ class TopicWordsWidget(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Mavzu nomi yoki so'zlarni qidiring (masalan: family, health, doctor)...")
         self.search_input.setStyleSheet(
-            f"QLineEdit {{ background: transparent; color: {t.text_main}; border: none; font-size: 13px; }}"
+            f"QLineEdit {{ background: transparent; color: {t.text_main}; border: none; font-size: 14px; }}"
         )
         self.search_input.textChanged.connect(self._filter_topics)
         s_lay.addWidget(self.search_input, 1)
@@ -256,9 +259,10 @@ class TopicWordsWidget(QWidget):
         self.stats_lbl = QLabel("36 ta mavzu • 901 ta so'z")
         self.stats_lbl.setStyleSheet(
             f"background-color: {t.bg_app}; color: #818CF8; border: 1px solid {t.border}; "
-            f"border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700;"
+            f"border-radius: 6px; padding: 4px 10px; font-size: 12.5px; font-weight: 700;"
         )
         s_lay.addWidget(self.stats_lbl)
+
 
         layout.addWidget(search_frame)
 
@@ -376,9 +380,9 @@ class TopicWordsWidget(QWidget):
         self.words_table.setHorizontalHeaderLabels([
             "Inglizcha (Talaffuz)", "O'zbekcha tarjima", "Misol gap", "Holat", "Amallar"
         ])
-        self.words_table.setColumnWidth(0, 190)
-        self.words_table.setColumnWidth(1, 220)
-        self.words_table.setColumnWidth(3, 130)
+        self.words_table.setColumnWidth(0, 220)
+        self.words_table.setColumnWidth(1, 240)
+        self.words_table.setColumnWidth(3, 140)
         self.words_table.setColumnWidth(4, 130)
 
         header = self.words_table.horizontalHeader()
@@ -389,7 +393,8 @@ class TopicWordsWidget(QWidget):
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
 
         self.words_table.verticalHeader().setVisible(False)
-        self.words_table.verticalHeader().setDefaultSectionSize(48)
+        self.words_table.verticalHeader().setDefaultSectionSize(54)
+
         self.words_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.words_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
 
@@ -463,14 +468,14 @@ class TopicWordsWidget(QWidget):
             lay_en.addWidget(btn_speak)
 
             col_en = QVBoxLayout()
-            col_en.setSpacing(1)
+            col_en.setSpacing(2)
             lbl_en = QLabel(eng)
-            lbl_en.setStyleSheet(f"color: {t.text_main}; font-size: 13px; font-weight: 700;")
+            lbl_en.setStyleSheet(f"color: {t.text_main}; font-size: 15px; font-weight: 700;")
             col_en.addWidget(lbl_en)
 
             ph = row.get("phonetic", "")
             pos = row.get("pos", "")
-            lbl_sub = QLabel(f"<span style='color: #A5B4FC; font-size: 11px;'>{ph}</span> <span style='color: #34D399; font-size: 10px;'>[{pos}]</span>")
+            lbl_sub = QLabel(f"<span style='color: #A5B4FC; font-size: 12px; font-weight: 600;'>{ph}</span> <span style='color: #34D399; font-size: 12px; font-weight: 700;'>[{pos}]</span>")
             col_en.addWidget(lbl_sub)
             lay_en.addLayout(col_en, 1)
 
@@ -482,7 +487,7 @@ class TopicWordsWidget(QWidget):
             lay_uz.setContentsMargins(8, 4, 8, 4)
             lay_uz.setAlignment(Qt.AlignmentFlag.AlignVCenter)
             lbl_uz = QLabel(row.get("uzbek", ""))
-            lbl_uz.setStyleSheet(f"color: {t.text_main}; font-size: 12px; font-weight: 500;")
+            lbl_uz.setStyleSheet(f"color: {t.text_main}; font-size: 14px; font-weight: 600;")
             lbl_uz.setWordWrap(True)
             lay_uz.addWidget(lbl_uz)
             self.words_table.setCellWidget(i, 1, cell_uz)
@@ -494,7 +499,7 @@ class TopicWordsWidget(QWidget):
             lay_ex.setAlignment(Qt.AlignmentFlag.AlignVCenter)
             ex = row.get("example", "")
             lbl_ex = QLabel(f"“{ex}”" if ex else "—")
-            lbl_ex.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; font-style: italic;")
+            lbl_ex.setStyleSheet(f"color: {t.text_muted}; font-size: 13px; font-style: italic;")
             lbl_ex.setWordWrap(True)
             lay_ex.addWidget(lbl_ex)
             self.words_table.setCellWidget(i, 2, cell_ex)
@@ -505,17 +510,18 @@ class TopicWordsWidget(QWidget):
                 b_lvl = row.get("box_level", 1)
                 lbl_st = QLabel(f"✅ Box {b_lvl}")
                 lbl_st.setStyleSheet(
-                    "background-color: #064E3B; color: #6EE7B7; font-size: 11px; font-weight: 700; "
+                    "background-color: #064E3B; color: #6EE7B7; font-size: 12px; font-weight: 700; "
                     "border-radius: 6px; padding: 4px 8px;"
                 )
             else:
                 lbl_st = QLabel("Mavjud emas")
                 lbl_st.setStyleSheet(
-                    f"background-color: {t.bg_app}; color: {t.text_muted}; font-size: 11px; "
+                    f"background-color: {t.bg_app}; color: {t.text_muted}; font-size: 12px; font-weight: 600; "
                     f"border-radius: 6px; padding: 4px 8px;"
                 )
             lbl_st.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.words_table.setCellWidget(i, 3, lbl_st)
+
 
             # 4: Actions (Smart Insights 💡 + Quick Add ➕)
             cell_act = QWidget()

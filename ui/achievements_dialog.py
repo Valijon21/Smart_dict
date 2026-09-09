@@ -152,14 +152,14 @@ class AchievementsDialog(QDialog):
         text_layout.addWidget(title)
 
         desc = QLabel(ach.get("description", ""))
-        desc.setStyleSheet("color: #9CA3AF; font-size: 11px;")
+        desc.setStyleSheet("color: #9CA3AF; font-size: 13px;")
         desc.setWordWrap(True)
         text_layout.addWidget(desc)
 
         # Progress / Status
         if is_unlocked:
             status_lbl = QLabel(f"✅ Bajarildi: {ach.get('unlocked_at')}")
-            status_lbl.setStyleSheet("color: #6EE7B7; font-size: 10px; font-weight: 600;")
+            status_lbl.setStyleSheet("color: #6EE7B7; font-size: 12px; font-weight: 600;")
             text_layout.addWidget(status_lbl)
         else:
             prog = ach.get("progress", 0)
@@ -169,8 +169,9 @@ class AchievementsDialog(QDialog):
             else:
                 p_text = "Hali ochilmagan"
             status_lbl = QLabel(p_text)
-            status_lbl.setStyleSheet("color: #6B7280; font-size: 10px;")
+            status_lbl.setStyleSheet("color: #9CA3AF; font-size: 12px;")
             text_layout.addWidget(status_lbl)
+
 
         card_layout.addLayout(text_layout, 1)
         return card

@@ -296,8 +296,8 @@ class ReaderWidget(QWidget):
 
         self.insp_pos_badge = QLabel("")
         self.insp_pos_badge.setStyleSheet(
-            "background-color: #312E81; color: #C7D2FE; font-size: 10px; font-weight: 700; "
-            "border-radius: 4px; padding: 1px 6px;"
+            "background-color: #312E81; color: #C7D2FE; font-size: 12px; font-weight: 700; "
+            "border-radius: 4px; padding: 2px 6px;"
         )
         insp_ph_layout.addWidget(self.insp_pos_badge)
         insp_ph_layout.addStretch()
