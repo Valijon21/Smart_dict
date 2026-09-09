@@ -1,6 +1,7 @@
 """
 Vocab Master Pro — Blitz Marafon (60 soniyalik Ekstremal Test).
 Vaqtga qarshi tezkor 4 variantli test, +2s vaqt bonusi va dinamik Combo ko'paytirgichlar.
+So'zlar takrorlanmasligi va xato qilingan so'zlarni to'g'ri topguncha qaytarish algoritmi bilan.
 """
 import random
 from PyQt6.QtWidgets import (
@@ -20,11 +21,11 @@ logger = get_logger("blitz_game")
 
 
 class BlitzSummaryDialog(QDialog):
-    """O'yin yakunlanganda chiqadigan natijalar oynasi."""
+    """O'yin yakunlanganda chiqadigan zamonaviy natijalar oynasi."""
     def __init__(self, parent, stats: dict, on_retry=None):
         super().__init__(parent)
         self.setWindowTitle("⚡ Blitz Marafon Yakunlandi!")
-        self.setFixedSize(420, 480)
+        self.setFixedSize(480, 560)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.stats = stats
@@ -34,53 +35,75 @@ class BlitzSummaryDialog(QDialog):
     def _build_ui(self):
         t = theme_manager.get_active_theme()
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(12, 12, 12, 12)
 
         card = QFrame()
+        card.setObjectName("blitz_modal_card")
         card.setStyleSheet(
-            f"QFrame {{ background-color: {t.bg_card}; border: 2px solid {t.primary}; border-radius: 20px; }}"
+            f"#blitz_modal_card {{"
+            f"  background-color: {t.bg_card};"
+            f"  border: 2px solid {t.primary};"
+            f"  border-radius: 24px;"
+            f"}}"
+            f"#blitz_modal_card QLabel {{"
+            f"  border: none;"
+            f"  background: transparent;"
+            f"}}"
         )
         c_layout = QVBoxLayout(card)
-        c_layout.setContentsMargins(28, 28, 28, 28)
+        c_layout.setContentsMargins(32, 28, 32, 28)
         c_layout.setSpacing(14)
         c_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         title = QLabel("⚡ MARAFON YAKUNI!")
-        title.setStyleSheet(f"color: {t.primary_light}; font-size: 22px; font-weight: 800;")
+        title.setStyleSheet(f"color: {t.primary_light}; font-size: 24px; font-weight: 800;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         c_layout.addWidget(title)
 
         if self.stats.get("is_new_best"):
             badge = QLabel("🏆 YANGI SHAXSIY REKORD!")
             badge.setStyleSheet(
-                "background-color: #78350F; color: #FDE68A; border: 1px solid #F59E0B; "
-                "border-radius: 8px; padding: 6px 14px; font-weight: 800; font-size: 13px;"
+                "background-color: #78350F; color: #FDE68A; border: 1.5px solid #F59E0B; "
+                "border-radius: 8px; padding: 6px 16px; font-weight: 800; font-size: 14px;"
             )
             badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
             c_layout.addWidget(badge)
 
         score_lbl = QLabel(f"{self.stats.get('score', 0)}")
-        score_lbl.setStyleSheet("color: white; font-size: 54px; font-weight: 900;")
+        score_lbl.setStyleSheet("color: white; font-size: 56px; font-weight: 900;")
         score_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         c_layout.addWidget(score_lbl)
 
         score_sub = QLabel("Umumiy to'plangan ball")
-        score_sub.setStyleSheet(f"color: {t.text_muted}; font-size: 12px;")
+        score_sub.setStyleSheet(f"color: {t.text_muted}; font-size: 13px; font-weight: 600;")
         score_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         c_layout.addWidget(score_sub)
 
         # Tafsilotlar paneli
         info_frame = QFrame()
-        info_frame.setStyleSheet(f"background-color: {t.bg_card_secondary}; border-radius: 10px;")
+        info_frame.setObjectName("blitz_info_frame")
+        info_frame.setStyleSheet(
+            f"#blitz_info_frame {{"
+            f"  background-color: {t.bg_card_secondary};"
+            f"  border: 1px solid {t.border};"
+            f"  border-radius: 12px;"
+            f"}}"
+            f"#blitz_info_frame QLabel {{"
+            f"  border: none;"
+            f"  background: transparent;"
+            f"}}"
+        )
         i_layout = QGridLayout(info_frame)
-        i_layout.setContentsMargins(14, 12, 14, 12)
+        i_layout.setContentsMargins(20, 16, 20, 16)
+        i_layout.setVerticalSpacing(10)
+        i_layout.setHorizontalSpacing(14)
 
-        def add_stat_row(row: int, title: str, val: str, val_color: str = "white"):
-            l1 = QLabel(title)
-            l1.setStyleSheet(f"color: {t.text_muted}; font-size: 12px;")
-            l2 = QLabel(val)
-            l2.setStyleSheet(f"color: {val_color}; font-size: 13px; font-weight: 700;")
-            l2.setAlignment(Qt.AlignmentFlag.AlignRight)
+        def add_stat_row(row: int, title_text: str, val_text: str, val_color: str = "white"):
+            l1 = QLabel(title_text)
+            l1.setStyleSheet(f"color: {t.text_muted}; font-size: 14px; font-weight: 600;")
+            l2 = QLabel(val_text)
+            l2.setStyleSheet(f"color: {val_color}; font-size: 15px; font-weight: 700;")
+            l2.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             i_layout.addWidget(l1, row, 0)
             i_layout.addWidget(l2, row, 1)
 
@@ -91,17 +114,18 @@ class BlitzSummaryDialog(QDialog):
         add_stat_row(4, "Eng yuqori rekord:", f"👑 {self.stats.get('best_score', 0)} ball", "#FBBF24")
 
         c_layout.addWidget(info_frame)
-        c_layout.addSpacing(6)
+        c_layout.addSpacing(10)
 
         # Tugmalar
         btn_box = QHBoxLayout()
-        btn_box.setSpacing(12)
+        btn_box.setSpacing(14)
 
         btn_retry = QPushButton("🔄 Qayta o'ynash")
         btn_retry.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_retry.setMinimumHeight(44)
         btn_retry.setStyleSheet(
             f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 8px; "
-            f"font-size: 13px; font-weight: 700; padding: 10px 18px; }}"
+            f"font-size: 14px; font-weight: 700; padding: 10px 22px; }}"
             f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
         )
         btn_retry.clicked.connect(self._on_retry)
@@ -109,9 +133,10 @@ class BlitzSummaryDialog(QDialog):
 
         btn_close = QPushButton("Chiqish")
         btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_close.setMinimumHeight(44)
         btn_close.setStyleSheet(
             f"QPushButton {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; "
-            f"border: 1px solid {t.border}; border-radius: 8px; font-size: 13px; padding: 10px 18px; }}"
+            f"border: 1px solid {t.border}; border-radius: 8px; font-size: 14px; font-weight: 600; padding: 10px 22px; }}"
             f"QPushButton:hover {{ background-color: {t.border}; }}"
         )
         btn_close.clicked.connect(self.accept)
@@ -131,6 +156,10 @@ class BlitzGameWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.words: list[dict] = []
+        self.active_queue: list[dict] = []
+        self.retry_queue: list[dict] = []
+        self.known_word_ids: set[int] = set()
+
         self.time_left: float = 60.0
         self.score: int = 0
         self.combo: int = 0
@@ -261,19 +290,31 @@ class BlitzGameWidget(QWidget):
             btn = QPushButton(f"{i+1}. —")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setMinimumHeight(64)
-            btn.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            btn.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
             btn.clicked.connect(lambda _, idx=i: self._on_option_clicked(idx))
             self.option_buttons.append(btn)
             self.options_grid.addWidget(btn, i // 2, i % 2)
 
         root.addLayout(self.options_grid)
 
-        # 5. Start / Boshqaruv tugmasi
+        # 5. Boshqaruv tugmalari (Start + O'yinni Yakunlash)
+        btn_action_row = QHBoxLayout()
+        btn_action_row.setSpacing(12)
+
         self.btn_start = QPushButton("🚀 MARAFONNI BOSHLASH")
         self.btn_start.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_start.setMinimumHeight(48)
+        self.btn_start.setMinimumHeight(50)
         self.btn_start.clicked.connect(self.start_game)
-        root.addWidget(self.btn_start)
+        btn_action_row.addWidget(self.btn_start, 3)
+
+        self.btn_finish = QPushButton("🏁 O'yinni yakunlash")
+        self.btn_finish.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_finish.setMinimumHeight(50)
+        self.btn_finish.setEnabled(False)
+        self.btn_finish.clicked.connect(self._finish_game)
+        btn_action_row.addWidget(self.btn_finish, 1)
+
+        root.addLayout(btn_action_row)
 
     def _setup_shortcuts(self):
         """Klaviatura 1, 2, 3, 4 tugmalari orqali chaqqon javob berish."""
@@ -295,6 +336,11 @@ class BlitzGameWidget(QWidget):
             self.word_display.setText("Kamida 4 ta so'z kerak!")
             return
 
+        self.active_queue = list(self.words)
+        random.shuffle(self.active_queue)
+        self.retry_queue = []
+        self.known_word_ids = set()
+
         self.time_left = 60.0
         self.score = 0
         self.combo = 0
@@ -305,6 +351,7 @@ class BlitzGameWidget(QWidget):
 
         self.btn_start.setEnabled(False)
         self.btn_start.setText("🔥 O'yin davom etmoqda...")
+        self.btn_finish.setEnabled(True)
         self.load_best_score()
         self._update_stats_display()
 
@@ -359,7 +406,19 @@ class BlitzGameWidget(QWidget):
         if not self.is_running or not self.words:
             return
 
-        self.current_question = random.choice(self.words)
+        # 1. Agar xato qilingan so'zlar navbatda bo'lsa, foydalanuvchi uni to'g'ri topmaguncha qaytarish
+        if self.retry_queue:
+            self.current_question = self.retry_queue.pop(0)
+        elif self.active_queue:
+            self.current_question = self.active_queue.pop(0)
+        else:
+            # Barcha yangi so'zlar berib bo'lingan bo'lsa, navbatni qayta yangilash
+            self.active_queue = [w for w in self.words if w.get("id") not in self.known_word_ids]
+            if not self.active_queue:
+                self.active_queue = list(self.words)
+            random.shuffle(self.active_queue)
+            self.current_question = self.active_queue.pop(0)
+
         eng = self.current_question.get("english", "")
         self.correct_option = self.current_question.get("uzbek", "")
         pho = self.current_question.get("phonetic", "")
@@ -398,6 +457,11 @@ class BlitzGameWidget(QWidget):
             self.combo += 1
             self.max_combo = max(self.max_combo, self.combo)
 
+            w_id = self.current_question.get("id")
+            if w_id:
+                self.known_word_ids.add(w_id)
+                db.record_answer(w_id, correct=True)
+
             # Vaqt bonusi +2 soniya
             self.time_left = min(120.0, self.time_left + 2.0)
 
@@ -415,7 +479,7 @@ class BlitzGameWidget(QWidget):
 
             btn.setStyleSheet(
                 "background-color: #065F46; color: white; border: 2px solid #10B981; "
-                "border-radius: 10px; font-weight: 800; font-size: 13px;"
+                "border-radius: 12px; font-weight: 800; font-size: 15px;"
             )
             if self.combo in (3, 6, 10):
                 sound_effects.play_combo(mult)
@@ -429,22 +493,31 @@ class BlitzGameWidget(QWidget):
             self.combo = 0
             self._update_stats_display()
 
+            w_id = self.current_question.get("id")
+            if w_id:
+                db.record_answer(w_id, correct=False)
+
+            # Adashgan so'zni qayta berish uchun retry_queue ga kiritish
+            if self.current_question not in self.retry_queue:
+                self.retry_queue.append(self.current_question)
+
             btn.setStyleSheet(
                 "background-color: #7F1D1D; color: white; border: 2px solid #EF4444; "
-                "border-radius: 10px; font-weight: 800; font-size: 13px;"
+                "border-radius: 12px; font-weight: 800; font-size: 15px;"
             )
             # To'g'ri variantni yashil qilib ko'rsatish
             for i, b in enumerate(self.option_buttons):
                 if self.options[i] == self.correct_option:
                     b.setStyleSheet(
                         "background-color: #065F46; color: white; border: 2px solid #10B981; "
-                        "border-radius: 10px; font-weight: 800; font-size: 13px;"
+                        "border-radius: 12px; font-weight: 800; font-size: 15px;"
                     )
 
             sound_effects.play_wrong()
             QTimer.singleShot(400, self._next_question)
 
     def _finish_game(self):
+        """O'yinni vaqt tugaganda yoki foydalanuvchi tugmani bosganda yakunlash."""
         self.is_running = False
         self.game_timer.stop()
 
@@ -453,6 +526,7 @@ class BlitzGameWidget(QWidget):
 
         self.btn_start.setEnabled(True)
         self.btn_start.setText("🚀 MARAFONNI QAYTA BOSHLASH")
+        self.btn_finish.setEnabled(False)
 
         # Natijalarni bazaga yozish
         res = db.record_blitz_score(self.score, self.correct_count, self.wrong_count)
@@ -479,7 +553,7 @@ class BlitzGameWidget(QWidget):
     def _set_button_default_style(self, btn: QPushButton, t: theme_manager.Theme):
         btn.setStyleSheet(
             f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1.5px solid {t.border}; "
-            f"border-radius: 10px; font-weight: 700; font-size: 13px; text-align: left; padding: 12px 18px; }}"
+            f"border-radius: 12px; font-weight: 700; font-size: 15px; text-align: left; padding: 12px 20px; }}"
             f"QPushButton:hover {{ background-color: {t.bg_card_secondary}; border-color: {t.primary}; }}"
         )
 
@@ -503,5 +577,11 @@ class BlitzGameWidget(QWidget):
             f"font-size: 15px; font-weight: 800; padding: 12px; }}"
             f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
             f"QPushButton:disabled {{ background-color: {t.bg_card_secondary}; color: {t.text_muted}; }}"
+        )
+        self.btn_finish.setStyleSheet(
+            f"QPushButton {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 1.5px solid {t.border}; "
+            f"border-radius: 10px; font-size: 14px; font-weight: 700; padding: 12px; }}"
+            f"QPushButton:hover {{ background-color: {t.border}; color: #EF4444; }}"
+            f"QPushButton:disabled {{ background-color: transparent; color: {t.text_muted}; border-color: transparent; }}"
         )
         self.load_best_score()

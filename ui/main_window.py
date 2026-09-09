@@ -437,4 +437,6 @@ class MainWindow(QMainWindow):
 
     def _on_settings_saved(self):
         self.dashboard.refresh()
+        if hasattr(self, "audio_player"):
+            self.audio_player.load_interval_from_settings()
         self.update_tray_tooltip()

@@ -2,6 +2,8 @@
 Vocab Master Pro — Word Match (Quizlet uslubidagi so'z juftlash mini-o'yini).
 Foydalanuvchi 6 ta inglizcha va ularning 6 ta o'zbekcha tarjimasini
 eng qisqa vaqt ichida to'g'ri juftlab chiqishi kerak.
+Bilgan so'zni qayta-qayta bermaslik, xato qilingan so'zni qayta berish
+va o'yinni istalgan payt yakunlash imkoniyati bilan.
 """
 import random
 import time
@@ -32,12 +34,12 @@ class MatchTile(QPushButton):
         self.is_selected = False
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumSize(130, 80)
+        self.setMinimumSize(140, 84)
         self.setSizePolicy(
             QPushButton().sizePolicy().horizontalPolicy().Expanding,
             QPushButton().sizePolicy().verticalPolicy().Expanding
         )
-        self.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
+        self.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
 
     def set_state(self, state: str, t: theme_manager.Theme = None):
         """Kartochka holati: 'default', 'selected', 'wrong', 'matched'."""
@@ -52,7 +54,7 @@ class MatchTile(QPushButton):
             self.setStyleSheet(
                 "QPushButton {"
                 "  background-color: #064E3B; color: #6EE7B7; border: 2px solid #10B981;"
-                "  border-radius: 12px; font-size: 13px; font-weight: 700;"
+                "  border-radius: 12px; font-size: 14px; font-weight: 700;"
                 "}"
             )
         elif state == "selected":
@@ -60,7 +62,7 @@ class MatchTile(QPushButton):
             self.setStyleSheet(
                 f"QPushButton {{"
                 f"  background-color: {t.primary}; color: #FFFFFF; border: 2px solid {t.primary_light};"
-                f"  border-radius: 12px; font-size: 13px; font-weight: 700;"
+                f"  border-radius: 12px; font-size: 14px; font-weight: 700;"
                 f"}}"
             )
         elif state == "wrong":
@@ -68,7 +70,7 @@ class MatchTile(QPushButton):
             self.setStyleSheet(
                 "QPushButton {"
                 "  background-color: #7F1D1D; color: #FCA5A5; border: 2px solid #EF4444;"
-                "  border-radius: 12px; font-size: 13px; font-weight: 700;"
+                "  border-radius: 12px; font-size: 14px; font-weight: 700;"
                 "}"
             )
         else:  # default
@@ -79,7 +81,7 @@ class MatchTile(QPushButton):
             self.setStyleSheet(
                 f"QPushButton {{"
                 f"  background-color: {t.bg_card}; color: {t.text_main}; border: 1.5px solid {t.border};"
-                f"  border-radius: 12px; font-size: 13px; font-weight: 600; padding: 10px;"
+                f"  border-radius: 12px; font-size: 14px; font-weight: 600; padding: 12px;"
                 f"}}"
                 f"QPushButton:hover {{"
                 f"  background-color: {t.bg_card_secondary}; border-color: {t.primary}; color: {t.primary_light};"
@@ -88,37 +90,39 @@ class MatchTile(QPushButton):
 
 
 class VictoryDialog(QDialog):
-    """G'alaba qozonilganda ko'rsatiladigan zamonaviy bayramona modal oyna."""
-    def __init__(self, parent, final_time: float, is_new_record: bool, xp_gained: int, total_xp: int, level_up: bool, new_level: str):
+    """G'alaba qozonilganda yoki o'yin yakunlanganda ko'rsatiladigan zamonaviy modal oyna."""
+    def __init__(self, parent, final_time: float, is_new_record: bool, xp_gained: int, total_xp: int, level_up: bool, new_level: str, custom_title: str = "Qoyilmaqom G'alaba!"):
         super().__init__(parent)
-        self.setWindowTitle("G'alaba! — Word Match")
-        self.setFixedWidth(420)
+        self.setWindowTitle("Natija — Word Match")
+        self.setFixedWidth(460)
         self.setModal(True)
+        self.setObjectName("matchVictoryDialog")
         t = theme_manager.get_active_theme()
 
         self.setStyleSheet(
-            f"QDialog {{ background-color: {t.bg_card}; border: 1.5px solid {t.border}; border-radius: 16px; }}"
+            f"#matchVictoryDialog {{ background-color: {t.bg_card}; border: 2px solid {t.primary}; border-radius: 20px; }}"
+            f"#matchVictoryDialog QLabel {{ border: none; background: transparent; }}"
         )
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setContentsMargins(32, 28, 32, 28)
         layout.setSpacing(16)
 
         # 1. Katta nishoncha
         icon_lbl = QLabel("🏆")
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_lbl.setStyleSheet("font-size: 46px;")
+        icon_lbl.setStyleSheet("font-size: 50px;")
         layout.addWidget(icon_lbl)
 
         # 2. Sarlavha
-        title = QLabel("Qoyilmaqom G'alaba!")
+        title = QLabel(custom_title)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet(f"color: {t.text_main}; font-size: 22px; font-weight: 800;")
         layout.addWidget(title)
 
         # 3. Natija vaqti
-        time_lbl = QLabel(f"⏱️ Vaqtingiz: <b>{final_time:.1f} soniya</b>")
+        time_lbl = QLabel(f"⏱️ Sarflangan vaqt: <b>{final_time:.1f} soniya</b>")
         time_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        time_lbl.setStyleSheet("color: #38BDF8; font-size: 16px;")
+        time_lbl.setStyleSheet("color: #38BDF8; font-size: 16px; font-weight: 600;")
         layout.addWidget(time_lbl)
 
         # 4. Rekord
@@ -127,35 +131,36 @@ class VictoryDialog(QDialog):
             rec_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
             rec_badge.setStyleSheet(
                 "background-color: #3D2908; color: #FBBF24; border: 1.5px solid #F59E0B; "
-                "border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;"
+                "border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 800;"
             )
             layout.addWidget(rec_badge)
 
         # 5. XP mukofoti
         xp_badge = QLabel(f"⭐ +{xp_gained} XP berildi! (Jami: {total_xp} XP)")
         xp_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        xp_badge.setStyleSheet("color: #A5B4FC; font-size: 13px; font-weight: 600;")
+        xp_badge.setStyleSheet("color: #A5B4FC; font-size: 14px; font-weight: 700;")
         layout.addWidget(xp_badge)
 
         # 6. Yangi daraja
         if level_up:
             lvl_lbl = QLabel(f"🎊 TABRIKLAYMIZ! Yangi daraja: {new_level}")
             lvl_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lvl_lbl.setStyleSheet("color: #34D399; font-size: 13px; font-weight: 700;")
+            lvl_lbl.setStyleSheet("color: #34D399; font-size: 14px; font-weight: 700;")
             layout.addWidget(lvl_lbl)
 
         layout.addSpacing(6)
 
         # 7. Tugmalar
         btn_box = QHBoxLayout()
-        btn_box.setSpacing(12)
+        btn_box.setSpacing(14)
 
         self.btn_again = QPushButton("🔄 Yana o'ynash (Enter)")
         self.btn_again.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_again.setDefault(True)
+        self.btn_again.setMinimumHeight(44)
         self.btn_again.setStyleSheet(
             f"QPushButton {{ background-color: {t.primary}; color: white; border: none; "
-            f"border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 700; }} "
+            f"border-radius: 8px; padding: 10px 22px; font-size: 14px; font-weight: 700; }} "
             f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
         )
         self.btn_again.clicked.connect(self.accept)
@@ -163,10 +168,11 @@ class VictoryDialog(QDialog):
 
         self.btn_close = QPushButton("Yopish")
         self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_close.setMinimumHeight(44)
         self.btn_close.setStyleSheet(
-            f"QPushButton {{ background-color: {t.bg_card_secondary}; color: {t.text_muted}; border: 1px solid {t.border}; "
-            f"border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 600; }} "
-            f"QPushButton:hover {{ background-color: {t.bg_app}; color: {t.text_main}; }}"
+            f"QPushButton {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 1px solid {t.border}; "
+            f"border-radius: 8px; padding: 10px 22px; font-size: 14px; font-weight: 600; }} "
+            f"QPushButton:hover {{ background-color: {t.bg_app}; color: white; }}"
         )
         self.btn_close.clicked.connect(self.reject)
         btn_box.addWidget(self.btn_close)
@@ -185,6 +191,10 @@ class MatchGameWidget(QWidget):
         self.matched_pairs = 0
         self.total_pairs = 6
         self.is_game_active = False
+
+        # So'z takrorlanishini nazorat qilish
+        self.used_word_ids: set[int] = set()
+        self.failed_word_ids: set[int] = set()
 
         self.start_timestamp = 0.0
         self.elapsed_seconds = 0.0
@@ -219,15 +229,15 @@ class MatchGameWidget(QWidget):
 
         header_row.addStretch()
 
+        self.btn_finish_game = QPushButton("🏁 O'yinni yakunlash")
+        self.btn_finish_game.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_finish_game.setMinimumHeight(40)
+        self.btn_finish_game.clicked.connect(self._finish_game_manually)
+        header_row.addWidget(self.btn_finish_game)
+
         self.btn_new_game = QPushButton("🔄 Yangi o'yin")
         self.btn_new_game.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_new_game.setStyleSheet(
-            "QPushButton {"
-            "  background-color: #4F46E5; color: white; border: none;"
-            "  border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: 600;"
-            "}"
-            "QPushButton:hover { background-color: #4338CA; }"
-        )
+        self.btn_new_game.setMinimumHeight(40)
         self.btn_new_game.clicked.connect(self.start_new_game)
         header_row.addWidget(self.btn_new_game)
 
@@ -328,6 +338,18 @@ class MatchGameWidget(QWidget):
             self.subtitle_label.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
         if hasattr(self, "stats_frame"):
             self.stats_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
+
+        self.btn_new_game.setStyleSheet(
+            f"QPushButton {{ background-color: {t.primary}; color: white; border: none;"
+            f"border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: 700; }}"
+            f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
+        )
+        self.btn_finish_game.setStyleSheet(
+            f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1.5px solid {t.border};"
+            f"border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: 700; }}"
+            f"QPushButton:hover {{ background-color: {t.bg_card_secondary}; border-color: #EF4444; color: #EF4444; }}"
+        )
+
         for tile in self.tiles:
             if not tile.is_matched and not tile.is_selected:
                 tile.set_state("default", t)
@@ -351,10 +373,10 @@ class MatchGameWidget(QWidget):
                 w.deleteLater()
         self.tiles = []
 
-        # Bazadan 6 ta so'z olish (avvalo o'rganilayotgan va takrorlash kerak bo'lganlar)
+        # Bazadan so'zlarni olish
         all_words = db.get_words_with_progress()
         if len(all_words) < 6:
-            all_words = db.get_words(limit=50)
+            all_words = db.get_words(limit=100)
 
         if len(all_words) < 2:
             no_words_lbl = QLabel(
@@ -366,11 +388,38 @@ class MatchGameWidget(QWidget):
             self.grid_layout.addWidget(no_words_lbl, 0, 0)
             return
 
-        sample_size = min(6, len(all_words))
+        # 1. Avvalo xato qilingan so'zlarni tanlash (topmaguncha beriladi)
+        failed_pool = [w for w in all_words if w["id"] in self.failed_word_ids]
+        # 2. Hali bu sessiyada chiqmagan yangi so'zlar
+        unused_pool = [w for w in all_words if w["id"] not in self.used_word_ids and w["id"] not in self.failed_word_ids]
+
+        if len(unused_pool) + len(failed_pool) < 6:
+            self.used_word_ids.clear()
+            unused_pool = [w for w in all_words if w["id"] not in self.failed_word_ids]
+
+        # Kerakli 6 ta so'zni yig'ish
+        selected_words = []
+        if failed_pool:
+            selected_words.extend(failed_pool[:6])
+
+        needed = min(6, len(all_words)) - len(selected_words)
+        if needed > 0 and unused_pool:
+            selected_words.extend(random.sample(unused_pool, min(needed, len(unused_pool))))
+
+        # Agar hali ham yetmasa, mavjud so'zlardan to'ldirish
+        if len(selected_words) < min(6, len(all_words)):
+            remaining = [w for w in all_words if w not in selected_words]
+            fill_count = min(6, len(all_words)) - len(selected_words)
+            if remaining:
+                selected_words.extend(random.sample(remaining, min(fill_count, len(remaining))))
+
+        # Ishlatilgan so'zlar to'plamiga qo'shish
+        for w in selected_words:
+            self.used_word_ids.add(w["id"])
+
+        sample_size = len(selected_words)
         self.total_pairs = sample_size
         self.pairs_display.setText(f"0 / {self.total_pairs}")
-
-        selected_words = random.sample(all_words, sample_size)
 
         cards_data: list[tuple[int, str, str]] = []
         for w in selected_words:
@@ -436,6 +485,10 @@ class MatchGameWidget(QWidget):
             self.matched_pairs += 1
             self.pairs_display.setText(f"{self.matched_pairs} / {self.total_pairs}")
 
+            # Agar bu so'z avval xato ro'yxatida bo'lsa, endi u o'rganildi deb hisoblanadi
+            if first.item_id in self.failed_word_ids:
+                self.failed_word_ids.remove(first.item_id)
+
             # Leitner / SM-2 progressiga to'g'ri deb qayd etish
             db.record_answer(first.item_id, correct=True)
 
@@ -450,6 +503,11 @@ class MatchGameWidget(QWidget):
             tile.set_state("wrong")
             sound_effects.play_wrong()
 
+            # Adashgan so'zlarni keyingi partiyada qayta berish uchun saqlab qolish
+            self.failed_word_ids.add(first.item_id)
+            self.failed_word_ids.add(tile.item_id)
+            db.record_answer(first.item_id, correct=False)
+
             # Kartochkalarni 450ms dan so'ng normal holatga qaytarish
             QTimer.singleShot(450, lambda: self._reset_wrong_tiles(first, tile))
 
@@ -462,6 +520,38 @@ class MatchGameWidget(QWidget):
                 t2.set_state("default", t)
         except RuntimeError:
             pass
+
+    def _finish_game_manually(self):
+        """Foydalanuvchi xohlagan paytda o'yinni yakunlashi uchun."""
+        if not self.is_game_active and self.matched_pairs == 0:
+            return
+
+        self.is_game_active = False
+        self.timer.stop()
+
+        final_time = round(self.elapsed_seconds, 1)
+        xp_to_award = max(5, self.matched_pairs * 5)
+        new_xp, level_up, new_level = gamification.award_xp(xp_to_award)
+        sound_effects.play_victory()
+
+        self.victory_banner.setVisible(True)
+        self.victory_banner_lbl.setText(
+            f"🏁 O'yin yakunlandi: {self.matched_pairs} / {self.total_pairs} juftlik topildi! Vaqt: {final_time:.1f}s  •  +{xp_to_award} XP"
+        )
+
+        parent_window = self.window() if self.window() else self
+        dlg = VictoryDialog(
+            parent_window,
+            final_time=final_time,
+            is_new_record=False,
+            xp_gained=xp_to_award,
+            total_xp=new_xp,
+            level_up=level_up,
+            new_level=new_level,
+            custom_title=f"O'yin Yakunlandi ({self.matched_pairs}/{self.total_pairs} juftlik)"
+        )
+        if dlg.exec():
+            self.start_new_game()
 
     def _handle_victory(self):
         """Barcha juftliklar topilganda g'alaba va mukofot."""
@@ -492,7 +582,7 @@ class MatchGameWidget(QWidget):
                 is_new_record = True
                 self.best_display.setText(f"{final_time:.1f} soniya 👑")
 
-            # Vidjetdagi g'alaba bannerini yoqish (hech qachon o'yin muzlab qolmasligi uchun)
+            # Vidjetdagi g'alaba bannerini yoqish
             self.victory_banner.setVisible(True)
             rec_txt = " (👑 Yangi shaxsiy rekord!)" if is_new_record else ""
             self.victory_banner_lbl.setText(

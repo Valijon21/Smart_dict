@@ -179,6 +179,7 @@ def init_db():
                 ("blitz_best_score", "0"),
                 ("periodic_reminder_enabled", "true"),
                 ("periodic_reminder_interval_min", "60"),
+                ("audio_player_interval_sec", "4.0"),
             ],
         )
         # Agar ilgari match_best_time '0' bo'lib qolgan bo'lsa, tozalaymiz

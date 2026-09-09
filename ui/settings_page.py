@@ -195,6 +195,30 @@ class SettingsWidget(QWidget):
         row_rate.addStretch()
         audio_layout.addLayout(row_rate)
 
+        row_audio_int = QHBoxLayout()
+        lbl_ai_title = QLabel("Audio pleyer oraliq kutish vaqti:")
+        lbl_ai_title.setStyleSheet("font-size: 13px; color: white;")
+        row_audio_int.addWidget(lbl_ai_title)
+
+        self.slider_audio_interval = QSlider(Qt.Orientation.Horizontal)
+        self.slider_audio_interval.setRange(10, 80)
+        self.slider_audio_interval.setValue(40)
+        self.slider_audio_interval.setStyleSheet(
+            """
+            QSlider::groove:horizontal { height: 6px; background: #2A2A3C; border-radius: 3px; }
+            QSlider::sub-page:horizontal { background: #4F46E5; border-radius: 3px; }
+            QSlider::handle:horizontal { background: white; width: 16px; margin: -5px 0; border-radius: 8px; }
+            """
+        )
+        self.slider_audio_interval.valueChanged.connect(self._on_audio_interval_change)
+        row_audio_int.addWidget(self.slider_audio_interval, 2)
+
+        self.lbl_audio_interval_val = QLabel("4.0 soniya")
+        self.lbl_audio_interval_val.setStyleSheet("color: #C4B5FD; font-weight: 600; min-width: 75px;")
+        row_audio_int.addWidget(self.lbl_audio_interval_val)
+        row_audio_int.addStretch()
+        audio_layout.addLayout(row_audio_int)
+
         layout.addWidget(card_audio)
 
         # 4. Baza va Zaxira kartasi
@@ -449,6 +473,14 @@ class SettingsWidget(QWidget):
         if not self._is_loading:
             db.set_setting("tts_rate", str(val))
 
+    def _on_audio_interval_change(self, val: int):
+        sec = val / 10.0
+        self.lbl_audio_interval_val.setText(f"{sec:.1f} soniya")
+        if not self._is_loading:
+            db.set_setting("audio_player_interval_sec", f"{sec:.1f}")
+            if self.on_settings_saved:
+                self.on_settings_saved()
+
     def _on_goal_changed(self):
         """Foydalanuvchi son yozganda yoki o'zgartirganda darhol avtomatik saqlash."""
         if self._is_loading:
@@ -576,6 +608,14 @@ class SettingsWidget(QWidget):
             self.lbl_rate_val.setText(str(rate))
             tts.set_rate(rate)
 
+            try:
+                audio_sec = float(db.get_setting("audio_player_interval_sec", "4.0") or "4.0")
+            except Exception:
+                audio_sec = 4.0
+            audio_sec = max(1.0, min(8.0, audio_sec))
+            self.slider_audio_interval.setValue(int(audio_sec * 10))
+            self.lbl_audio_interval_val.setText(f"{audio_sec:.1f} soniya")
+
             periodic_en = (db.get_setting("periodic_reminder_enabled", "true") == "true")
             self.chk_periodic_toast.setChecked(periodic_en)
 
@@ -599,6 +639,8 @@ class SettingsWidget(QWidget):
         db.set_setting("tts_autoplay", "true" if self.chk_autoplay.isChecked() else "false")
         db.set_setting("sound_effects_enabled", "true" if self.chk_sound_fx.isChecked() else "false")
         db.set_setting("tts_rate", str(self.slider_rate.value()))
+        audio_sec = self.slider_audio_interval.value() / 10.0
+        db.set_setting("audio_player_interval_sec", f"{audio_sec:.1f}")
         db.set_setting("periodic_reminder_enabled", "true" if self.chk_periodic_toast.isChecked() else "false")
         intervals = ["30", "60", "120", "180"]
         c_idx = max(0, min(self.combo_toast_interval.currentIndex(), len(intervals) - 1))
