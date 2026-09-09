@@ -425,14 +425,14 @@ class SettingsWidget(QWidget):
         # Sarlavha
         h_row = QHBoxLayout()
         name_lbl = QLabel(f"{t.icon} {t.name}")
-        name_lbl.setStyleSheet("color: white; font-size: 13px; font-weight: 700;")
+        name_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 13px; font-weight: 700;")
         h_row.addWidget(name_lbl)
         h_row.addStretch()
         card_layout.addLayout(h_row)
 
         # Tavsif
         desc = QLabel(t.description)
-        desc.setStyleSheet("color: #9CA3AF; font-size: 12px;")
+        desc.setStyleSheet(f"color: {t.text_muted}; font-size: 12px;")
         desc.setWordWrap(True)
         card_layout.addWidget(desc)
 

@@ -1,4 +1,5 @@
 import random
+import re
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QFrame, QGridLayout, QProgressBar
@@ -12,6 +13,7 @@ import sound_effects
 import gamification
 import theme_manager
 import phonetics
+import global_dict_service
 from logger import get_logger
 
 logger = get_logger("practice")
@@ -44,11 +46,12 @@ class PracticeWidget(QWidget):
         self.batch_total = 0
         self.consecutive_correct = 0
         self.is_checking = False
-        self.quiz_mode = "typing"  # "typing" | "choice" | "flashcard" | "listening" | "scramble"
+        self.quiz_mode = "typing"  # "typing" | "choice" | "flashcard" | "listening" | "scramble" | "cloze"
         self.current_options = []
         self.card_flipped = False
         self.scramble_tiles_data = []
         self.scramble_typed_chars = []
+        self.cloze_data: dict | None = None
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -91,11 +94,17 @@ class PracticeWidget(QWidget):
         self.mode_btn_scramble.setStyleSheet(self._mode_type_style(False))
         self.mode_btn_scramble.clicked.connect(lambda: self.set_quiz_mode("scramble"))
 
+        self.mode_btn_cloze = QPushButton("🧩 Bo'sh joy")
+        self.mode_btn_cloze.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.mode_btn_cloze.setStyleSheet(self._mode_type_style(False))
+        self.mode_btn_cloze.clicked.connect(lambda: self.set_quiz_mode("cloze"))
+
         top_header_row.addWidget(self.mode_btn_typing)
         top_header_row.addWidget(self.mode_btn_choice)
         top_header_row.addWidget(self.mode_btn_flashcard)
         top_header_row.addWidget(self.mode_btn_listening)
         top_header_row.addWidget(self.mode_btn_scramble)
+        top_header_row.addWidget(self.mode_btn_cloze)
         layout.addLayout(top_header_row)
 
         # --- 2. Yuqori statistika paneli (Chiplar va Progress bar) ---
@@ -416,6 +425,64 @@ class PracticeWidget(QWidget):
         self.scramble_container.setVisible(False)
         card_layout.addWidget(self.scramble_container)
 
+        # 5-usul: Gap ichida bo'sh joyni to'ldirish (Cloze / Sentence Completion)
+        self.cloze_container = QWidget()
+        cloze_layout = QVBoxLayout(self.cloze_container)
+        cloze_layout.setContentsMargins(0, 0, 0, 0)
+        cloze_layout.setSpacing(12)
+
+        self.cloze_sentence_frame = QFrame()
+        self.cloze_sentence_frame.setStyleSheet(
+            "background-color: #151521; border-radius: 12px; border: 1.5px solid #3730A3;"
+        )
+        cloze_sentence_layout = QVBoxLayout(self.cloze_sentence_frame)
+        cloze_sentence_layout.setContentsMargins(18, 16, 18, 16)
+        cloze_sentence_layout.setSpacing(8)
+
+        self.cloze_sentence_display = QLabel("")
+        self.cloze_sentence_display.setWordWrap(True)
+        self.cloze_sentence_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.cloze_sentence_display.setStyleSheet("font-size: 18px; color: #FFFFFF; font-weight: 500;")
+        cloze_sentence_layout.addWidget(self.cloze_sentence_display)
+
+        self.cloze_hint_lbl = QLabel("")
+        self.cloze_hint_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.cloze_hint_lbl.setStyleSheet("font-size: 13px; color: #A5B4FC; font-weight: 600;")
+        cloze_sentence_layout.addWidget(self.cloze_hint_lbl)
+        cloze_layout.addWidget(self.cloze_sentence_frame)
+
+        self.cloze_input = QLineEdit()
+        self.cloze_input.setPlaceholderText("Bo'sh joydagi so'zni yozing va Enter bosing...")
+        self.cloze_input.setStyleSheet(
+            "QLineEdit { background-color: #151521; color: white; border: 2px solid #2A2A3C;"
+            "border-radius: 10px; padding: 14px 16px; font-size: 16px; }"
+            "QLineEdit:focus { border: 2px solid #6366F1; background-color: #1A1A2A; }"
+        )
+        self.cloze_input.returnPressed.connect(self.check_answer)
+        cloze_layout.addWidget(self.cloze_input)
+
+        cloze_actions_row = QHBoxLayout()
+        cloze_actions_row.setSpacing(10)
+
+        self.cloze_hint_btn = QPushButton("💡 1-harfni ko'rsatish")
+        self.cloze_hint_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.cloze_hint_btn.setStyleSheet(
+            "QPushButton { background-color: #2E2E3E; color: #FCD34D; border: 1px solid #D97706; "
+            "border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600; }"
+            "QPushButton:hover { background-color: #78350F; color: white; }"
+        )
+        self.cloze_hint_btn.clicked.connect(self._cloze_show_first_letter)
+        cloze_actions_row.addWidget(self.cloze_hint_btn)
+
+        cloze_hint_info = QLabel("Maslahat: Enter ↵ — Tekshirish  |  Space — Talaffuz")
+        cloze_hint_info.setStyleSheet("color: #6B7280; font-size: 12px;")
+        cloze_actions_row.addWidget(cloze_hint_info)
+        cloze_actions_row.addStretch()
+
+        cloze_layout.addLayout(cloze_actions_row)
+        self.cloze_container.setVisible(False)
+        card_layout.addWidget(self.cloze_container)
+
         # Feedback (✅ To'g'ri / ❌ Xato)
         self.feedback_label = QLabel("")
         self.feedback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -495,6 +562,20 @@ class PracticeWidget(QWidget):
             self.mode_btn_flashcard.setStyleSheet(self._mode_type_style(self.quiz_mode == "flashcard"))
             self.mode_btn_listening.setStyleSheet(self._mode_type_style(self.quiz_mode == "listening"))
             self.mode_btn_scramble.setStyleSheet(self._mode_type_style(self.quiz_mode == "scramble"))
+            if hasattr(self, "mode_btn_cloze"):
+                self.mode_btn_cloze.setStyleSheet(self._mode_type_style(self.quiz_mode == "cloze"))
+        if hasattr(self, "cloze_sentence_frame"):
+            self.cloze_sentence_frame.setStyleSheet(
+                f"background-color: {t.bg_card_secondary}; border-radius: 12px; border: 1.5px solid {t.border};"
+            )
+        if hasattr(self, "cloze_input"):
+            self.cloze_input.setStyleSheet(
+                f"QLineEdit {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 2px solid {t.border}; "
+                f"border-radius: 10px; padding: 14px 16px; font-size: 16px; }} "
+                f"QLineEdit:focus {{ border: 2px solid {t.primary}; background-color: {t.bg_app}; }}"
+            )
+        if hasattr(self, "cloze_sentence_display"):
+            self.cloze_sentence_display.setStyleSheet(f"font-size: 18px; color: {t.text_main}; font-weight: 500;")
         if hasattr(self, "choice_buttons") and getattr(self, "quiz_mode", "") == "choice" and not getattr(self, "is_checking", False):
             for btn in self.choice_buttons:
                 btn.setStyleSheet(self._choice_btn_style("normal"))
@@ -538,13 +619,17 @@ class PracticeWidget(QWidget):
         self.mode_btn_flashcard.setStyleSheet(self._mode_type_style(mode == "flashcard"))
         self.mode_btn_listening.setStyleSheet(self._mode_type_style(mode == "listening"))
         self.mode_btn_scramble.setStyleSheet(self._mode_type_style(mode == "scramble"))
+        if hasattr(self, "mode_btn_cloze"):
+            self.mode_btn_cloze.setStyleSheet(self._mode_type_style(mode == "cloze"))
 
         has_word = bool(self.queue or self.current)
         self.typing_container.setVisible(mode in ("typing", "listening"))
-        self.submit_btn.setVisible(mode in ("typing", "listening", "scramble") and has_word)
+        self.submit_btn.setVisible(mode in ("typing", "listening", "scramble", "cloze") and has_word)
         self.choice_container.setVisible(mode == "choice")
         self.flashcard_container.setVisible(mode == "flashcard")
         self.scramble_container.setVisible(mode == "scramble")
+        if hasattr(self, "cloze_container"):
+            self.cloze_container.setVisible(mode == "cloze")
 
         if self.current:
             self._render_current_mode()
@@ -643,6 +728,106 @@ class PracticeWidget(QWidget):
         slots_str = "  ".join(list(typed_str) + ["_"] * remaining_slots)
         self.scramble_answer_display.setText(slots_str)
 
+    def _prepare_cloze_data(self) -> dict | None:
+        """Hozirgi so'z uchun misol gapni topish va bo'sh joy qilib formatlash."""
+        if not self.current:
+            return None
+
+        eng = self.current["english"].strip()
+        uz = self.current["uzbek"].strip()
+        ex = self.current["example"] if "example" in self.current.keys() and self.current["example"] else ""
+        ex = ex.strip()
+
+        # Agar misol gap bo'lmasa yoki juda qisqa bo'lsa, global 64k lug'atdan qidiramiz
+        if not ex or len(ex) < 10:
+            try:
+                g_matches = global_dict_service.search_global_words(eng, limit=1)
+                if g_matches and g_matches[0].get("example"):
+                    cand = g_matches[0]["example"].strip()
+                    if cand.startswith("•") or cand.startswith(""):
+                        cand = cand[1:].strip()
+                    if len(cand) >= 10:
+                        ex = cand
+            except Exception as e:
+                logger.debug(f"Global misol qidirishda xatolik: {e}")
+
+        # Agar hali ham misol bo'lmasa, grammatik to'g'ri kontekstli shablon yaratamiz
+        if not ex or len(ex) < 8:
+            ex = f"It is very important to learn how to use '{eng}' in your daily English sentences."
+
+        # Gap ichidan target so'z yoki uning grammatik shakllarini qidiramiz
+        clean_eng = re.escape(eng)
+        stem = clean_eng
+        if len(eng) > 4 and eng.endswith("e"):
+            stem = re.escape(eng[:-1])
+        elif len(eng) > 4 and eng.endswith("y"):
+            stem = re.escape(eng[:-1])
+
+        pattern = re.compile(rf"\b({clean_eng}\w*|{stem}\w*)\b", re.IGNORECASE)
+        match = pattern.search(ex)
+
+        if match:
+            found_token = match.group(1)
+            start, end = match.span(1)
+            before = ex[:start]
+            after = ex[end:]
+            blank_html = "<span style='color: #38BDF8; font-weight: 800; background-color: rgba(56, 189, 248, 0.15); border-radius: 6px; padding: 2px 12px; border-bottom: 2px solid #38BDF8;'>&nbsp;[ &nbsp;______&nbsp; ]&nbsp;</span>"
+            masked_sentence = f"{before}{blank_html}{after}"
+            correct_tokens = [found_token.lower(), eng.lower()]
+        else:
+            found_token = eng
+            blank_html = "<span style='color: #38BDF8; font-weight: 800; background-color: rgba(56, 189, 248, 0.15); border-radius: 6px; padding: 2px 12px; border-bottom: 2px solid #38BDF8;'>&nbsp;[ &nbsp;______&nbsp; ]&nbsp;</span>"
+            masked_sentence = f"In English, the word {blank_html} translates to '{uz}'."
+            correct_tokens = [eng.lower()]
+
+        for alt in eng.split(","):
+            alt_clean = alt.strip().lower()
+            if alt_clean:
+                correct_tokens.append(alt_clean)
+
+        uz_first = uz.split(",")[0].strip()
+
+        return {
+            "sentence_masked": masked_sentence,
+            "original_sentence": ex,
+            "target_token": found_token,
+            "correct_tokens": list(dict.fromkeys(correct_tokens)),
+            "uzbek_hint": uz_first,
+        }
+
+    def _setup_cloze(self):
+        """Bo'sh joyni to'ldirish (Cloze) mashqini sozlash."""
+        self.cloze_data = self._prepare_cloze_data()
+        if not self.cloze_data:
+            return
+
+        self.cloze_sentence_display.setText(self.cloze_data["sentence_masked"])
+        tok_len = len(self.cloze_data["target_token"])
+        pos_val = self.current["part_of_speech"] if ("part_of_speech" in self.current.keys() and self.current["part_of_speech"]) else ""
+        pos_txt = f"[{pos_val}]" if pos_val else ""
+        self.cloze_hint_lbl.setText(
+            f"💡 Tarjima: \"{self.cloze_data['uzbek_hint']}\"  •  {pos_txt}  •  {tok_len} ta harf"
+        )
+        self.cloze_input.clear()
+        self.cloze_input.setPlaceholderText(f"Bo'sh joydagi so'zni yozing ({tok_len} ta harf)...")
+        self.cloze_input.setEnabled(True)
+        self.cloze_input.setFocus()
+        self.cloze_hint_btn.setEnabled(True)
+        self.cloze_hint_btn.setText("💡 1-harfni ko'rsatish")
+
+    def _cloze_show_first_letter(self):
+        """Cloze rejimida foydalanuvchiga yordam sifatida birinchi harfni ko'rsatish."""
+        if not hasattr(self, "cloze_data") or not self.cloze_data:
+            return
+        tok = self.cloze_data.get("target_token", "")
+        if tok:
+            first_c = tok[0].upper()
+            self.cloze_hint_btn.setText(f"💡 Bosh harfi: '{first_c}...'")
+            self.cloze_hint_btn.setEnabled(False)
+            if not self.cloze_input.text():
+                self.cloze_input.setText(first_c.lower())
+                self.cloze_input.setFocus()
+
     def check_pronunciation(self):
         """Hozirgi so'z uchun Windows Native talaffuzni sinash dialogini ochish."""
         if not self.current:
@@ -724,7 +909,11 @@ class PracticeWidget(QWidget):
                     if not tile["used"] and tile["char"].lower() == key_text:
                         self._scramble_click_tile(idx)
                         event.accept()
-                        return
+        if self.quiz_mode == "cloze" and not self.is_checking:
+            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                self.check_answer()
+                event.accept()
+                return
 
         super().keyPressEvent(event)
 
@@ -819,6 +1008,8 @@ class PracticeWidget(QWidget):
             self.choice_container.setVisible(False)
             self.flashcard_container.setVisible(False)
             self.scramble_container.setVisible(False)
+            if hasattr(self, "cloze_container"):
+                self.cloze_container.setVisible(False)
             self.example_card.setVisible(False)
             self.restart_btn.setVisible(total_words > 0 or bool(self.custom_word_ids))
 
@@ -844,10 +1035,12 @@ class PracticeWidget(QWidget):
 
         self.restart_btn.setVisible(False)
         self.typing_container.setVisible(self.quiz_mode in ("typing", "listening"))
-        self.submit_btn.setVisible(self.quiz_mode in ("typing", "listening", "scramble"))
+        self.submit_btn.setVisible(self.quiz_mode in ("typing", "listening", "scramble", "cloze"))
         self.choice_container.setVisible(self.quiz_mode == "choice")
         self.flashcard_container.setVisible(self.quiz_mode == "flashcard")
         self.scramble_container.setVisible(self.quiz_mode == "scramble")
+        if hasattr(self, "cloze_container"):
+            self.cloze_container.setVisible(self.quiz_mode == "cloze")
 
         self._render_current_mode()
 
@@ -905,6 +1098,13 @@ class PracticeWidget(QWidget):
             self.word_label.setStyleSheet("color: white; font-size: 36px; font-weight: 700;")
             self.word_info_badge.setText(f"⭐ Leitner Box {box}  •  {st_label}")
             self._setup_flashcard()
+
+        elif self.quiz_mode == "cloze":
+            self.word_label.setText("🧩 Gap ichidagi bo'sh joy")
+            self.word_label.setStyleSheet("color: #38BDF8; font-size: 30px; font-weight: 700;")
+            self.word_info_badge.setText(f"⭐ Leitner Box {box}  •  {st_label}")
+            self._setup_cloze()
+            self.submit_btn.setEnabled(True)
 
         else: # typing
             shown = self.current["english"] if self.direction == "en_uz" else self.current["uzbek"]
@@ -1048,6 +1248,10 @@ class PracticeWidget(QWidget):
             user_answer = "".join([x["char"] for x in self.scramble_typed_chars]).strip().lower()
             expected_display = self.current["english"]
             expected_options = [expected_display.strip().replace(" ", "").lower()]
+        elif self.quiz_mode == "cloze":
+            user_answer = self.cloze_input.text().strip().lower()
+            expected_display = self.cloze_data["target_token"] if hasattr(self, "cloze_data") and self.cloze_data else self.current["english"]
+            expected_options = self.cloze_data["correct_tokens"] if hasattr(self, "cloze_data") and self.cloze_data else [self.current["english"].lower()]
         elif self.quiz_mode == "listening":
             user_answer = self.answer_input.text().strip().lower()
             expected_display = self.current["english"]
@@ -1064,12 +1268,17 @@ class PracticeWidget(QWidget):
 
         self.is_checking = True
         self.answer_input.setEnabled(False)
+        if hasattr(self, "cloze_input"):
+            self.cloze_input.setEnabled(False)
+        if hasattr(self, "cloze_hint_btn"):
+            self.cloze_hint_btn.setEnabled(False)
         self.submit_btn.setEnabled(False)
 
         is_correct = user_answer in expected_options
         db.record_answer(self.current["id"], is_correct)
         self.phonetic_row_widget.setVisible(True)
-        self._show_example()
+        if self.quiz_mode != "cloze":
+            self._show_example()
         self._handle_answer_result(is_correct)
 
         if is_correct:
@@ -1078,7 +1287,14 @@ class PracticeWidget(QWidget):
             self.feedback_label.setStyleSheet("color: #10B981; font-size: 16px; font-weight: 700;")
             if self.quiz_mode in ("listening", "scramble"):
                 self.word_label.setText(f"✅ {self.current['english']}")
-            QTimer.singleShot(1200, self.next_word)
+            elif self.quiz_mode == "cloze" and hasattr(self, "cloze_data") and self.cloze_data:
+                orig = self.cloze_data["original_sentence"]
+                tok = self.cloze_data["target_token"]
+                highlighted = re.sub(rf"\b{re.escape(tok)}\b", f"<span style='color: #10B981; font-weight: 800; text-decoration: underline;'>{tok}</span>", orig, flags=re.IGNORECASE)
+                self.cloze_sentence_display.setText(highlighted)
+                self.word_label.setText(f"✅ {self.current['english']}")
+                self.play_audio()
+            QTimer.singleShot(1400, self.next_word)
         else:
             self.session_wrong += 1
             self.feedback_label.setText(f"❌ To'g'ri javob: {expected_display}")
@@ -1086,4 +1302,11 @@ class PracticeWidget(QWidget):
             if self.quiz_mode in ("listening", "scramble"):
                 self.word_label.setText(f"❌ {self.current['english']}")
                 self.play_audio()
-            QTimer.singleShot(2500, self.next_word)
+            elif self.quiz_mode == "cloze" and hasattr(self, "cloze_data") and self.cloze_data:
+                orig = self.cloze_data["original_sentence"]
+                tok = self.cloze_data["target_token"]
+                highlighted = re.sub(rf"\b{re.escape(tok)}\b", f"<span style='color: #10B981; font-weight: 800; text-decoration: underline;'>{tok}</span>", orig, flags=re.IGNORECASE)
+                self.cloze_sentence_display.setText(highlighted)
+                self.word_label.setText(f"❌ {self.current['english']}")
+                self.play_audio()
+            QTimer.singleShot(2600, self.next_word)

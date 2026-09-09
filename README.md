@@ -44,12 +44,13 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 - ⚡ **Blitz Marathon:** 60 soniyali tezkor so'z marafoni. Ketma-ket to'g'ri javoblar uchun Combo Multiplier (x1.5, x2.0, x3.0), hayotlar soni va shaxsiy rekordlar jadvali.
 - 🧩 **Word Match Game:** 4x4 va 6x6 katakli so'z va tarjima juftliklarini topish o'yini. Interaktiv kartochkalar, yorqin vizual effektlar va g'alaba fanfarlari.
 
-### 4. ✍️ 5 Xil Maxsus Mashq Trenajyori
+### 4. ✍️ 6 Xil Maxsus Mashq Trenajyori
 1. **Yozma Mashq (Typing):** So'zning to'g'ri orfografiyasini klaviaturada terish orqali xotirada muhrlash.
 2. **4 Variantli Test (Multiple Choice):** Tezkor assotsiativ xotira va reflekslarni rivojlantirish.
 3. **Anki Uslubidagi Flashcard:** O'zini xolis baholash (*Qayta / Qiyin / Yaxshi / Oson*).
 4. **Eshitib Yozish (Listening Dictation):** Ovozli talaffuzni eshitib, so'zni to'g'ri yozish.
 5. **Harf Terish (Word Scramble):** Chalkash harflarni to'g'ri ketma-ketlikda yig'ish.
+6. **Bo'sh Joyni To'ldirish (Cloze / Sentence Completion):** Gap kontekstida yashirilgan so'zni topish (CEFR/IELTS uslubi, 1-harf maslahati bilan).
 
 ### 5. 📚 Aqlli Matn O'quvchi (Smart Reader)
 - A2, B1, B2 darajadagi badiiy va ilmiy hikoyalar yoki foydalanuvchining shaxsiy matnlari.
@@ -72,13 +73,15 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 - 5 ta unvon: *Boshlovchi (Novice) → O'quvchi (Apprentice) → Bilimdon (Scholar) → Poliglot (Polyglot) → So'z Ustasi (Word Master)*.
 - Maxsus nishonlar: Snayper, Tungi Boyqush, 7 Kunlik Olov, Lug'at Ustasi va boshqalar.
 
-### 9. 🎨 6 ta Yuqori Sifatli Rang Mavzulari (Theme Switcher)
+### 9. 🎨 8 ta Yuqori Sifatli Rang Mavzulari (Theme Switcher)
 - 🌌 **Midnight Indigo:** Chuqur tungi binafsha-moviy.
 - ⚡ **Cyberpunk Neon:** Futuristik elektrik neon va fuksiya.
 - 🌲 **Emerald Forest:** Sokin, ko'zni charchatmaydigan zumrad yashil.
 - 🌅 **Warm Sunset:** Issiq qahva, espresso va amber.
 - 🖤 **OLED Pure Black:** Mutlaq qora (#000000) batareya tejamkor fon.
 - 🌊 **Nordic Ocean:** Skandinaviya qutb dengizi moviyligi.
+- 🧛 **Dracula Crimson:** Klassik to'q binafsha va neon qirmizi.
+- ☀️ **Light Elegant:** Kunduzgi o'qish uchun toza oq va sokin kumush rejim.
 
 ### 10. ⚡ Stay-on-Top Tezkor So'z Qo'shish & Mini Vidjet
 - Brauzer yoki kitob o'qiyotganda `Ctrl+Shift+A` yoki `Ctrl+Shift+V` bosib, dasturga kirmasdan tezda yangi so'z saqlash.

@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QListWidgetItem, QLabel, QPushButton, QFrame, QWidget, QGraphicsDropShadowEffect
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QPoint
-from PyQt6.QtGui import QColor, QKeyEvent
+from PyQt6.QtGui import QColor, QKeyEvent, QGuiApplication
 
 import database as db
 import tts
@@ -131,7 +131,9 @@ class SpotlightSearchDialog(QDialog):
             Qt.WindowType.Dialog
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setFixedSize(680, 480)
+        self.resize(700, 520)
+        self.setMinimumSize(620, 440)
+        self.setMaximumSize(900, 720)
 
         self.current_results: list[dict] = []
         self.search_timer = QTimer(self)
@@ -143,17 +145,20 @@ class SpotlightSearchDialog(QDialog):
         self._center_on_screen()
 
     def _center_on_screen(self):
-        """Ekranning yuqori qismida zamonaviy markazlashtirish."""
-        if self.parent():
-            parent_geo = self.parent().geometry()
-            x = parent_geo.x() + (parent_geo.width() - self.width()) // 2
-            y = parent_geo.y() + max(40, (parent_geo.height() - self.height()) // 3)
-            self.move(x, y)
-        else:
-            screen = self.screen().geometry()
-            x = (screen.width() - self.width()) // 2
-            y = max(60, (screen.height() - self.height()) // 3)
-            self.move(x, y)
+        """Ekranning yuqori qismida zamonaviy va xavfsiz markazlashtirish."""
+        screen = None
+        if self.parent() and hasattr(self.parent(), "screen") and self.parent().screen():
+            screen = self.parent().screen()
+        if not screen:
+            screen = self.screen() or QGuiApplication.primaryScreen()
+
+        if screen:
+            avail = screen.availableGeometry()
+            w = max(self.minimumWidth(), min(self.width(), avail.width() - 40))
+            h = max(self.minimumHeight(), min(self.height(), avail.height() - 60))
+            x = avail.x() + max(0, (avail.width() - w) // 2)
+            y = avail.y() + max(30, (avail.height() - h) // 4)
+            self.setGeometry(x, y, w, h)
 
     def _build_ui(self):
         t = theme_manager.get_active_theme()
