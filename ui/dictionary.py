@@ -1,10 +1,10 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QDialog, QMessageBox,
-    QFileDialog, QFrame, QScrollArea
+    QFileDialog, QFrame, QScrollArea, QStyledItemDelegate, QStyle
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QCursor
+from PyQt6.QtCore import Qt, QTimer, QRect, QPoint, QPointF, QEvent
+from PyQt6.QtGui import QColor, QCursor, QPainter, QPen, QBrush, QFont
 
 import database as db
 import tts
@@ -17,6 +17,252 @@ from ui.word_packs_dialog import WordPacksDialog
 from ui.worksheet_generator import WorksheetGeneratorDialog
 
 logger = get_logger("dictionary")
+
+
+class EnglishCellDelegate(QStyledItemDelegate):
+    """
+    Inglizcha so'z, fonetika, so'z turkumi va audio tugmasini yuqori unumdorlikda chizuvchi delegat.
+    Hech qanday og'ir QWidget yoki QLayout yaratmaydi (60 FPS silliq aylanish).
+    """
+    def __init__(self, parent_widget):
+        super().__init__(parent_widget)
+        self.parent_widget = parent_widget
+
+    def _get_audio_rect(self, cell_rect: QRect) -> QRect:
+        return QRect(cell_rect.x() + 10, cell_rect.y() + (cell_rect.height() - 32) // 2, 34, 32)
+
+    def paint(self, painter: QPainter, option, index):
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, option.palette.highlight())
+
+        data = index.data(Qt.ItemDataRole.UserRole) or {}
+        word = data.get("english", "")
+        ph = data.get("phonetic", "")
+        pos = data.get("pos", "")
+
+        rect = option.rect
+
+        # 1. Karnay tugmasi (Audio icon container)
+        btn_rect = self._get_audio_rect(rect)
+        painter.setPen(QPen(QColor("#3730A3"), 1))
+        painter.setBrush(QBrush(QColor("#202038")))
+        painter.drawRoundedRect(btn_rect, 6, 6)
+
+        f_icon = QFont(option.font)
+        f_icon.setPointSize(12)
+        painter.setFont(f_icon)
+        painter.setPen(QColor("#818CF8"))
+        painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter, "🔊")
+
+        # 2. Inglizcha so'z
+        f_word = QFont(option.font)
+        f_word.setPointSize(11)
+        f_word.setBold(True)
+        painter.setFont(f_word)
+        painter.setPen(QColor("#FFFFFF"))
+        word_rect = QRect(rect.x() + 54, rect.y() + 6, max(10, rect.width() - 60), 20)
+        painter.drawText(word_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, word)
+
+        # 3. Fonetika va So'z turkumi
+        f_sub = QFont(option.font)
+        f_sub.setPointSize(9)
+        f_sub.setBold(False)
+        painter.setFont(f_sub)
+        sub_x = rect.x() + 54
+        sub_y = rect.y() + 27
+        if ph:
+            painter.setPen(QColor("#A5B4FC"))
+            painter.drawText(sub_x, sub_y + 14, ph)
+            fm = painter.fontMetrics()
+            sub_x += fm.horizontalAdvance(ph) + 8
+        if pos:
+            pos_text = f"[{pos}]"
+            fm = painter.fontMetrics()
+            pw = fm.horizontalAdvance(pos_text) + 8
+            pill = QRect(sub_x, sub_y + 1, pw, 18)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor("#312E81")))
+            painter.drawRoundedRect(pill, 4, 4)
+            painter.setPen(QColor("#C7D2FE"))
+            painter.drawText(pill, Qt.AlignmentFlag.AlignCenter, pos_text)
+
+        painter.restore()
+
+    def editorEvent(self, event, model, option, index):
+        if event.type() == QEvent.Type.MouseButtonRelease:
+            pos = event.position().toPoint()
+            audio_rect = self._get_audio_rect(option.rect)
+            data = index.data(Qt.ItemDataRole.UserRole) or {}
+            word = data.get("english", "")
+            if word and (audio_rect.contains(pos) or event.button() == Qt.MouseButton.LeftButton):
+                self.parent_widget.play_word_audio(word)
+                return True
+        return super().editorEvent(event, model, option, index)
+
+
+class UzbekCellDelegate(QStyledItemDelegate):
+    """
+    O'zbekcha tarjima va misol gapni chizuvchi yuqori unumdorlikdagi delegat.
+    """
+    def paint(self, painter: QPainter, option, index):
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, option.palette.highlight())
+
+        data = index.data(Qt.ItemDataRole.UserRole) or {}
+        uz_text = data.get("uzbek", "")
+        ex_text = data.get("example", "")
+
+        rect = option.rect.adjusted(12, 4, -12, -4)
+
+        if ex_text:
+            f1 = QFont(option.font)
+            f1.setPointSize(10)
+            f1.setBold(True)
+            painter.setFont(f1)
+            painter.setPen(QColor("#E5E7EB"))
+            top_rect = QRect(rect.x(), rect.y() + 2, rect.width(), 20)
+            painter.drawText(top_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, uz_text)
+
+            f2 = QFont(option.font)
+            f2.setPointSize(9)
+            f2.setItalic(True)
+            painter.setFont(f2)
+            painter.setPen(QColor("#818CF8"))
+            bot_rect = QRect(rect.x(), rect.y() + 24, rect.width(), 18)
+            elided_ex = painter.fontMetrics().elidedText(f"💡 {ex_text}", Qt.TextElideMode.ElideRight, rect.width())
+            painter.drawText(bot_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, elided_ex)
+        else:
+            f = QFont(option.font)
+            f.setPointSize(10)
+            f.setBold(True)
+            painter.setFont(f)
+            painter.setPen(QColor("#E5E7EB"))
+            painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, uz_text)
+
+        painter.restore()
+
+
+class PillBadgeDelegate(QStyledItemDelegate):
+    """
+    Leitner Box va Status chiplarini zamonaviy yumaloq pill shaklida chizuvchi delegat.
+    """
+    def paint(self, painter: QPainter, option, index):
+        data = index.data(Qt.ItemDataRole.UserRole)
+        if not data or not isinstance(data, dict):
+            super().paint(painter, option, index)
+            return
+
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, option.palette.highlight())
+
+        text = data.get("text", "")
+        bg = QColor(data.get("bg", "#1F2937"))
+        fg = QColor(data.get("fg", "#9CA3AF"))
+        border = QColor(data.get("border", "#374151"))
+
+        rect = option.rect
+        w = max(72, min(rect.width() - 16, len(text) * 8 + 24))
+        h = 24
+        x = rect.x() + (rect.width() - w) // 2
+        y = rect.y() + (rect.height() - h) // 2
+        pill_rect = QRect(x, y, w, h)
+
+        painter.setPen(QPen(border, 1))
+        painter.setBrush(QBrush(bg))
+        painter.drawRoundedRect(pill_rect, 11, 11)
+
+        f = QFont(option.font)
+        f.setPointSize(9)
+        f.setBold(True)
+        painter.setFont(f)
+        painter.setPen(fg)
+        painter.drawText(pill_rect, Qt.AlignmentFlag.AlignCenter, text)
+
+        painter.restore()
+
+
+class ActionsCellDelegate(QStyledItemDelegate):
+    """
+    Jadval amallari (💡 Smart Insights, ✏️ Tahrirlash, 🗑️ O'chirish) delegati.
+    Hech qanday QWidget yaratmasdan, bir zumda silliq 60 FPS da ishlaydi.
+    """
+    def __init__(self, parent_widget):
+        super().__init__(parent_widget)
+        self.parent_widget = parent_widget
+
+    def _get_button_rects(self, cell_rect: QRect):
+        btn_w, btn_h, spacing = 32, 30, 6
+        total_w = 3 * btn_w + 2 * spacing
+        sx = cell_rect.x() + (cell_rect.width() - total_w) // 2
+        sy = cell_rect.y() + (cell_rect.height() - btn_h) // 2
+        r1 = QRect(sx, sy, btn_w, btn_h)
+        r2 = QRect(sx + btn_w + spacing, sy, btn_w, btn_h)
+        r3 = QRect(sx + 2 * (btn_w + spacing), sy, btn_w, btn_h)
+        return r1, r2, r3
+
+    def paint(self, painter: QPainter, option, index):
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, option.palette.highlight())
+
+        r_info, r_edit, r_del = self._get_button_rects(option.rect)
+
+        # 1. Info btn (💡)
+        painter.setPen(QPen(QColor("#4D3D70"), 1))
+        painter.setBrush(QBrush(QColor("#262040")))
+        painter.drawRoundedRect(r_info, 6, 6)
+
+        # 2. Edit btn (✏️)
+        painter.setPen(QPen(QColor("#3F377A"), 1))
+        painter.setBrush(QBrush(QColor("#242044")))
+        painter.drawRoundedRect(r_edit, 6, 6)
+
+        # 3. Del btn (🗑️)
+        painter.setPen(QPen(QColor("#6B1D1D"), 1))
+        painter.setBrush(QBrush(QColor("#381A1A")))
+        painter.drawRoundedRect(r_del, 6, 6)
+
+        f = QFont(option.font)
+        f.setPointSize(11)
+        painter.setFont(f)
+
+        painter.drawText(r_info, Qt.AlignmentFlag.AlignCenter, "💡")
+        painter.drawText(r_edit, Qt.AlignmentFlag.AlignCenter, "✏️")
+        painter.drawText(r_del, Qt.AlignmentFlag.AlignCenter, "🗑️")
+
+        painter.restore()
+
+    def editorEvent(self, event, model, option, index):
+        if event.type() == QEvent.Type.MouseButtonRelease:
+            pos = event.position().toPoint()
+            r_info, r_edit, r_del = self._get_button_rects(option.rect)
+            data = index.data(Qt.ItemDataRole.UserRole) or {}
+            word_id = data.get("id")
+            english = data.get("english", "")
+            uzbek = data.get("uzbek", "")
+            example = data.get("example", "")
+
+            if r_info.contains(pos) and english:
+                self.parent_widget.open_word_details(english)
+                return True
+            elif r_edit.contains(pos) and word_id is not None:
+                self.parent_widget.edit_word(word_id, english, uzbek, example)
+                return True
+            elif r_del.contains(pos) and word_id is not None:
+                self.parent_widget.delete_word(word_id, english)
+                return True
+        return super().editorEvent(event, model, option, index)
 
 
 class WordDetailsDialog(QDialog):
@@ -380,7 +626,7 @@ class EditWordDialog(QDialog):
 
 
 def _make_badge(text: str, bg_color: str, text_color: str, border_color: str = None) -> QWidget:
-    """Jadval kataklari uchun professional yumaloq chip (badge) vidjeti."""
+    """Jadval kataklari uchun fallback chip vidjeti."""
     w = QWidget()
     lay = QHBoxLayout(w)
     lay.setContentsMargins(0, 0, 0, 0)
@@ -578,6 +824,12 @@ class DictionaryWidget(QWidget):
             }
             """
         )
+        self.table.setItemDelegateForColumn(1, EnglishCellDelegate(self))
+        self.table.setItemDelegateForColumn(2, UzbekCellDelegate(self))
+        self.table.setItemDelegateForColumn(3, PillBadgeDelegate(self))
+        self.table.setItemDelegateForColumn(4, PillBadgeDelegate(self))
+        self.table.setItemDelegateForColumn(5, ActionsCellDelegate(self))
+
         self.table.cellClicked.connect(self.on_cell_clicked)
         self.table.cellDoubleClicked.connect(self.on_cell_double_clicked)
         layout.addWidget(self.table)
@@ -597,7 +849,8 @@ class DictionaryWidget(QWidget):
 
         theme_manager.register_listener(self.apply_theme)
         self.apply_theme(theme_manager.get_active_theme())
-        self.load_words()
+        # Tezkor boshlanish: so'zlar jadvalini navbat orqali chaqirish (UI muzlamaydi)
+        QTimer.singleShot(0, self.load_words)
 
     def _filter_btn_style(self, active: bool) -> str:
         t = theme_manager.get_active_theme()
@@ -715,33 +968,8 @@ class DictionaryWidget(QWidget):
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(i, 0, id_item)
 
-            # 1: English (Karnay tugmasi va so'z)
-            eng_cell = QWidget()
-            eng_lay = QHBoxLayout(eng_cell)
-            eng_lay.setContentsMargins(10, 4, 10, 4)
-            eng_lay.setSpacing(10)
-
-            audio_btn = QPushButton("🔊")
-            audio_btn.setToolTip("Talaffuzni eshitish (Inglizcha)")
-            audio_btn.setFixedSize(34, 32)
-            audio_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            audio_btn.setStyleSheet(
-                "QPushButton { background-color: #202038; color: #818CF8; border: 1px solid #3730A3;"
-                "border-radius: 6px; font-size: 14px; }"
-                "QPushButton:hover { background-color: #4F46E5; color: white; border-color: #818CF8; }"
-            )
+            # 1: English (Karnay tugmasi, so'z, fonetika va part of speech)
             eng_word = row["english"]
-            audio_btn.clicked.connect(lambda checked, w=eng_word, b=audio_btn: self.play_word_audio(w, b))
-            eng_lay.addWidget(audio_btn)
-
-            eng_box = QVBoxLayout()
-            eng_box.setSpacing(1)
-            eng_box.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-
-            eng_label = QLabel(eng_word)
-            eng_label.setStyleSheet("color: #FFFFFF; font-size: 15px; font-weight: 700;")
-            eng_box.addWidget(eng_label)
-
             ph_val = row["phonetic"] if "phonetic" in row.keys() and row["phonetic"] else ""
             pos_val = row["part_of_speech"] if "part_of_speech" in row.keys() and row["part_of_speech"] else ""
             if not ph_val or not pos_val:
@@ -749,97 +977,66 @@ class DictionaryWidget(QWidget):
                 ph_val = ph_val or ph_info["phonetic"]
                 pos_val = pos_val or ph_info["part_of_speech"]
 
-            sub_lbl = QLabel(
-                f"<span style='color: #A5B4FC; font-size: 12px; font-weight: 600;'>{ph_val}</span>  "
-                f"<span style='background-color: #312E81; color: #C7D2FE; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 6px;'>[{pos_val}]</span>"
-            )
-            eng_box.addWidget(sub_lbl)
-            eng_lay.addLayout(eng_box)
-            eng_lay.addStretch()
-
-            self.table.setCellWidget(i, 1, eng_cell)
+            it1 = QTableWidgetItem()
+            it1.setData(Qt.ItemDataRole.UserRole, {
+                "english": eng_word,
+                "phonetic": ph_val,
+                "pos": pos_val
+            })
+            it1.setFlags(it1.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            it1.setToolTip("Bosilsa talaffuz qilinadi, ikki marta bosilsa batafsil ma'lumot")
+            self.table.setItem(i, 1, it1)
 
             # 2: Uzbek tarjimasi va misol gap
-            uz_cell = QWidget()
-            uz_lay = QVBoxLayout(uz_cell)
-            uz_lay.setContentsMargins(10, 4, 10, 4)
-            uz_lay.setSpacing(2)
-            uz_lay.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-
-            uz_label = QLabel(row["uzbek"])
-            uz_label.setStyleSheet("color: #E5E7EB; font-size: 14.5px; font-weight: 600;")
-            uz_lay.addWidget(uz_label)
-
             ex = row["example"] if "example" in row.keys() and row["example"] else ""
+            it2 = QTableWidgetItem()
+            it2.setData(Qt.ItemDataRole.UserRole, {
+                "uzbek": row["uzbek"],
+                "example": ex
+            })
             if ex:
-                ex_label = QLabel(f"💡 {ex}")
-                ex_label.setStyleSheet("color: #818CF8; font-size: 13px; font-style: italic;")
-                uz_lay.addWidget(ex_label)
-                uz_cell.setToolTip(f"Misol: {ex}")
-
-            self.table.setCellWidget(i, 2, uz_cell)
+                it2.setToolTip(f"Misol: {ex}")
+            it2.setFlags(it2.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.table.setItem(i, 2, it2)
 
             # 3: Leitner Box chipi
             box = row["box_level"] or 0
             b_text, b_bg, b_fg, b_border = box_badges.get(box, (f"Box {box}", "#1F2937", "#9CA3AF", "#374151"))
-            self.table.setCellWidget(i, 3, _make_badge(b_text, b_bg, b_fg, b_border))
+            it3 = QTableWidgetItem()
+            it3.setData(Qt.ItemDataRole.UserRole, {
+                "text": b_text,
+                "bg": b_bg,
+                "fg": b_fg,
+                "border": b_border
+            })
+            it3.setFlags(it3.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.table.setItem(i, 3, it3)
 
             # 4: Status chipi
             st = row["status"] or "new"
             s_text, s_bg, s_fg, s_border = status_badges.get(st, (st, "#1E293B", "#38BDF8", "#0284C7"))
-            self.table.setCellWidget(i, 4, _make_badge(s_text, s_bg, s_fg, s_border))
+            it4 = QTableWidgetItem()
+            it4.setData(Qt.ItemDataRole.UserRole, {
+                "text": s_text,
+                "bg": s_bg,
+                "fg": s_fg,
+                "border": s_border
+            })
+            it4.setFlags(it4.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.table.setItem(i, 4, it4)
 
-            # 5: Amallar (Smart Insights, Tahrirlash va O'chirish tugmalari markazda)
-            act_cell = QWidget()
-            act_lay = QHBoxLayout(act_cell)
-            act_lay.setContentsMargins(4, 4, 4, 4)
-            act_lay.setSpacing(6)
-            act_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            # 5: Amallar (Smart Insights 💡, Tahrirlash ✏️, O'chirish 🗑️)
+            it5 = QTableWidgetItem()
+            it5.setData(Qt.ItemDataRole.UserRole, {
+                "id": row["id"],
+                "english": eng_word,
+                "uzbek": row["uzbek"],
+                "example": ex
+            })
+            it5.setFlags(it5.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            it5.setToolTip("💡 Smart Insights | ✏️ Tahrirlash | 🗑️ O'chirish")
+            self.table.setItem(i, 5, it5)
 
-            info_btn = QPushButton("💡")
-            info_btn.setToolTip("Smart Insights: Kollokatsiyalar, farqlar va sinonimlar")
-            info_btn.setFixedSize(30, 30)
-            info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            info_btn.setStyleSheet(
-                "QPushButton { background-color: #262040; color: #F59E0B; border: 1px solid #4D3D70;"
-                "border-radius: 6px; font-size: 13px; }"
-                "QPushButton:hover { background-color: #D97706; color: white; border-color: #FBBF24; }"
-            )
-            eng_w = row["english"]
-            info_btn.clicked.connect(lambda checked, e=eng_w: self.open_word_details(e))
-
-            edit_btn = QPushButton("✏️")
-            edit_btn.setToolTip("So'zni tahrirlash")
-            edit_btn.setFixedSize(30, 30)
-            edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            edit_btn.setStyleSheet(
-                "QPushButton { background-color: #242044; color: #A5B4FC; border: 1px solid #3F377A;"
-                "border-radius: 6px; font-size: 13px; }"
-                "QPushButton:hover { background-color: #4F46E5; color: white; border-color: #818CF8; }"
-            )
-            ex_val = row["example"] if "example" in row.keys() and row["example"] else ""
-            edit_btn.clicked.connect(
-                lambda checked, w_id=row["id"], e=row["english"], u=row["uzbek"], ex=ex_val: self.edit_word(w_id, e, u, ex)
-            )
-
-            del_btn = QPushButton("🗑️")
-            del_btn.setToolTip("So'zni o'chirish")
-            del_btn.setFixedSize(30, 30)
-            del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            del_btn.setStyleSheet(
-                "QPushButton { background-color: #381A1A; color: #F87171; border: 1px solid #6B1D1D;"
-                "border-radius: 6px; font-size: 13px; }"
-                "QPushButton:hover { background-color: #DC2626; color: white; border-color: #EF4444; }"
-            )
-            del_btn.clicked.connect(
-                lambda checked, w_id=row["id"], e=row["english"]: self.delete_word(w_id, e)
-            )
-
-            act_lay.addWidget(info_btn)
-            act_lay.addWidget(edit_btn)
-            act_lay.addWidget(del_btn)
-
-            self.table.setCellWidget(i, 5, act_cell)
         self.table.setUpdatesEnabled(True)
 
         self.count_label.setText(f"Ko'rsatilmoqda: {len(rows)} ta so'z")

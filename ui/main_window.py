@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
 
         root.addWidget(self.sidebar)
 
-        # --- Content stack ---
+        # --- Content stack & Lazy Page Factory ---
         self.stack = QStackedWidget()
         self.dashboard = DashboardWidget(
             on_navigate=self.switch_page,
@@ -119,45 +119,54 @@ class MainWindow(QMainWindow):
             on_start_practice=self.start_custom_practice,
         )
         self.dictionary = DictionaryWidget(on_words_changed=self._on_words_changed)
-        self.topic_words = TopicWordsWidget(
-            self,
-            on_words_changed=self._on_words_changed,
-            on_start_practice=self.start_custom_practice,
-        )
-        self.reader_widget = ReaderWidget(
-            on_words_changed=self._on_words_changed,
-            on_start_practice=self.start_custom_practice,
-        )
-        self.practice_en_uz = PracticeWidget("en_uz", on_finish_refresh=self.dashboard.refresh)
-        self.practice_uz_en = PracticeWidget("uz_en", on_finish_refresh=self.dashboard.refresh)
-        self.import_widget = ImportWidget(
-            on_words_changed=self._on_words_changed,
-            on_start_practice=self.start_custom_practice,
-        )
-        self.match_game = MatchGameWidget(self)
-        self.blitz_game = BlitzGameWidget(self)
-        self.word_fall = WordFallGameWidget(self)
-        self.crossword = CrosswordGameWidget(self)
-        self.audio_player = AudioPlayerWidget(self)
-        self.settings_page = SettingsWidget(on_settings_saved=self._on_settings_saved)
+
+        self._key_to_attr = {
+            "dashboard": "dashboard",
+            "dictionary": "dictionary",
+            "topic_words": "topic_words",
+            "reader": "reader_widget",
+            "en_uz": "practice_en_uz",
+            "uz_en": "practice_uz_en",
+            "import": "import_widget",
+            "match": "match_game",
+            "blitz": "blitz_game",
+            "word_fall": "word_fall",
+            "crossword": "crossword",
+            "audio_player": "audio_player",
+            "settings": "settings_page",
+        }
 
         self.pages = {
             "dashboard": self.dashboard,
             "dictionary": self.dictionary,
-            "topic_words": self.topic_words,
-            "reader": self.reader_widget,
-            "match": self.match_game,
-            "blitz": self.blitz_game,
-            "word_fall": self.word_fall,
-            "crossword": self.crossword,
-            "audio_player": self.audio_player,
-            "en_uz": self.practice_en_uz,
-            "uz_en": self.practice_uz_en,
-            "import": self.import_widget,
-            "settings": self.settings_page,
         }
-        for page in self.pages.values():
-            self.stack.addWidget(page)
+        self.stack.addWidget(self.dashboard)
+        self.stack.addWidget(self.dictionary)
+
+        # Qolgan og'ir yoki kamroq ishlatiladigan sahifalar talab bo'yicha (lazy) ochiladi
+        self._page_factories = {
+            "topic_words": lambda: TopicWordsWidget(
+                self,
+                on_words_changed=self._on_words_changed,
+                on_start_practice=self.start_custom_practice,
+            ),
+            "reader": lambda: ReaderWidget(
+                on_words_changed=self._on_words_changed,
+                on_start_practice=self.start_custom_practice,
+            ),
+            "en_uz": lambda: PracticeWidget("en_uz", on_finish_refresh=self.dashboard.refresh),
+            "uz_en": lambda: PracticeWidget("uz_en", on_finish_refresh=self.dashboard.refresh),
+            "import": lambda: ImportWidget(
+                on_words_changed=self._on_words_changed,
+                on_start_practice=self.start_custom_practice,
+            ),
+            "match": lambda: MatchGameWidget(self),
+            "blitz": lambda: BlitzGameWidget(self),
+            "word_fall": lambda: WordFallGameWidget(self),
+            "crossword": lambda: CrosswordGameWidget(self),
+            "audio_player": lambda: AudioPlayerWidget(self),
+            "settings": lambda: SettingsWidget(on_settings_saved=self._on_settings_saved),
+        }
 
         root.addWidget(self.stack, 1)
         self.setCentralWidget(central)
@@ -193,6 +202,9 @@ class MainWindow(QMainWindow):
         # Global Clipboard avto-qidiruv monitoring (Ctrl+C popup)
         from clipboard_monitor import ClipboardMonitor
         self.clipboard_monitor = ClipboardMonitor(parent=self, on_words_changed=self._on_words_changed)
+
+        # Fondagi navbat: oyna ochilgach, ikkinchi darajali sahifalarni orqa fonda tayyorlash
+        QTimer.singleShot(700, lambda: self.get_or_create_page("topic_words"))
 
     def setup_tray(self):
         """Windows soat yonidagi System Tray ikonkasini sozlash."""
@@ -388,7 +400,9 @@ class MainWindow(QMainWindow):
 
     def start_custom_practice(self, word_ids: list[int], direction: str = "en_uz"):
         page_key = "en_uz" if direction == "en_uz" else "uz_en"
-        self.pages[page_key].set_custom_words(word_ids)
+        page = self.get_or_create_page(page_key)
+        if hasattr(page, "set_custom_words"):
+            page.set_custom_words(word_ids)
         self.switch_page(page_key)
 
     def _nav_style(self, active: bool) -> str:
@@ -434,7 +448,7 @@ class MainWindow(QMainWindow):
         for k, btn in self.nav_buttons.items():
             btn.setStyleSheet(self._nav_style(k == curr))
         for page in getattr(self, "pages", {}).values():
-            if hasattr(page, "apply_theme") and callable(page.apply_theme):
+            if page and hasattr(page, "apply_theme") and callable(page.apply_theme):
                 page.apply_theme(t)
 
     def update_tray_tooltip(self):
@@ -476,45 +490,79 @@ class MainWindow(QMainWindow):
                 2500
             )
 
+    def get_or_create_page(self, key: str):
+        """Sahifani birinchi marta so'ralganda tezkor va xavfsiz yaratish (Lazy loading)."""
+        if key in self.pages and self.pages[key] is not None:
+            return self.pages[key]
+        if key in self._page_factories:
+            page = self._page_factories[key]()
+            t = theme_manager.get_active_theme()
+            if hasattr(page, "apply_theme") and callable(page.apply_theme):
+                page.apply_theme(t)
+            self.stack.addWidget(page)
+            self.pages[key] = page
+            attr_name = self._key_to_attr.get(key, key)
+            setattr(self, attr_name, page)
+            return page
+        return None
+
+    def __getattr__(self, name: str):
+        # Sahifalarni tashqi murojaatlarda shaffof yuklash (masalan: win.word_fall, win.crossword)
+        mapping = {v: k for k, v in getattr(self, "_key_to_attr", {}).items()}
+        if name in mapping:
+            page = self.get_or_create_page(mapping[name])
+            if page is not None:
+                return page
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
     def switch_page(self, key: str):
         logger.debug(f"Sahifa almashtirildi: '{key}'")
         self.current_page_key = key
         for k, btn in self.nav_buttons.items():
             btn.setChecked(k == key)
             btn.setStyleSheet(self._nav_style(k == key))
+
+        page = self.get_or_create_page(key)
+        if not page:
+            return
+
         if key == "dashboard":
             self.dashboard.refresh()
         elif key == "dictionary":
             self.dictionary.load_words()
         elif key == "topic_words":
-            self.topic_words.back_to_grid()
+            page.back_to_grid()
         elif key == "reader":
-            self.reader_widget.refresh_reader()
+            page.refresh_reader()
         elif key == "blitz":
-            self.blitz_game.load_best_score()
+            page.load_best_score()
         elif key == "audio_player":
-            self.audio_player.load_words()
+            page.load_words()
         elif key == "settings":
-            self.settings_page.load_settings()
+            page.load_settings()
         elif key in ("en_uz", "uz_en"):
-            if not getattr(self.pages[key], "custom_word_ids", None):
-                self.pages[key].load_batch()
-        self.stack.setCurrentWidget(self.pages[key])
+            if not getattr(page, "custom_word_ids", None):
+                page.load_batch()
+
+        self.stack.setCurrentWidget(page)
         self.update_tray_tooltip()
 
     def _on_words_changed(self):
-        self.dashboard.refresh()
-        self.dictionary.load_words()
-        if hasattr(self, "topic_words"):
-            self.topic_words.back_to_grid()
-        if hasattr(self, "reader_widget"):
-            self.reader_widget.refresh_reader()
+        if hasattr(self, "dashboard") and self.dashboard:
+            self.dashboard.refresh()
+        if "dictionary" in self.pages and self.pages["dictionary"]:
+            self.pages["dictionary"].load_words()
+        if "topic_words" in self.pages and self.pages["topic_words"]:
+            self.pages["topic_words"].back_to_grid()
+        if "reader" in self.pages and self.pages["reader"]:
+            self.pages["reader"].refresh_reader()
         self.update_tray_tooltip()
 
     def _on_settings_saved(self):
-        self.dashboard.refresh()
-        if hasattr(self, "audio_player"):
-            self.audio_player.load_interval_from_settings()
+        if hasattr(self, "dashboard") and self.dashboard:
+            self.dashboard.refresh()
+        if "audio_player" in self.pages and self.pages["audio_player"]:
+            self.pages["audio_player"].load_interval_from_settings()
         if hasattr(self, "clipboard_monitor") and self.clipboard_monitor:
             self.clipboard_monitor.reload_settings()
         self.update_tray_tooltip()

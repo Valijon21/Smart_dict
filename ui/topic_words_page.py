@@ -24,13 +24,30 @@ logger = get_logger("topic_words_page")
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
+_TOPIC_PIXMAP_CACHE: dict[str, QPixmap] = {}
+
+
+def get_cached_topic_pixmap(img_path: Path, size: int = 54) -> QPixmap | None:
+    """Mavzu rasmlarini xotirada keshlab, diskdan qayta o'qish va masshtablash kechikishini bartaraf qiladi."""
+    path_key = f"{img_path}_{size}"
+    if path_key in _TOPIC_PIXMAP_CACHE:
+        return _TOPIC_PIXMAP_CACHE[path_key]
+    if img_path.exists():
+        pm = QPixmap(str(img_path)).scaled(
+            size, size,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        _TOPIC_PIXMAP_CACHE[path_key] = pm
+        return pm
+    return None
 
 
 class TopicCardWidget(QFrame):
     """36 ta mavzu uchun 4 ustunlik gridda joylashuvchi zamonaviy karta."""
     clicked = pyqtSignal(str)
 
-    def __init__(self, topic_data: dict, parent=None):
+    def __init__(self, topic_data: dict, initial_progress: tuple[int, int] | None = None, parent=None):
         super().__init__(parent)
         self.topic = topic_data
         self.topic_id = topic_data["id"]
@@ -66,13 +83,9 @@ class TopicCardWidget(QFrame):
         self.icon_badge = QLabel()
         self.icon_badge.setFixedSize(54, 54)
         self.icon_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        if img_path.exists():
-            pm = QPixmap(str(img_path)).scaled(
-                54, 54,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            self.icon_badge.setPixmap(pm)
+        cached_pm = get_cached_topic_pixmap(img_path, 54)
+        if cached_pm:
+            self.icon_badge.setPixmap(cached_pm)
             self.icon_badge.setStyleSheet("background: transparent; border: none;")
         else:
             self.icon_badge.setText(self.topic.get("emoji", "📚"))
@@ -137,7 +150,10 @@ class TopicCardWidget(QFrame):
 
         layout.addLayout(self.progress_row)
 
-        self.update_progress()
+        if initial_progress is not None:
+            self._set_progress_values(*initial_progress)
+        else:
+            self.update_progress()
 
     def apply_theme(self, t):
         """Mavzu ranglari o'zgarganda kartani yangilash."""
@@ -164,11 +180,7 @@ class TopicCardWidget(QFrame):
         )
         self.progress_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 12px; font-weight: 700;")
 
-
-
-    def update_progress(self):
-        """Foydalanuvchining ushbu mavzuni o'zlashtirish progressini yangilash."""
-        learned, total = topic_service.get_topic_progress(self.topic_id)
+    def _set_progress_values(self, learned: int, total: int):
         if total > 0:
             pct = int((learned / total) * 100)
             self.progress_bar.setValue(pct)
@@ -176,6 +188,11 @@ class TopicCardWidget(QFrame):
         else:
             self.progress_bar.setValue(0)
             self.progress_lbl.setText("0/0")
+
+    def update_progress(self):
+        """Foydalanuvchining ushbu mavzuni o'zlashtirish progressini yangilash."""
+        learned, total = topic_service.get_topic_progress(self.topic_id)
+        self._set_progress_values(learned, total)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -280,13 +297,15 @@ class TopicWordsWidget(QWidget):
         self.cards_grid.setContentsMargins(0, 6, 0, 6)
         self.cards_grid.setSpacing(14)
 
+        all_progress = topic_service.get_all_topics_progress()
         topics = topic_service.get_all_topics()
         cols_count = 4
 
         for idx, topic in enumerate(topics):
             row = idx // cols_count
             col = idx % cols_count
-            card = TopicCardWidget(topic)
+            prog = all_progress.get(topic["id"], (0, len(topic.get("words", []))))
+            card = TopicCardWidget(topic, initial_progress=prog)
             card.clicked.connect(self.open_topic_detail)
             self.cards_grid.addWidget(card, row, col)
             self.topic_cards.append(card)

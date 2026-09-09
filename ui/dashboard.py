@@ -1125,6 +1125,12 @@ class DashboardWidget(QWidget):
             self.on_start_practice(w_ids, direction="en_uz")
 
     def refresh(self):
+        import time
+        now = time.monotonic()
+        if now - getattr(self, "_last_refresh_time", 0) < 0.4:
+            return
+        self._last_refresh_time = now
+
         self._refreshing_goal = True
         try:
             self.goal_spin.setValue(db.get_daily_goal())
