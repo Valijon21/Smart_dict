@@ -39,9 +39,15 @@ def main():
             )
             sys.exit(0)
 
-        # 4. Ma'lumotlar bazasini initsializatsiya qilish
+        # 4. Ma'lumotlar bazasini initsializatsiya qilish va kunlik xavfsiz avto-zaxira
         db.init_db()
         app_log.info("Ma'lumotlar bazasi tayyorlandi.")
+        try:
+            bak_path = db.auto_backup_daily()
+            if bak_path:
+                app_log.info(f"Mahalliy kunlik xavfsiz zaxira tayyorlandi: {bak_path}")
+        except Exception as bak_err:
+            app_log.warning(f"Avto-zaxira olishda ogohlantirish: {bak_err}")
 
         # 5. Asosiy oyna
         window = MainWindow()

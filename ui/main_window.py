@@ -18,6 +18,10 @@ from ui.match_game import MatchGameWidget
 from ui.mini_widget import MiniWidget
 from ui.audio_player import AudioPlayerWidget
 from ui.blitz_game import BlitzGameWidget
+from ui.word_fall_game import WordFallGameWidget
+from ui.crossword_game import CrosswordGameWidget
+from ui.classroom_page import ClassroomPageWidget
+from ui.spotlight_search import SpotlightSearchDialog
 import database as db
 import theme_manager
 from logger import get_logger
@@ -31,9 +35,12 @@ NAV_ITEMS = [
     ("📚  Aqlli o'qish", "reader"),
     ("🎮  So'z juftlash", "match"),
     ("⚡  Blitz Marafon", "blitz"),
+    ("🌧️  Word Fall", "word_fall"),
+    ("🧩  Krossvord", "crossword"),
     ("🎧  Audio Pleyer", "audio_player"),
     ("🇬🇧→🇺🇿  EN → UZ mashq", "en_uz"),
     ("🇺🇿→🇬🇧  UZ → EN mashq", "uz_en"),
+    ("👨‍🏫  O'qituvchi", "classroom"),
     ("📥  So'z import qilish", "import"),
     ("⚙️  Sozlamalar", "settings"),
 ]
@@ -71,6 +78,13 @@ class MainWindow(QMainWindow):
 
         self.logo = QLabel("📚 Vocab Master Pro")
         self.side_layout.addWidget(self.logo)
+
+        # Spotlight tezkor universal qidiruv tugmasi
+        self.spotlight_btn = QPushButton("🔍 Qidiruv (Alt+Space)")
+        self.spotlight_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.spotlight_btn.setToolTip("Spotlight tezkor universal qidiruv (Alt + Space)")
+        self.spotlight_btn.clicked.connect(self.open_spotlight_search)
+        self.side_layout.addWidget(self.spotlight_btn)
 
         self.nav_buttons = {}
         for label, key in NAV_ITEMS:
@@ -117,7 +131,10 @@ class MainWindow(QMainWindow):
         )
         self.match_game = MatchGameWidget(self)
         self.blitz_game = BlitzGameWidget(self)
+        self.word_fall = WordFallGameWidget(self)
+        self.crossword = CrosswordGameWidget(self)
         self.audio_player = AudioPlayerWidget(self)
+        self.classroom = ClassroomPageWidget(self)
         self.settings_page = SettingsWidget(on_settings_saved=self._on_settings_saved)
 
         self.pages = {
@@ -126,9 +143,12 @@ class MainWindow(QMainWindow):
             "reader": self.reader_widget,
             "match": self.match_game,
             "blitz": self.blitz_game,
+            "word_fall": self.word_fall,
+            "crossword": self.crossword,
             "audio_player": self.audio_player,
             "en_uz": self.practice_en_uz,
             "uz_en": self.practice_uz_en,
+            "classroom": self.classroom,
             "import": self.import_widget,
             "settings": self.settings_page,
         }
@@ -141,6 +161,13 @@ class MainWindow(QMainWindow):
         theme_manager.register_listener(self.apply_theme)
         self.apply_theme(theme_manager.get_active_theme())
         self.switch_page("dashboard")
+
+        # Spotlight universal tezkor qidiruv (Alt+Space va Ctrl+Shift+F)
+        self.spotlight_dialog = None
+        self.sc_spotlight = QShortcut(QKeySequence("Alt+Space"), self)
+        self.sc_spotlight.activated.connect(self.open_spotlight_search)
+        self.sc_spotlight_f = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
+        self.sc_spotlight_f.activated.connect(self.open_spotlight_search)
 
         # Mini suzib yuruvchi vidjet (Ctrl+Shift+W)
         self.mini_widget = None
@@ -180,6 +207,10 @@ class MainWindow(QMainWindow):
         open_act.triggered.connect(self.restore_window)
         tray_menu.addAction(open_act)
 
+        spotlight_act = QAction("🔍 Tezkor Qidiruv (Alt+Space)", self)
+        spotlight_act.triggered.connect(self.open_spotlight_search)
+        tray_menu.addAction(spotlight_act)
+
         quick_act = QAction("⚡ Tezkor so'z qo'shish (Quick Add)", self)
         quick_act.triggered.connect(self.open_quick_capture)
         tray_menu.addAction(quick_act)
@@ -195,6 +226,18 @@ class MainWindow(QMainWindow):
         blitz_act = QAction("⚡ Blitz Marafon", self)
         blitz_act.triggered.connect(lambda: self._tray_navigate("blitz"))
         tray_menu.addAction(blitz_act)
+
+        word_fall_act = QAction("🌧️ Word Fall o'yini", self)
+        word_fall_act.triggered.connect(lambda: self._tray_navigate("word_fall"))
+        tray_menu.addAction(word_fall_act)
+
+        crossword_act = QAction("🧩 Krossvord o'yini", self)
+        crossword_act.triggered.connect(lambda: self._tray_navigate("crossword"))
+        tray_menu.addAction(crossword_act)
+
+        classroom_act = QAction("👨‍🏫 O'qituvchi rejimi", self)
+        classroom_act.triggered.connect(lambda: self._tray_navigate("classroom"))
+        tray_menu.addAction(classroom_act)
 
         audio_act = QAction("🎧 Audio Pleyer", self)
         audio_act.triggered.connect(lambda: self._tray_navigate("audio_player"))
@@ -370,6 +413,12 @@ class MainWindow(QMainWindow):
                 f"QMenu::item {{ padding: 6px 14px; border-radius: 6px; font-size: 12px; color: {t.text_main}; }} "
                 f"QMenu::item:selected {{ background-color: {t.primary}; color: white; }}"
             )
+        if hasattr(self, "spotlight_btn"):
+            self.spotlight_btn.setStyleSheet(
+                f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_main}; "
+                f"border: 1.5px solid {t.primary}; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600; text-align: left; }}"
+                f"QPushButton:hover {{ background-color: {t.primary}; color: white; }}"
+            )
         app = QApplication.instance()
         if app:
             app.setStyleSheet(theme_manager.get_global_stylesheet(t))
@@ -390,9 +439,24 @@ class MainWindow(QMainWindow):
             f"Vocab Master Pro\n🎯 Reja: {prog['practiced']}/{prog['goal']} ta\n🔥 Streak: {streak} kun | ⭐ {xp} XP"
         )
 
-    def open_quick_capture(self):
+    def open_quick_capture(self, prefill_text: str = ""):
         dlg = QuickCaptureDialog(self, on_word_added=self._on_quick_word_added)
+        if prefill_text and isinstance(prefill_text, str) and hasattr(dlg, "eng_input"):
+            dlg.eng_input.setText(prefill_text)
         dlg.exec()
+
+    def open_spotlight_search(self):
+        """Spotlight tezkor universal suzuvchi qidiruv panelini ochish."""
+        if self.spotlight_dialog is None:
+            self.spotlight_dialog = SpotlightSearchDialog(self)
+            self.spotlight_dialog.word_selected.connect(self._on_spotlight_word_selected)
+            self.spotlight_dialog.quick_add_requested.connect(self.open_quick_capture)
+        self.spotlight_dialog.show_spotlight()
+
+    def _on_spotlight_word_selected(self, word: dict):
+        self.switch_page("dictionary")
+        if hasattr(self.dictionary, "search_input"):
+            self.dictionary.search_input.setText(word.get("english", ""))
 
     def _on_quick_word_added(self, eng: str, uz: str):
         self._on_words_changed()

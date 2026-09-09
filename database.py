@@ -407,7 +407,7 @@ def get_words(limit: int = 50, order_by: str = "created_at DESC") -> list[sqlite
         return conn.execute(f"SELECT * FROM words ORDER BY {order_by} LIMIT ?", (limit,)).fetchall()
 
 
-def search_words(query: str = "", status_filter: str = "all", hard_only: bool = False) -> list[sqlite3.Row]:
+def search_words(query: str = "", status_filter: str = "all", hard_only: bool = False, limit: int | None = None) -> list[sqlite3.Row]:
     """So'zlarni qidirish va filtrlash."""
     clauses = []
     params = []
@@ -425,12 +425,14 @@ def search_words(query: str = "", status_filter: str = "all", hard_only: bool = 
         clauses.append("(p.wrong_count > p.correct_count OR p.wrong_count >= 2)")
 
     where_sql = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    limit_sql = f" LIMIT {int(limit)}" if limit else ""
     sql = f"""
         SELECT w.*, p.box_level, p.next_review, p.last_reviewed, p.correct_count, p.wrong_count
         FROM words w
         JOIN progress p ON p.word_id = w.id
         {where_sql}
         ORDER BY w.created_at DESC, w.id DESC
+        {limit_sql}
     """
     with get_conn() as conn:
         return conn.execute(sql, params).fetchall()
@@ -1197,5 +1199,144 @@ def record_blitz_score(score: int, correct: int, wrong: int) -> dict:
         "correct": correct,
         "wrong": wrong,
     }
+
+
+# ==============================================================================
+# XAVFSIZ MAHALLIY ZAXIRA TIZIMI (LOCAL ROLLING DATA VAULT)
+# Windows formatlanganda yoki nosozliklarda so'zlar 100% saqlanib qolishi uchun
+# ==============================================================================
+
+BACKUP_DIR = DB_PATH.parent / "backups"
+
+
+def get_backup_dir() -> Path:
+    """Zaxiralar papkasini qaytaradi va mavjud bo'lmasa yaratadi."""
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    return BACKUP_DIR
+
+
+def backup_database(target_path: str = None) -> bool:
+    """
+    Ma'lumotlar bazasini xavfsiz SQLite backup API orqali zaxiralaydi.
+    WAL rejimini tozalab, bazaning yaxlit nusxasini yaratadi.
+    """
+    try:
+        if target_path is None:
+            today_str = datetime.date.today().isoformat()
+            target_path = get_backup_dir() / f"vocab_backup_{today_str}.db"
+        else:
+            target_path = Path(target_path)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with get_conn() as conn:
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            dest_conn = sqlite3.connect(str(target_path))
+            try:
+                conn.backup(dest_conn)
+            finally:
+                dest_conn.close()
+
+        logger.info(f"Ma'lumotlar bazasi zaxirasi saqlandi: {target_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Baza zaxirasini olishda xatolik: {e}", exc_info=True)
+        return False
+
+
+def restore_database(source_path: str) -> bool:
+    """
+    Zaxira nusxasidan bazani xavfsiz qayta tiklaydi.
+    """
+    try:
+        src = Path(source_path)
+        if not src.exists() or src.stat().st_size == 0:
+            logger.error(f"Tiklash uchun fayl topilmadi yoki bo'sh: {source_path}")
+            return False
+
+        # Fayl butunligini tekshirish
+        test_conn = sqlite3.connect(str(src))
+        try:
+            cur = test_conn.cursor()
+            cur.execute("PRAGMA integrity_check")
+            res = cur.fetchone()
+            if not res or res[0] != "ok":
+                logger.error(f"Zaxira fayli shikastlangan (integrity check failed): {res}")
+                return False
+        finally:
+            test_conn.close()
+
+        # Favqulodda xavfsizlik nusxasi
+        emergency_bak = get_backup_dir() / "pre_restore_snapshot.db"
+        try:
+            if DB_PATH.exists():
+                shutil.copy2(DB_PATH, emergency_bak)
+        except Exception:
+            pass
+
+        # Eskirgan WAL/SHM fayllarini tozalash
+        for ext in (".db-wal", ".db-shm"):
+            f = DB_PATH.with_suffix(ext)
+            if f.exists():
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+
+        # Faylni nusxalash
+        shutil.copy2(src, DB_PATH)
+        logger.info(f"Baza zaxiradan to'liq tiklandi: {src} -> {DB_PATH}")
+        return True
+    except Exception as e:
+        logger.error(f"Bazani zaxiradan tiklashda xatolik: {e}", exc_info=True)
+        return False
+
+
+def auto_backup_daily(keep_days: int = 14) -> str:
+    """
+    Dastur ishga tushganda avtomatik kunlik zaxira yaratadi.
+    Eskirgan zaxiralarni avtomatik tozalab, disk hajmini tejaydi.
+    """
+    try:
+        b_dir = get_backup_dir()
+        today_str = datetime.date.today().isoformat()
+        today_file = b_dir / f"vocab_backup_{today_str}.db"
+
+        # Zaxira olish
+        backup_database(str(today_file))
+
+        # 14 kundan ortiq zaxiralarni tozalash
+        all_backups = sorted(b_dir.glob("vocab_backup_*.db"), key=lambda p: p.stat().st_mtime)
+        if len(all_backups) > keep_days:
+            for old_f in all_backups[:-keep_days]:
+                try:
+                    old_f.unlink()
+                    logger.info(f"Eski zaxira fayli o'chirildi: {old_f.name}")
+                except Exception:
+                    pass
+
+        return str(today_file)
+    except Exception as e:
+        logger.warning(f"Avtomatik kunlik zaxira olishda xatolik: {e}")
+        return ""
+
+
+def list_local_backups() -> list[dict]:
+    """Mavjud mahalliy zaxiralar ro'yxatini qaytaradi."""
+    result = []
+    try:
+        b_dir = get_backup_dir()
+        for f in sorted(b_dir.glob("*.db"), key=lambda p: p.stat().st_mtime, reverse=True):
+            size_kb = round(f.stat().st_size / 1024, 1)
+            mtime = datetime.datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            result.append({
+                "name": f.name,
+                "path": str(f.resolve()),
+                "size_kb": size_kb,
+                "modified": mtime,
+            })
+    except Exception as e:
+        logger.error(f"Zaxiralar ro'yxatini olishda xatolik: {e}")
+    return result
+
 
 

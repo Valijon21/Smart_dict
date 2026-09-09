@@ -35,6 +35,8 @@ venv.bak/
 *.db-journal
 VocabMaster/
 data/
+backups/
+*.wav
 
 # ------------------------------------------------------------------------------
 # PyInstaller / Executable Builds / Distribution

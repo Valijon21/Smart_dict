@@ -458,6 +458,78 @@ class TTSEngine:
             "status": "OK" if self._engine_type != "none" else "ERROR"
         }
 
+    def export_words_to_audio(
+        self,
+        words: list[dict],
+        output_filepath: str,
+        interval_sec: float = 3.0,
+        include_uzbek: bool = False,
+        include_example: bool = False,
+        progress_cb=None,
+        cancel_cb=None,
+    ) -> bool:
+        """So'zlar ro'yxatini to'g'ridan-to'g'ri .wav faylga yozish (SAPI SpFileStream orqali tez va oflayn)."""
+        import pythoncom
+        import win32com.client
+        from pathlib import Path
+
+        try:
+            pythoncom.CoInitialize()
+            Path(output_filepath).parent.mkdir(parents=True, exist_ok=True)
+
+            file_stream = win32com.client.Dispatch("SAPI.SpFileStream")
+            file_stream.Open(output_filepath, 3, False)
+
+            speaker = win32com.client.Dispatch("SAPI.SpVoice")
+            if self._sapi_speaker:
+                try:
+                    speaker.Voice = self._sapi_speaker.Voice
+                except Exception:
+                    pass
+            speaker.AudioOutputStream = file_stream
+            speaker.Rate = getattr(self._sapi_speaker, "Rate", 0) if self._sapi_speaker else 0
+
+            pause_msec = int(max(0.5, min(10.0, interval_sec)) * 1000)
+            total = len(words)
+
+            for idx, w in enumerate(words):
+                if cancel_cb and cancel_cb():
+                    file_stream.Close()
+                    return False
+
+                wd = dict(w) if not isinstance(w, dict) else w
+                eng = clean_english_for_tts(wd.get("english", ""))
+                if eng:
+                    speaker.Speak(eng, 0)
+                    speaker.Speak(f'<silence msec="{pause_msec}"/>', 0)
+
+                if include_uzbek:
+                    raw_uz = wd.get("uzbek", "")
+                    uz = raw_uz.split(",")[0].split(";")[0].strip() if raw_uz else ""
+                    if uz:
+                        speaker.Speak(uz, 0)
+                        speaker.Speak('<silence msec="1500"/>', 0)
+
+                if include_example:
+                    ex = wd.get("example", "").strip()
+                    if ex:
+                        speaker.Speak(ex, 0)
+                        speaker.Speak('<silence msec="2000"/>', 0)
+
+                if progress_cb:
+                    progress_cb(idx + 1, total)
+
+            try:
+                file_stream.Close()
+            except Exception:
+                pass
+
+            logger.info(f"So'zlar audiosi faylga muvaffaqiyatli eksport qilindi: {output_filepath}")
+            return True
+        except Exception as e:
+            logger.error(f"Audioni faylga eksport qilishda xatolik: {e}", exc_info=True)
+            return False
+
 
 # Global yagona instansiya
 _engine_instance = None
@@ -525,3 +597,25 @@ def get_diagnostics() -> dict:
     """TTS diagnostika ma'lumotlarini olish."""
     engine = _get_engine()
     return engine.get_diagnostics()
+
+
+def export_words_to_audio(
+    words: list[dict],
+    output_filepath: str,
+    interval_sec: float = 3.0,
+    include_uzbek: bool = False,
+    include_example: bool = False,
+    progress_cb=None,
+    cancel_cb=None,
+) -> bool:
+    """So'zlar ro'yxatini oflayn audio faylga (.wav) eksport qilish."""
+    return _get_engine().export_words_to_audio(
+        words=words,
+        output_filepath=output_filepath,
+        interval_sec=interval_sec,
+        include_uzbek=include_uzbek,
+        include_example=include_example,
+        progress_cb=progress_cb,
+        cancel_cb=cancel_cb,
+    )
+

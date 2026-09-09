@@ -222,6 +222,18 @@ class PracticeWidget(QWidget):
         self.audio_btn.clicked.connect(self.play_audio)
         word_row.addWidget(self.audio_btn)
 
+        self.mic_btn = QPushButton("🎙️")
+        self.mic_btn.setToolTip("O'z talaffuzingizni sinash va baholash")
+        self.mic_btn.setFixedSize(42, 42)
+        self.mic_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.mic_btn.setStyleSheet(
+            "QPushButton { background-color: #24243A; color: #F43F5E; border: 1px solid #881337; "
+            "border-radius: 21px; font-size: 18px; }"
+            "QPushButton:hover { background-color: #E11D48; color: white; border-color: #FB7185; }"
+        )
+        self.mic_btn.clicked.connect(self.check_pronunciation)
+        word_row.addWidget(self.mic_btn)
+
         card_layout.addLayout(word_row)
 
         # Fonetik transkripsiya (IPA) va So'z turkumi (POS) qatori
@@ -631,6 +643,13 @@ class PracticeWidget(QWidget):
         slots_str = "  ".join(list(typed_str) + ["_"] * remaining_slots)
         self.scramble_answer_display.setText(slots_str)
 
+    def check_pronunciation(self):
+        """Hozirgi so'z uchun Windows Native talaffuzni sinash dialogini ochish."""
+        if not self.current:
+            return
+        import speech_recognizer
+        speech_recognizer.open_pronunciation_dialog(self.current, parent=self)
+
     def play_audio(self):
         if not self.isVisible():
             return
@@ -792,6 +811,8 @@ class PracticeWidget(QWidget):
 
             self.word_info_badge.setText("")
             self.phonetic_row_widget.setVisible(False)
+            self.audio_btn.setVisible(False)
+            self.mic_btn.setVisible(False)
             self.answer_input.clear()
             self.answer_input.setEnabled(False)
             self.submit_btn.setVisible(False)
@@ -806,6 +827,8 @@ class PracticeWidget(QWidget):
             return
 
         self.current = self.queue.pop(0)
+        self.audio_btn.setVisible(True)
+        self.mic_btn.setVisible(True)
 
         remaining = len(self.queue) + 1
         done = self.batch_total - remaining

@@ -6,9 +6,13 @@ Ekrandagi so'z bilan ovozli talaffuz 100% sinxron ishlashi kafolatlangan.
 import time
 import random
 import threading
+import os
+import subprocess
+from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QComboBox, QSlider, QCheckBox
+    QFrame, QComboBox, QSlider, QCheckBox, QDialog, QFileDialog,
+    QProgressBar, QMessageBox, QLineEdit
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QRectF
 from PyQt6.QtGui import QPainter, QColor, QBrush, QPainterPath
@@ -273,8 +277,307 @@ class AudioWorkerThread(QThread):
                     else:
                         self.current_index += 1
 
-        self.audio_speaking.emit(False)
-        self.state_changed.emit(False)
+class AudioExportThread(QThread):
+    """So'zlarni fonda .wav formatdagi audio podcastga eksport qiluvchi oqim."""
+    progress = pyqtSignal(int, int)   # current, total
+    finished = pyqtSignal(bool, str)  # success, message
+
+    def __init__(self, words: list[dict], filepath: str, interval_sec: float, include_uzbek: bool, include_example: bool):
+        super().__init__()
+        self.words = words
+        self.filepath = filepath
+        self.interval_sec = interval_sec
+        self.include_uzbek = include_uzbek
+        self.include_example = include_example
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
+
+    def run(self):
+        def _prog(cur, tot):
+            self.progress.emit(cur, tot)
+
+        def _chk_cancel():
+            return self._cancelled
+
+        try:
+            ok = tts.export_words_to_audio(
+                words=self.words,
+                output_filepath=self.filepath,
+                interval_sec=self.interval_sec,
+                include_uzbek=self.include_uzbek,
+                include_example=self.include_example,
+                progress_cb=_prog,
+                cancel_cb=_chk_cancel
+            )
+            if self._cancelled:
+                self.finished.emit(False, "Eksport jarayoni bekor qilindi.")
+            elif ok:
+                self.finished.emit(True, f"Audio fayl muvaffaqiyatli saqlandi:\n{self.filepath}")
+            else:
+                self.finished.emit(False, "Audio eksport qilishda xatolik yuz berdi.")
+        except Exception as e:
+            self.finished.emit(False, f"Eksportda kutilmagan xatolik: {e}")
+
+
+class AudioExportDialog(QDialog):
+    """Lug'at so'zlarini oflayn audio podcast (.wav) sifatida yuklab olish oynasi."""
+    def __init__(self, current_playlist: list[dict], parent=None):
+        super().__init__(parent)
+        self.current_playlist = current_playlist
+        self.export_filepath = ""
+        self.export_thread: AudioExportThread | None = None
+        self.setWindowTitle("🎙️ Oflayn Audio Podcast Eksport (.wav)")
+        self.setFixedWidth(520)
+        self._build_ui()
+
+    def _build_ui(self):
+        t = theme_manager.get_active_theme()
+        self.setStyleSheet(f"QDialog {{ background-color: {t.bg_app}; color: {t.text_main}; }}")
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(16)
+        layout.setContentsMargins(24, 24, 24, 24)
+
+        title = QLabel("🎙️ Oflayn Audio Podcast Yaratish")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {t.text_main};")
+        layout.addWidget(title)
+
+        desc = QLabel(
+            "So'zlarni audio (.wav) faylga yozib olib, telefon yoki pleyeringizda "
+            "yo'lda, sportda va internetsiz quloqchin orqali tinglang."
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet(f"font-size: 13px; color: {t.text_muted};")
+        layout.addWidget(desc)
+
+        # 1. So'zlar to'plami
+        src_box = QHBoxLayout()
+        src_lbl = QLabel("To'plam:")
+        src_lbl.setStyleSheet(f"font-weight: 600; color: {t.text_main}; font-size: 13px;")
+        self.combo_source = QComboBox()
+        self.combo_source.addItems([
+            f"🎧 Hozirgi pleyerdagi so'zlar ({len(self.current_playlist)} ta)",
+            "📚 Barcha so'zlar (To'liq lug'at)",
+            "🧠 Bugun takrorlash kerak (SM-2)",
+            "⚠️ Zaif / xato qilingan so'zlar",
+        ])
+        self.combo_source.setStyleSheet(
+            f"QComboBox {{ background-color: {t.bg_card}; color: {t.text_main}; "
+            f"border: 1px solid {t.border}; border-radius: 8px; padding: 6px 12px; font-size: 13px; }}"
+        )
+        src_box.addWidget(src_lbl)
+        src_box.addWidget(self.combo_source, 1)
+        layout.addLayout(src_box)
+
+        # 2. Oraliq pauza
+        interval_box = QVBoxLayout()
+        interval_lbl_row = QHBoxLayout()
+        interval_title = QLabel("So'zlar orasidagi pauza:")
+        interval_title.setStyleSheet(f"font-weight: 600; color: {t.text_main}; font-size: 13px;")
+        self.interval_val_lbl = QLabel("4.0 soniya")
+        self.interval_val_lbl.setStyleSheet(f"font-weight: 700; color: {t.primary}; font-size: 13px;")
+        interval_lbl_row.addWidget(interval_title)
+        interval_lbl_row.addStretch()
+        interval_lbl_row.addWidget(self.interval_val_lbl)
+        interval_box.addLayout(interval_lbl_row)
+
+        self.slider_interval = QSlider(Qt.Orientation.Horizontal)
+        self.slider_interval.setRange(10, 80)
+        self.slider_interval.setValue(40)
+        self.slider_interval.valueChanged.connect(
+            lambda v: self.interval_val_lbl.setText(f"{v / 10.0:.1f} soniya")
+        )
+        interval_box.addWidget(self.slider_interval)
+        layout.addLayout(interval_box)
+
+        # 3. Qo'shimcha parametrlar
+        self.chk_uzbek = QCheckBox("O'zbekcha tarjimasini ham talaffuz qilish")
+        self.chk_uzbek.setChecked(False)
+        self.chk_uzbek.setStyleSheet(f"color: {t.text_main}; font-size: 13px;")
+        layout.addWidget(self.chk_uzbek)
+
+        self.chk_example = QCheckBox("Namuna gaplarni ham aytish (mavjud bo'lsa)")
+        self.chk_example.setChecked(False)
+        self.chk_example.setStyleSheet(f"color: {t.text_main}; font-size: 13px;")
+        layout.addWidget(self.chk_example)
+
+        # 4. Saqlash manzili
+        path_box = QVBoxLayout()
+        path_lbl = QLabel("Faylni saqlash manzili (.wav):")
+        path_lbl.setStyleSheet(f"font-weight: 600; color: {t.text_main}; font-size: 13px;")
+        path_box.addWidget(path_lbl)
+
+        path_input_box = QHBoxLayout()
+        self.line_path = QLineEdit()
+        default_dir = Path.home() / "Music"
+        if not default_dir.exists():
+            default_dir = Path.cwd()
+        default_file = default_dir / f"vocab_podcast_{int(time.time())}.wav"
+        self.line_path.setText(str(default_file))
+        self.line_path.setStyleSheet(
+            f"background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; "
+            f"border-radius: 8px; padding: 7px 10px; font-size: 12px;"
+        )
+
+        btn_browse = QPushButton("📁 Tanlash...")
+        btn_browse.setStyleSheet(
+            f"QPushButton {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; "
+            f"border: 1px solid {t.border}; border-radius: 8px; padding: 7px 14px; font-size: 12px; }}"
+            f"QPushButton:hover {{ border-color: {t.primary}; }}"
+        )
+        btn_browse.clicked.connect(self._browse_file)
+        path_input_box.addWidget(self.line_path, 1)
+        path_input_box.addWidget(btn_browse)
+        path_box.addLayout(path_input_box)
+        layout.addLayout(path_box)
+
+        # 5. Progress Bar & Status
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setFixedHeight(20)
+        self.progress_bar.setStyleSheet(
+            f"QProgressBar {{ border: 1px solid {t.border}; border-radius: 6px; text-align: center; "
+            f"color: {t.text_main}; background: {t.bg_card}; font-size: 11px; }} "
+            f"QProgressBar::chunk {{ background-color: {t.primary}; border-radius: 5px; }}"
+        )
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
+
+        self.status_lbl = QLabel("")
+        self.status_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 12px;")
+        self.status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_lbl.setVisible(False)
+        layout.addWidget(self.status_lbl)
+
+        # 6. Tugmalar qatori
+        btn_layout = QHBoxLayout()
+        self.btn_cancel = QPushButton("Bekor qilish")
+        self.btn_cancel.setStyleSheet(
+            f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_muted}; "
+            f"border: 1px solid {t.border}; border-radius: 8px; padding: 8px 18px; font-size: 13px; }}"
+            f"QPushButton:hover {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; }}"
+        )
+        self.btn_cancel.clicked.connect(self._on_cancel)
+
+        self.btn_start = QPushButton("🎙️ Eksportni Boshlash")
+        self.btn_start.setStyleSheet(
+            f"QPushButton {{ background-color: {t.primary}; color: white; font-weight: 700; "
+            f"border-radius: 8px; padding: 8px 22px; font-size: 13px; }}"
+            f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
+        )
+        self.btn_start.clicked.connect(self._start_export)
+
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_cancel)
+        btn_layout.addWidget(self.btn_start)
+        layout.addLayout(btn_layout)
+
+    def _browse_file(self):
+        cur = self.line_path.text().strip()
+        start_dir = str(Path(cur).parent) if cur and Path(cur).parent.exists() else str(Path.home())
+        chosen, _ = QFileDialog.getSaveFileName(
+            self,
+            "Audio Podcast faylini saqlash",
+            start_dir,
+            "Audio Fayl (*.wav)"
+        )
+        if chosen:
+            if not chosen.lower().endswith(".wav"):
+                chosen += ".wav"
+            self.line_path.setText(chosen)
+
+    def _start_export(self):
+        filepath = self.line_path.text().strip()
+        if not filepath:
+            QMessageBox.warning(self, "Xatolik", "Iltimos, faylni saqlash manzilini ko'rsating!")
+            return
+
+        idx = self.combo_source.currentIndex()
+        if idx == 0:
+            words = list(self.current_playlist)
+        elif idx == 1:
+            words = db.get_all_words()
+        elif idx == 2:
+            words = db.get_due_words(limit=500)
+        else:
+            words = db.get_weak_words(limit=100)
+
+        if not words:
+            QMessageBox.warning(self, "Bo'sh ro'yxat", "Tanlangan toifada audio eksport qilish uchun so'zlar topilmadi!")
+            return
+
+        self.export_filepath = filepath
+        interval_sec = self.slider_interval.value() / 10.0
+        include_uzbek = self.chk_uzbek.isChecked()
+        include_example = self.chk_example.isChecked()
+
+        self.btn_start.setEnabled(False)
+        self.combo_source.setEnabled(False)
+        self.slider_interval.setEnabled(False)
+        self.chk_uzbek.setEnabled(False)
+        self.chk_example.setEnabled(False)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(True)
+        self.status_lbl.setText(f"Eksport boshlanmoqda (jami {len(words)} ta so'z)...")
+        self.status_lbl.setVisible(True)
+
+        self.export_thread = AudioExportThread(
+            words=words,
+            filepath=filepath,
+            interval_sec=interval_sec,
+            include_uzbek=include_uzbek,
+            include_example=include_example
+        )
+        self.export_thread.progress.connect(self._on_progress)
+        self.export_thread.finished.connect(self._on_finished)
+        self.export_thread.start()
+
+    def _on_progress(self, current: int, total: int):
+        if total > 0:
+            pct = int((current / total) * 100)
+            self.progress_bar.setValue(pct)
+            self.status_lbl.setText(f"Ovoz yozilmoqda: {current} / {total} ta so'z ({pct}%)")
+
+    def _on_finished(self, success: bool, message: str):
+        self.btn_start.setEnabled(True)
+        self.combo_source.setEnabled(True)
+        self.slider_interval.setEnabled(True)
+        self.chk_uzbek.setEnabled(True)
+        self.chk_example.setEnabled(True)
+        self.status_lbl.setVisible(False)
+        self.progress_bar.setVisible(False)
+
+        if success:
+            msg = QMessageBox(self)
+            msg.setWindowTitle("🎙️ Eksport muvaffaqiyatli!")
+            msg.setText(f"Audio podcast fayli muvaffaqiyatli saqlandi!\n\nManzil: {self.export_filepath}")
+            btn_open = msg.addButton("📁 Jildni ochish", QMessageBox.ButtonRole.ActionRole)
+            btn_ok = msg.addButton("Tushunarli", QMessageBox.ButtonRole.AcceptRole)
+            msg.exec()
+            if msg.clickedButton() == btn_open:
+                try:
+                    folder = str(Path(self.export_filepath).parent)
+                    subprocess.run(["explorer", folder], check=False)
+                except Exception:
+                    pass
+            self.accept()
+        else:
+            QMessageBox.critical(self, "Eksport xatosi", message)
+
+    def _on_cancel(self):
+        if self.export_thread and self.export_thread.isRunning():
+            self.status_lbl.setText("Eksport to'xtatilmoqda...")
+            self.export_thread.cancel()
+            self.export_thread.wait(2000)
+        self.reject()
+
+    def closeEvent(self, event):
+        self._on_cancel()
+        super().closeEvent(event)
 
 
 class AudioPlayerWidget(QWidget):
@@ -541,26 +844,34 @@ class AudioPlayerWidget(QWidget):
         if not self.worker.playlist:
             return
 
-        self.worker.next_track()
-        with self.worker._lock:
-            idx = self.worker.current_index
-            if 0 <= idx < len(self.worker.playlist):
-                word = self.worker.playlist[idx]
-                self.track_idx_lbl.setText(f"So'z: {idx + 1} / {len(self.worker.playlist)}")
-                self._display_word(word)
+        if self.worker.shuffle_mode and len(self.worker.playlist) > 1:
+            next_idx = self.worker.current_index
+            while next_idx == self.worker.current_index:
+                next_idx = random.randint(0, len(self.worker.playlist) - 1)
+        else:
+            next_idx = (self.worker.current_index + 1) % len(self.worker.playlist)
+
+        self.worker.current_index = next_idx
+        word = self.worker.playlist[next_idx]
+        self.track_idx_lbl.setText(f"So'z: {next_idx + 1} / {len(self.worker.playlist)}")
+        self._display_word(word)
+
+        if self.worker.is_running:
+            self.worker.skip_current()
 
     def _on_prev_clicked(self):
         """Oldingi so'z tugmasi bosilganda ekranni va audioni bir zumda yangilash."""
         if not self.worker.playlist:
             return
 
-        self.worker.prev_track()
-        with self.worker._lock:
-            idx = self.worker.current_index
-            if 0 <= idx < len(self.worker.playlist):
-                word = self.worker.playlist[idx]
-                self.track_idx_lbl.setText(f"So'z: {idx + 1} / {len(self.worker.playlist)}")
-                self._display_word(word)
+        prev_idx = max(0, self.worker.current_index - 1)
+        self.worker.current_index = prev_idx
+        word = self.worker.playlist[prev_idx]
+        self.track_idx_lbl.setText(f"So'z: {prev_idx + 1} / {len(self.worker.playlist)}")
+        self._display_word(word)
+
+        if self.worker.is_running:
+            self.worker.skip_current()
 
     def _toggle_shuffle(self, checked: bool):
         self.worker.shuffle_mode = checked

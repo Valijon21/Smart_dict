@@ -82,7 +82,31 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 
 ### 10. ⚡ Stay-on-Top Tezkor So'z Qo'shish & Mini Vidjet
 - Brauzer yoki kitob o'qiyotganda `Ctrl+Shift+A` yoki `Ctrl+Shift+V` bosib, dasturga kirmasdan tezda yangi so'z saqlash.
-- Ekran burchagida turuvchi ixcham **Mini Floating Widget**.
+- Ekran burchagida turuvchi ixcham **Mini Floating Widget** (`Ctrl+Shift+W`).
+
+### 11. 🎙️ Oflayn Audio Podcast Eksport (.wav)
+- So'zlarni audio (.wav) faylga yozib olib, telefon yoki pleyeringizda yo'lda, sportda va internetsiz quloqchin orqali tinglang.
+- Oraliq pauzani (1.0s dan 8.0s gacha), o'zbekcha tarjimani va misol gaplarni qo'shish imkoniyati.
+
+### 12. 🎙️ Windows Native Talaffuzni Sinash va Baholash
+- 100% oflayn rejimda Windows System.Speech va Windows audio vositalari orqali mikrofondan talaffuzni yozib olish va baholash.
+- To'g'ri TTS talaffuzi namunasi bilan o'z ovozingizni yonma-yon tinglab solishtirish.
+
+### 13. 🔍 Universal Spotlight / Raycast Tezkor Qidiruv (`Alt + Space`)
+- Istalgan joydan `Alt + Space` yoki `Ctrl + Shift + F` orqali ochiluvchi tezkor suzuvchi qidiruv kartasi.
+- So'zlar, tarjimalar, misollar va teglarni 0ms kechikish bilan topish, talaffuz qilish va 1-bosish bilan lug'atga yangi so'z qo'shish.
+
+### 14. 🌧️ "Word Fall" va 🧩 "Lug'at Krossvordi" Yangi O'yinlari
+- **Word Fall:** Ekranning yuqorisidan tushayotgan so'zlarni vaqtida yozib yo'q qilish arkadasi (3 ta jon, combo tizimi).
+- **Lug'at Krossvordi:** Bazadagi so'zlardan avtomatik kesishuvchi krossvord panjarasini yaratuvchi algoritm.
+- *Qat'iy Gamifikatsiya qoidasi:* Hech qanday so'z topilmasa (0 ball), XP berilmaydi!
+
+### 15. 👨‍🏫 O'qituvchi Rejimi (.smartpack & A4 Sertifikat)
+- **.smartpack To'plamlari:** O'qituvchi mavzulashtirilgan so'zlar to'plamini eksport qilishi, o'quvchilar esa bitta tugma bilan bazasiga qo'shishi mumkin.
+- **O'quvchi Hisoboti & Sertifikat:** O'quvchining so'z boyligi, CEFR darajasi, o'rganish zanjiri bo'yicha rasmiy A4 formatdagi chop etiladigan HTML/PDF sertifikat generatori.
+
+### 16. 🛡️ Mahalliy Data Vault (Formatdan Himoyalangan Avto-Zaxira)
+- Windows tizimi qayta o'rnatilganda (format qilinganda) foydalanuvchining oylar davomida yig'gan lug'ati va statistikasi yo'qolib ketmasligi uchun dastur yonidagi `backups/` papkasida 100% lokal xavfsiz avtomatik zaxira nusxalari yuritiladi. Hech qanday tashqi serverlarga ma'lumot yuborilmaydi.
 
 ---
 
