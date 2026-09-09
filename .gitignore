@@ -1,39 +1,95 @@
-# Virtual Environment
-venv/
-env/
-ENV/
-.env
+# ==============================================================================
+# Vocab Master Pro (SmartDict) - Git Ignore Configuration
+# ==============================================================================
 
-# Python bytecode & cache
+# ------------------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
+# ------------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 
-# SQLite Database
+# ------------------------------------------------------------------------------
+# Virtual Environments
+# ------------------------------------------------------------------------------
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.env
+.env.local
+.env.*.local
+
+# ------------------------------------------------------------------------------
+# SQLite Databases & Local Runtime Storage (Privacy & Data Safety)
+# ------------------------------------------------------------------------------
 *.db
 *.sqlite
 *.sqlite3
+*.db-wal
+*.db-shm
+*.db-journal
 VocabMaster/
+data/
 
-# PyInstaller / Distribution
+# ------------------------------------------------------------------------------
+# PyInstaller / Executable Builds / Distribution
+# ------------------------------------------------------------------------------
 build/
 dist/
 *.spec
+*.manifest
+*.dist
+*.egg-info/
+*.egg
 
-# IDE & Editors
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Logs & Scratch
+# ------------------------------------------------------------------------------
+# Logs, Diagnostic & Temporary Files
+# ------------------------------------------------------------------------------
 logs/
 *.log
 scratch/
+tmp/
+temp/
+*.tmp
+*.temp
 
-# OS files
+# ------------------------------------------------------------------------------
+# IDEs, Code Editors & Tooling
+# ------------------------------------------------------------------------------
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# ------------------------------------------------------------------------------
+# Testing, Coverage & Static Analysis
+# ------------------------------------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ------------------------------------------------------------------------------
+# Operating System Artifacts
+# ------------------------------------------------------------------------------
 Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
 Desktop.ini
 .DS_Store
+.AppleDouble
+.LSOverride
+$RECYCLE.BIN/

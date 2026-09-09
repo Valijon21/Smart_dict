@@ -1,93 +1,204 @@
-# Vocab Master Pro — Professional Lug'at va Intellektual Trenajyor
+# 🚀 SmartDict — Vocab Master Pro
 
-Ingliz tili so'z boyligini kengaytirish, mustahkamlash va eslab qolish uchun yaratilgan 100% oflayn, zamonaviy desktop ilova (Windows).
+<div align="center">
 
----
+![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![PyQt6 / PySide6](https://img.shields.io/badge/GUI-PyQt6%20%2F%20PySide6-41CD52?style=for-the-badge&logo=qt&logoColor=white)
+![SQLite3](https://img.shields.io/badge/Database-SQLite%20WAL-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![TTS Engine](https://img.shields.io/badge/TTS-Offline%20SAPI5-FF6F00?style=for-the-badge)
+![Platform](https://img.shields.io/badge/Platform-Windows%20Desktop-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
-## 🌟 Asosiy Imkoniyatlar
+**Ingliz va O'zbek tillari uchun professional, 100% oflayn intellektual lug'at, Spaced Repetition (SM-2) trenajyori va audio o'rganish platformasi.**
 
-1. **Intellektual Mashq Rejimlari (Spaced Repetition & Leitner):**
-   - ✍️ **Yozma mashq (Typing):** So'zning to'liq yozilishini xotirada mustahkamlash.
-   - 🎯 **4 ta Variantli test (Multiple Choice):** Tezkor intuitsiyani rivojlantirish.
-   - 🎴 **Anki uslubidagi Flashcard:** O'zini-o'zi baholash (Qiyin / Yaxshi / Oson).
-   - 🎧 **Eshitib yozish (Listening Dictation):** Ovozli talaffuzni eshitib so'zni yozish.
-   - 🔤 **Harf terish (Word Scramble / Anagram):** Harflarni tartib bilan terish orqali orfografiyani o'rganish.
+*A commercial-grade, fully offline desktop English-Uzbek vocabulary mastery suite powered by SuperMemo SM-2, Leitner 5-Box progression, and native speech synthesis.*
 
-2. **Oflayn Audio Talaffuz (TTS):**
-   - Windows SAPI5 (win32com) orqali yashin tezligida, internetga ulanmasdan toza ona tili talaffuzi.
-   - Zaxira pyttsx3 va PowerShell System.Speech integratsiyasi.
-
-3. **🎨 6 ta Zamonaviy Vizual Mavzu (Theme Switcher):**
-   - **Midnight Indigo:** Chuqur tungi binafsha-ko'k.
-   - **Cyberpunk Neon:** Futuristik elektrik moviy va fuksiya.
-   - **Emerald Forest:** Sokin quyuq zumrad yashil.
-   - **Warm Sunset:** Issiq qahva, espresso va amber.
-   - **OLED Pure Black:** Mutlaq qora (#000000) energiya tejamkor fon.
-   - **Nordic Ocean:** Shimoliy qutb va chuqur okean moviyligi.
-
-4. **📚 Aqlli O'qish Rejimi (Smart Reader):**
-   - A2, B1, B2 darajasidagi saralangan hikoyalar yoki shaxsiy matnlar.
-   - Matndagi siz bilgan so'zlar avtomatik moviy rangda yoritiladi.
-   - Istalgan so'z ustiga bosganda: tarjima, misol gap, audio va 1-bosishda bazaga qo'shish.
-
-5. **🏆 Gamifikatsiya (XP, Darajalar, Yutuqlar):**
-   - Har bir to'g'ri javob uchun XP ballari, 5 ta daraja unvoni (Boshlovchi → Poliglot → So'z Ustasi).
-   - 8 ta maxsus unvon va nishonlar (Snayper, Olov uchquni, Kutubxonachi va hk.).
-
-6. **⚡ Tezkor So'z Qo'shish (Quick Capture Stay-on-top):**
-   - Brauzer yoki kitob o'qiyotganda `Ctrl+Shift+A` yoki `Ctrl+Shift+V` bosib, dasturni ochmasdan tezda yangi so'zni bazaga saqlash.
-
-7. **⚠️ Zaif So'zlar Karantini (Smart Error Bank):**
-   - Foydalanuvchi eng ko'p xato qilgan so'zlarni alohida aniqlab, qayta takrorlatish filtri.
-
-8. **📦 Saralangan So'z To'plamlari (Curated Word Packs):**
-   - Oltin 100 ta so'z, IELTS 7.5+ Academic, IT & Software Engineering to'plamlari. Barcha so'zlar tarjimasi va misol gapi (example) bilan ta'minlangan.
-
-9. **🛡️ SQLite WAL & Yuqori Ishonchlilik:**
-   - Write-Ahead Logging (WAL) rejimi va xavfsiz zaxira (Backup/Restore).
-   - JSON va CSV eksport (Excel bilan UTF-8-BOM to'liq mos).
+[Imkoniyatlar](#-imkoniyatlar-key-features) • [O'rnatish](#-ornatish-va-ishga-tushirish-quickstart) • [Loyiha Strukturasi](#-loyiha-strukturasi-architecture) • [EXE Yaratish](#-standalone-exe-yaratish) • [Muallif](#-muallif-va-litsenziya)
 
 ---
 
-## 🚀 Ishga Tushirish (Development)
+</div>
 
+## 📖 Loyiha Haqida (Overview)
+
+**SmartDict (Vocab Master Pro)** — ingliz tilini mustaqil, tizimli va ilmiy asoslangan usullar bilan o'rganuvchilar uchun yaratilgan zamonaviy Windows desktop ilovasi. 
+
+Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat saqlash uchun **SuperMemo SM-2** va **Leitner 5-quti** algoritmlaridan foydalanadi, o'yinlashtirilgan interaktiv mashqlar, fon rejimida eshitib yodlash uchun **Hands-Free Audio Pleyer**, chop etiladigan vedomostlar (**Printable Worksheets**) va ko'zni charchatmaydigan 6 xil zamonaviy dizayn mavzulariga ega.
+
+---
+
+## 🌟 Imkoniyatlar (Key Features)
+
+### 1. 🎧 Hands-Free Audio Pleyer (Fon Rejimida Eshitib Yodlash)
+- **Ekran va Audio 100% Sinxron:** Ekranda ko'rsatilgan so'z bilan quloqchinda yangrayotgan talaffuz hech qachon adashmaydi.
+- **Oraliq Pauza (Interval):** Har bir so'zdan keyin 1.0s dan 8.0s gacha sozlanuvchi pauza beriladi, foydalanuvchi so'z tarjimasini o'z xotirasida tiklashiga imkon beradi.
+- **Filtrlar va Rejimlar:** Barcha so'zlar, Bugun takrorlanadigan (SM-2), Zaif so'zlar yoki yangi o'rganilayotganlar bo'yicha saralash.
+- **Tugmalar:** Keyingi/Oldingi (0ms kechikish bilan ekranda aks etish), Tasodifiy (Shuffle), Takrorlash (Loop) va animatsion Audio Vizualizator.
+
+### 2. 🧠 Ilmiy Xotira Algoritmlari (Spaced Repetition & Leitner)
+- **SuperMemo SM-2 Algoritmi:** Har bir so'zning eslab qolish qiyinlik koeffitsiyenti (*Ease Factor*), takrorlashlar soni va navbatdagi takrorlash sanasini aniq hisoblaydi.
+- **5 Qutili Leitner Tizimi:** So'zlar qutilar (Box 1 → Box 5) bo'ylab harakatlanadi; to'g'ri javob oldinga siljitadi, xato javob esa 1-qutiga qaytaradi.
+- **Zaif So'zlar Banki (Error Quarantine):** Foydalanuvchi eng ko'p xato qilgan so'zlar avtomatik karantin ro'yxatiga olinadi.
+
+### 3. 🎮 Interaktiv O'yinlar (Gamified Learning)
+- ⚡ **Blitz Marathon:** 60 soniyali tezkor so'z marafoni. Ketma-ket to'g'ri javoblar uchun Combo Multiplier (x1.5, x2.0, x3.0), hayotlar soni va shaxsiy rekordlar jadvali.
+- 🧩 **Word Match Game:** 4x4 va 6x6 katakli so'z va tarjima juftliklarini topish o'yini. Interaktiv kartochkalar, yorqin vizual effektlar va g'alaba fanfarlari.
+
+### 4. ✍️ 5 Xil Maxsus Mashq Trenajyori
+1. **Yozma Mashq (Typing):** So'zning to'g'ri orfografiyasini klaviaturada terish orqali xotirada muhrlash.
+2. **4 Variantli Test (Multiple Choice):** Tezkor assotsiativ xotira va reflekslarni rivojlantirish.
+3. **Anki Uslubidagi Flashcard:** O'zini xolis baholash (*Qayta / Qiyin / Yaxshi / Oson*).
+4. **Eshitib Yozish (Listening Dictation):** Ovozli talaffuzni eshitib, so'zni to'g'ri yozish.
+5. **Harf Terish (Word Scramble):** Chalkash harflarni to'g'ri ketma-ketlikda yig'ish.
+
+### 5. 📚 Aqlli Matn O'quvchi (Smart Reader)
+- A2, B1, B2 darajadagi badiiy va ilmiy hikoyalar yoki foydalanuvchining shaxsiy matnlari.
+- Matn ichidagi siz bilgan so'zlar avtomatik yashil/moviy tusda ajratib ko'rsatiladi.
+- Istalgan so'zni 1-marta bosish orqali: IPA transkripsiyasi, kontekstli misol, talaffuz va bazaga qo'shish modali.
+
+### 6. 🖨️ Chop Etiladigan Mashqlar Generatori (Printable Worksheets)
+- O'qituvchilar va mustaqil o'rganuvchilar uchun A4 formatida chop etishga tayyor materiallar:
+  - So'z va tarjima tutashtirish mashqlari (Matching Quiz)
+  - Ko'p variantli yozma testlar (Multiple Choice Sheet)
+  - Bo'sh o'rinlarni to'ldirish (Fill-in-the-blanks)
+  - O'qituvchi uchun javoblar kaliti (Answer Key) bilan birga PDF / HTML eksport.
+
+### 7. 📊 Analitika va GitHub-Uslubidagi Faollik Taqvimi
+- **365-kunlik Faollik Taqvimi (Heatmap):** Har bir kungi mashqlar intensivligini yashil kvadratlar orqali vizualizatsiya qiladi.
+- **Statistika Ko'rsatkichlari:** Jami so'zlar, o'zlashtirilgan foiz, o'rganilayotganlar, kunlik streak (uzluksiz o'qish zanjiri).
+
+### 8. 🏆 Mukofotlar va Gamifikatsiya (XP & Badges)
+- Har bir mashq uchun XP (Tajriba ballari).
+- 5 ta unvon: *Boshlovchi (Novice) → O'quvchi (Apprentice) → Bilimdon (Scholar) → Poliglot (Polyglot) → So'z Ustasi (Word Master)*.
+- Maxsus nishonlar: Snayper, Tungi Boyqush, 7 Kunlik Olov, Lug'at Ustasi va boshqalar.
+
+### 9. 🎨 6 ta Yuqori Sifatli Rang Mavzulari (Theme Switcher)
+- 🌌 **Midnight Indigo:** Chuqur tungi binafsha-moviy.
+- ⚡ **Cyberpunk Neon:** Futuristik elektrik neon va fuksiya.
+- 🌲 **Emerald Forest:** Sokin, ko'zni charchatmaydigan zumrad yashil.
+- 🌅 **Warm Sunset:** Issiq qahva, espresso va amber.
+- 🖤 **OLED Pure Black:** Mutlaq qora (#000000) batareya tejamkor fon.
+- 🌊 **Nordic Ocean:** Skandinaviya qutb dengizi moviyligi.
+
+### 10. ⚡ Stay-on-Top Tezkor So'z Qo'shish & Mini Vidjet
+- Brauzer yoki kitob o'qiyotganda `Ctrl+Shift+A` yoki `Ctrl+Shift+V` bosib, dasturga kirmasdan tezda yangi so'z saqlash.
+- Ekran burchagida turuvchi ixcham **Mini Floating Widget**.
+
+---
+
+## 🛠️ Texnologiyalar (Tech Stack)
+
+| Yo'nalish | Ishlatilgan Texnologiya |
+|---|---|
+| **Dasturlash Tili** | Python 3.10+ / 3.11+ |
+| **Foydalanuvchi Interfeysi (GUI)** | PyQt6 / PySide6 |
+| **Ma'lumotlar Bazasi** | SQLite 3 (WAL rejimi, ACID, Tranzaksiyalar) |
+| **Audio Talaffuz (TTS)** | Windows SAPI5 (win32com) + pyttsx3 + System.Speech |
+| **Ovoz Effektlari** | NumPy + Pygame / Wave sintez (100% oflayn SFX) |
+| **Distribyutsiya / Packaging** | PyInstaller (Standalone EXE) |
+
+---
+
+## 🚀 O'rnatish va Ishga Tushirish (Quickstart)
+
+### 1. Repozitoriyni klonlash
+```bash
+git clone https://github.com/Valijon21/Smart_dict.git
+cd Smart_dict
+```
+
+### 2. Virtual muhit yaratish va faollashtirish
+**Windows PowerShell:**
 ```powershell
-# Virtual muhitni faollashtirish
+python -m venv venv
 .\venv\Scripts\activate
+```
 
-# Kutubxonalarni o'rnatish
+### 3. Kutubxonalarni o'rnatish
+```powershell
 pip install -r requirements.txt
+```
 
-# Dasturni ishga tushirish
+### 4. Dasturni ishga tushirish
+```powershell
 python main.py
 ```
+*yoki qulaylik uchun `run.bat` faylini ikki marta bosing.*
 
 ---
 
-## 📁 Loyiha Strukturasi
+## 📁 Loyiha Strukturasi (Architecture)
 
+```text
+Smart_dict/
+├── main.py                     # Dastur kirish nuqtasi va Single-Instance Guard
+├── database.py                 # SQLite WAL moduli, SM-2, Leitner va qidiruv indekslari
+├── tts.py                      # Oflayn TTS dvigateli (Thread-safe SAPI5 + pyttsx3)
+├── importer.py                 # .txt, .csv, .docx formatdagi fayllarni aqlli import qilish
+├── gamification.py             # XP ballari, daraja unvonlari va nishonlar mexanikasi
+├── sound_effects.py            # Oflayn sintetik audio effektlar (Wave SFX)
+├── theme_manager.py            # 6 ta zamonaviy rang mavzulari boshqaruvi
+├── word_packs.py               # Saralangan so'z to'plamlari (Top 100, IELTS, IT)
+├── phonetics.py                # IPA transkripsiyalar va fonetik tahlil
+├── reader_data.py              # Smart Reader uchun hikoyalar va matnlar bazasi
+├── logger.py                   # Aylanuvchi faylli loglash tizimi (Rotating Log)
+├── build_exe.py                # Standalone .exe yig'ish skripti
+├── requirements.txt            # Kerakli Python kutubxonalari
+├── app.ico / app_icon.png      # Ilova piktogrammalari
+│
+└── ui/
+    ├── main_window.py          # Asosiy bosh oyna, sidebar, system tray
+    ├── dashboard.py            # Analitika, o'zlashtirish grafigi va Activity Heatmap
+    ├── dictionary.py           # Lug'at boshqaruvi, tezkor qidiruv, audio tugmalari
+    ├── practice.py             # 5 ta mashq rejimi trenajyori
+    ├── audio_player.py         # Hands-Free Audio Pleyer (ekran-audio 100% sinxron)
+    ├── blitz_game.py           # Blitz Marathon (60s time-attack o'yini)
+    ├── match_game.py           # Word Match (xotira kartochkalar juftligi)
+    ├── worksheet_generator.py  # Chop etiladigan A4 testlar generatori
+    ├── reader.py               # Aqlli o'qish va so'z inspektori
+    ├── mini_widget.py          # Har doim ustda turuvchi mini vidjet
+    ├── quick_capture.py        # Tezkor so'z qo'shish modal oynasi
+    ├── settings_page.py        # Mavzular, kunlik reja va TTS sozlamalari
+    ├── achievements_dialog.py  # Yutuqlar va medallar modali
+    ├── word_packs_dialog.py    # Tayyor to'plamlar oynasi
+    └── import_dialog.py        # Tashqi fayllardan so'z yuklash
 ```
-VocabMaster/
-├── main.py                  # Ilovaning kirish nuqtasi va Single Instance Guard
-├── database.py              # SQLite WAL qatlami, Leitner algoritmi, indekslar va statistika
-├── tts.py                   # Oflayn TTS audio drayveri (SAPI5 + pyttsx3)
-├── importer.py              # .txt, .csv va .docx aqlli parseri
-├── gamification.py          # XP ballari, darajalar va yutuqlar tizimi
-├── sound_effects.py         # Toza sinus to'lqinli sintetik audio effektlar
-├── theme_manager.py         # 6 ta vizual mavzular boshqaruvi
-├── word_packs.py            # Saralangan lug'at to'plamlari
-├── reader_data.py           # Aqlli o'qish uchun hikoyalar korpusi
-├── logger.py                # Aylanuvchi faylli log tizimi
-├── ui/
-│   ├── main_window.py       # Asosiy oyna, sidebar, system tray va taymerlar
-│   ├── dashboard.py         # Analitika, progress va QPainter grafiklari
-│   ├── dictionary.py        # Lug'at jadvali, 160ms debounce qidiruv, audio
-│   ├── practice.py          # 5 xil mashq trenajyori (Yozma, Test, Karta, Audio, Scramble)
-│   ├── reader.py            # Aqlli o'qish va so'z inspektori
-│   ├── import_dialog.py     # Fayl importi (.txt/.csv/.docx) va tezkor mashq
-│   ├── settings_page.py     # Kunlik reja, mavzular, audio va zaxira sozlamalari
-│   ├── quick_capture.py     # Stay-on-top tezkor kiritish modali
-│   ├── achievements_dialog.py # Yutuqlar va nishonlar modali
-│   └── word_packs_dialog.py # Tayyor to'plamlar kartalari
-└── VocabMaster.spec         # PyInstaller konfiguratsiya fayli
+
+---
+
+## 📦 Standalone EXE Yaratish
+
+Dasturni kompyuterida Python o'rnatilmagan har qanday Windows foydalanuvchisi uchun bitta mustaqil `.exe` faylga yig'ish:
+
+```powershell
+python build_exe.py
 ```
+Yig'ish yakunlangach, tayyor `SmartDict.exe` fayli `dist/` papkasida paydo bo'ladi.
+
+---
+
+## ⌨️ Klaviatura Qisqa Tugmalari (Hotkeys)
+
+| Tugmalar | Vazifasi |
+|---|---|
+| `Space` | Mashqda kartani ag'darish / Audio pleyerda Play-Pause |
+| `Ctrl + F` | Lug'atda so'z qidirish qatoriga o'tish |
+| `Ctrl + Shift + A` | Tezkor so'z qo'shish (Quick Capture) |
+| `Enter` | Mashqda javobni tasdiqlash |
+| `1, 2, 3, 4` | Test rejimida variantni tanlash |
+| `Esc` | Modal oynalarni yopish |
+
+---
+
+## 🔒 Xavfsizlik va Ma'lumotlar Maxfiyligi
+- **100% Maxfiy:** Foydalanuvchining barcha so'zlari va statistikasi faqatgina lokal kompyuterdagi `vocab.db` faylida saqlanadi.
+- **Tashqi serverlarga ma'lumot yuborilmaydi:** Hech qanday tashqi telemetriya yoki shaxsiy ma'lumot uzatilishi mavjud emas.
+- **Zaxira Nusxalash:** Barcha so'zlarni istalgan payt CSV va JSON formatlarida xavfsiz eksport qilish mumkin.
+
+---
+
+## 👨‍💻 Muallif va Litsenziya
+
+- **Muallif:** [Valijon](https://github.com/Valijon21)
+- **GitHub Repozitoriy:** [Smart_dict](https://github.com/Valijon21/Smart_dict.git)
+- **Litsenziya:** MIT License. Erkin foydalanish, o'zgartirish va tarqatish mumkin.

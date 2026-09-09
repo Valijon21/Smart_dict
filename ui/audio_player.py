@@ -1,7 +1,7 @@
 """
 Vocab Master Pro — Hands-Free Audio Pleyer (Fon / Quloqchin Rejimi).
 Ekranga qaramasdan, fon rejimida so'zlarni ketma-ket tinglab yodlash.
-Interfeys qotmasligi uchun alohida QThread va threading.Event orqali xavfsiz ishlaydi.
+Ekrandagi so'z bilan ovozli talaffuz 100% sinxron ishlashi kafolatlangan.
 """
 import time
 import random
@@ -77,7 +77,7 @@ class VisualizerWidget(QWidget):
 
 
 class AudioWorkerThread(QThread):
-    """Fon rejimida so'zlarni ketma-ket o'quvchi xavfsiz va barqaror ishchi oqim."""
+    """Fon rejimida so'zlarni ketma-ket o'quvchi xavfsiz va to'liq sinxron ishchi oqim."""
     word_changed = pyqtSignal(dict, int, int)     # (word_dict, current_idx, total)
     state_changed = pyqtSignal(bool)             # is_playing
     audio_speaking = pyqtSignal(bool)            # tts is actively speaking
@@ -87,6 +87,7 @@ class AudioWorkerThread(QThread):
         self.playlist: list[dict] = []
         self.current_index = 0
         self.speed_rate = 150
+        self._lock = threading.Lock()
 
         # Standart interval 4.0 soniya (bazadan o'qiladi)
         try:
@@ -95,14 +96,13 @@ class AudioWorkerThread(QThread):
             val_sec = 4.0
         self.interval_sec = max(1.0, min(8.0, val_sec))
 
-        self.speak_uzbek = True
+        self.speak_uzbek = False
         self.speak_example = False
         self.loop_mode = True
         self.shuffle_mode = False
 
         self._stop_event = threading.Event()
         self._skip_event = threading.Event()
-        self._prev_event = threading.Event()
         self._is_paused = False
 
     @property
@@ -114,8 +114,9 @@ class AudioWorkerThread(QThread):
         return self._is_paused
 
     def set_playlist(self, words: list[dict]):
-        self.playlist = list(words)
-        self.current_index = 0
+        with self._lock:
+            self.playlist = list(words)
+            self.current_index = 0
 
     def pause_playback(self):
         self._is_paused = True
@@ -135,45 +136,49 @@ class AudioWorkerThread(QThread):
         self.state_changed.emit(False)
         tts.stop()
 
-    def next_track(self):
+    def skip_current(self):
+        """Hozirgi ijroni to'xtatib, belgilangan indeksdagi so'zga darhol o'tish."""
         self._skip_event.set()
         tts.stop()
 
+    def next_track(self):
+        with self._lock:
+            if self.playlist:
+                if self.shuffle_mode and len(self.playlist) > 1:
+                    next_idx = self.current_index
+                    while next_idx == self.current_index:
+                        next_idx = random.randint(0, len(self.playlist) - 1)
+                    self.current_index = next_idx
+                else:
+                    self.current_index = (self.current_index + 1) % len(self.playlist)
+        self.skip_current()
+
     def prev_track(self):
-        self._prev_event.set()
-        tts.stop()
+        with self._lock:
+            if self.playlist:
+                self.current_index = max(0, self.current_index - 1)
+        self.skip_current()
+
+    def _should_cancel(self) -> bool:
+        """Talaffuz yoki kutish jarayonini bekor qilish kerakligini tekshiradi."""
+        return self._stop_event.is_set() or self._skip_event.is_set()
 
     def _sleep_interruptible(self, duration: float) -> bool:
-        """
-        Kutish vaqtini xavfsiz bo'lib o'tkazadi.
-        Agar to'xtatish yoki skip buyrug'i kelsa darhol False qaytaradi.
-        """
+        """Kutish vaqtini xavfsiz bo'lib o'tkazadi."""
         start = time.time()
         while time.time() - start < duration:
-            if self._stop_event.is_set():
-                return False
-            if self._skip_event.is_set() or self._prev_event.is_set():
+            if self._should_cancel():
                 return False
             while self._is_paused and not self._stop_event.is_set():
-                if self._skip_event.is_set() or self._prev_event.is_set():
+                if self._skip_event.is_set():
                     break
-                time.sleep(0.08)
-            time.sleep(0.05)
+                time.sleep(0.06)
+            time.sleep(0.04)
         return True
-
-    def _wait_speaking(self, max_wait: float = 4.0):
-        start = time.time()
-        while time.time() - start < max_wait:
-            if self._stop_event.is_set() or self._skip_event.is_set() or self._prev_event.is_set():
-                break
-            if not tts.is_speaking():
-                break
-            time.sleep(0.06)
 
     def run(self):
         self._stop_event.clear()
         self._skip_event.clear()
-        self._prev_event.clear()
         self._is_paused = False
         self.state_changed.emit(True)
 
@@ -183,78 +188,90 @@ class AudioWorkerThread(QThread):
                 continue
 
             while self._is_paused and not self._stop_event.is_set():
-                if self._skip_event.is_set() or self._prev_event.is_set():
+                if self._skip_event.is_set():
                     break
-                time.sleep(0.08)
+                time.sleep(0.06)
 
             if self._stop_event.is_set():
                 break
 
-            # Indeks chegaralarini to'g'rilash
-            if self.current_index >= len(self.playlist):
-                if self.loop_mode and len(self.playlist) > 0:
+            with self._lock:
+                # Indeks chegaralarini to'g'rilash
+                if self.current_index >= len(self.playlist):
+                    if self.loop_mode and len(self.playlist) > 0:
+                        self.current_index = 0
+                    else:
+                        break
+                elif self.current_index < 0:
                     self.current_index = 0
-                else:
-                    break
-            elif self.current_index < 0:
-                self.current_index = 0
 
-            word = self.playlist[self.current_index]
-            total = len(self.playlist)
-            self.word_changed.emit(word, self.current_index + 1, total)
+                word = self.playlist[self.current_index]
+                idx = self.current_index
+                total = len(self.playlist)
 
-            # Yangi so'z boshlanganda o'tish hodisalarini tozalash
+            # Ekrandagi so'zni talaffuzdan oldinroq DARHOL ko'rsatish
+            self.word_changed.emit(word, idx + 1, total)
+
+            # Yangi so'z ijrosini boshlashdan oldin skip bayrog'ini tozalash
             self._skip_event.clear()
-            self._prev_event.clear()
 
-            # 1. Inglizcha so'zni talaffuz qilish
+            # 1. Inglizcha so'zni talaffuz qilish va u to'liq tugaguncha kutish (sinxron)
             eng = word.get("english", "").strip()
             if eng and not self._is_paused and not self._stop_event.is_set():
                 self.audio_speaking.emit(True)
-                tts.speak_async(eng)
-                self._wait_speaking(max_wait=3.5)
+                tts.speak_and_wait(eng, max_wait=4.5, cancel_check=self._should_cancel)
                 self.audio_speaking.emit(False)
 
-            # 2. Oraliq pauza (Foydalanuvchi so'zni eslashi uchun - standart 4.0 soniya)
-            interrupted = not self._sleep_interruptible(self.interval_sec)
+            if self._should_cancel():
+                self._skip_event.clear()
+                continue
 
-            # 3. O'zbekcha tarjimani o'qish
-            if not interrupted and self.speak_uzbek and not self._is_paused and not self._stop_event.is_set():
-                uz = word.get("uzbek", "").strip()
+            # 2. Oraliq pauza (Foydalanuvchi so'zni eslashi uchun - standart 4.0 soniya)
+            if not self._sleep_interruptible(self.interval_sec):
+                self._skip_event.clear()
+                continue
+
+            # 3. O'zbekcha tarjimani o'qish (agar yoqilgan bo'lsa, faqat birinchi toza so'z)
+            if self.speak_uzbek and not self._is_paused and not self._stop_event.is_set():
+                raw_uz = word.get("uzbek", "").strip()
+                uz = raw_uz.split(",")[0].split(";")[0].strip() if raw_uz else ""
                 if uz:
                     self.audio_speaking.emit(True)
-                    tts.speak_async(uz)
-                    self._wait_speaking(max_wait=4.0)
+                    tts.speak_and_wait(uz, max_wait=3.5, cancel_check=self._should_cancel)
                     self.audio_speaking.emit(False)
 
-            # 4. Namuna gapni o'qish (agar belgilangan bo'lsa)
-            if not interrupted and self.speak_example and not self._is_paused and not self._stop_event.is_set():
+            if self._should_cancel():
+                self._skip_event.clear()
+                continue
+
+            # 4. Namuna gapni o'qish (agar yoqilgan bo'lsa)
+            if self.speak_example and not self._is_paused and not self._stop_event.is_set():
                 ex = word.get("example", "").strip()
                 if ex:
                     self._sleep_interruptible(1.0)
                     self.audio_speaking.emit(True)
-                    tts.speak_async(ex)
-                    self._wait_speaking(max_wait=6.0)
+                    tts.speak_and_wait(ex, max_wait=6.0, cancel_check=self._should_cancel)
                     self.audio_speaking.emit(False)
 
-            # 5. Keyingi so'zga o'tish oldidan qisqa oraliq pauza (1.0 soniya)
-            if not interrupted and not self._is_paused and not self._stop_event.is_set():
-                self._sleep_interruptible(1.0)
-
-            # Indeksni yangilash
-            if self._prev_event.is_set():
-                self._prev_event.clear()
-                self.current_index = max(0, self.current_index - 1)
-            elif self._skip_event.is_set():
+            if self._should_cancel():
                 self._skip_event.clear()
-                self.current_index = (self.current_index + 1) % max(1, len(self.playlist))
-            elif self.shuffle_mode and len(self.playlist) > 1:
-                next_idx = self.current_index
-                while next_idx == self.current_index:
-                    next_idx = random.randint(0, len(self.playlist) - 1)
-                self.current_index = next_idx
-            else:
-                self.current_index += 1
+                continue
+
+            # 5. Keyingi so'zga o'tish oldidan qisqa oraliq pauza (0.8 soniya)
+            if not self._sleep_interruptible(0.8):
+                self._skip_event.clear()
+                continue
+
+            # Normal avtomatik o'tish (foydalanuvchi tugma bosmagan holat)
+            with self._lock:
+                if not self._skip_event.is_set():
+                    if self.shuffle_mode and len(self.playlist) > 1:
+                        next_idx = self.current_index
+                        while next_idx == self.current_index:
+                            next_idx = random.randint(0, len(self.playlist) - 1)
+                        self.current_index = next_idx
+                    else:
+                        self.current_index += 1
 
         self.audio_speaking.emit(False)
         self.state_changed.emit(False)
@@ -300,7 +317,7 @@ class AudioPlayerWidget(QWidget):
 
         self.sub_lbl = QLabel(
             "Ekranga qaramasdan quloqchin orqali so'zlarni eshitib yodlang. "
-            "Dastur so'zni aytadi, belgilangan pauza beradi va tarjimasini o'qiydi."
+            "Dastur ekrandagi so'zni aniq talaffuz qiladi, belgilangan pauza beradi va keyingi so'zga o'tadi."
         )
         self.sub_lbl.setStyleSheet("color: #9CA3AF; font-size: 13px;")
         root.addWidget(self.sub_lbl)
@@ -375,7 +392,7 @@ class AudioPlayerWidget(QWidget):
         self.btn_prev = QPushButton("⏮️ Oldingi")
         self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_prev.setMinimumHeight(44)
-        self.btn_prev.clicked.connect(self.worker.prev_track)
+        self.btn_prev.clicked.connect(self._on_prev_clicked)
         ctrl_layout.addWidget(self.btn_prev)
 
         self.btn_play = QPushButton("▶️ Tinglashni Boshlash")
@@ -394,7 +411,7 @@ class AudioPlayerWidget(QWidget):
         self.btn_next = QPushButton("Keyingi ⏭️")
         self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_next.setMinimumHeight(44)
-        self.btn_next.clicked.connect(self.worker.next_track)
+        self.btn_next.clicked.connect(self._on_next_clicked)
         ctrl_layout.addWidget(self.btn_next)
 
         self.btn_loop = QPushButton("🔁 Takrorlash")
@@ -423,9 +440,10 @@ class AudioPlayerWidget(QWidget):
         set_layout.addWidget(self.slider_interval, 1)
         set_layout.addWidget(self.interval_lbl)
 
-        self.cb_uzbek = QCheckBox("O'zbekcha tarjimani o'qish")
-        self.cb_uzbek.setChecked(True)
+        self.cb_uzbek = QCheckBox("Tarjimani ham o'qish")
+        self.cb_uzbek.setChecked(False)
         self.cb_uzbek.setStyleSheet("font-size: 13px;")
+        self.cb_uzbek.setToolTip("Yoqilsa, inglizcha so'zdan so'ng uning o'zbekcha tarjimasi ham o'qiladi.")
         self.cb_uzbek.stateChanged.connect(lambda s: setattr(self.worker, "speak_uzbek", bool(s)))
         set_layout.addWidget(self.cb_uzbek)
 
@@ -451,6 +469,11 @@ class AudioPlayerWidget(QWidget):
         self.interval_lbl.setText(f"{val_sec:.1f}s")
 
     def load_words(self):
+        was_running = self.worker.is_running
+        if was_running:
+            self.worker.stop_playback()
+            self.worker.wait(400)
+
         idx = self.mode_combo.currentIndex()
         if idx == 0:
             words = db.get_all_words()
@@ -478,6 +501,9 @@ class AudioPlayerWidget(QWidget):
         self.track_idx_lbl.setText(f"So'z: 1 / {len(words)}")
         first = words[0]
         self._display_word(first)
+
+        if was_running:
+            self.worker.start()
 
     def _display_word(self, word: dict):
         eng = word.get("english", "")
@@ -509,6 +535,32 @@ class AudioPlayerWidget(QWidget):
             f"font-size: 14px; font-weight: 700; padding: 10px 24px; }}"
             f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
         )
+
+    def _on_next_clicked(self):
+        """Keyingi so'z tugmasi bosilganda ekranni va audioni bir zumda yangilash."""
+        if not self.worker.playlist:
+            return
+
+        self.worker.next_track()
+        with self.worker._lock:
+            idx = self.worker.current_index
+            if 0 <= idx < len(self.worker.playlist):
+                word = self.worker.playlist[idx]
+                self.track_idx_lbl.setText(f"So'z: {idx + 1} / {len(self.worker.playlist)}")
+                self._display_word(word)
+
+    def _on_prev_clicked(self):
+        """Oldingi so'z tugmasi bosilganda ekranni va audioni bir zumda yangilash."""
+        if not self.worker.playlist:
+            return
+
+        self.worker.prev_track()
+        with self.worker._lock:
+            idx = self.worker.current_index
+            if 0 <= idx < len(self.worker.playlist):
+                word = self.worker.playlist[idx]
+                self.track_idx_lbl.setText(f"So'z: {idx + 1} / {len(self.worker.playlist)}")
+                self._display_word(word)
 
     def _toggle_shuffle(self, checked: bool):
         self.worker.shuffle_mode = checked

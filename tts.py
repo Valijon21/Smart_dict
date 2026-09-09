@@ -8,9 +8,11 @@ Barcha chaqiriqlar va xatoliklar 'logger' orqali log faylga yoziladi.
 """
 import re
 import sys
+import time
 import subprocess
 import threading
 import queue
+import weakref
 from logger import get_logger
 
 logger = get_logger("tts")
@@ -77,10 +79,13 @@ class TTSEngine:
         self._pyttsx3_engine = None
         self._pyttsx3_queue = None
         self._active_voice_name = "Noma'lum"
+        self._selected_voice_id = None
         self._engine_type = "none"
         self._current_ui_rate = 155
         self._is_paused = False
         self._lock = threading.Lock()
+        self._thread_local = threading.local()
+        self._active_thread_speakers = weakref.WeakSet() if "weakref" in globals() else set()
 
         self._init_engine()
 
@@ -103,12 +108,14 @@ class TTSEngine:
                 if any(k in desc.lower() for k in ("english", "zira", "david", "en-us", "en-gb")):
                     selected_voice = v
                     self._active_voice_name = desc
+                    self._selected_voice_id = v.Id
                     break
 
             if selected_voice:
                 speaker.Voice = selected_voice
             elif voices.Count > 0:
                 self._active_voice_name = voices.Item(0).GetDescription()
+                self._selected_voice_id = voices.Item(0).Id
 
             self._sapi_speaker = speaker
             self._engine_type = "SAPI5"
@@ -148,6 +155,36 @@ class TTSEngine:
         self._active_voice_name = "Windows System.Speech"
         logger.info("Oflayn TTS PowerShell System.Speech orqali ishlatiladi.")
 
+    def _get_thread_sapi_speaker(self):
+        """Har bir oqim (thread) uchun alohida, xavfsiz va to'liq mahalliy SAPI SpVoice instansiyasini qaytaradi."""
+        if self._engine_type != "SAPI5":
+            return None
+
+        speaker = getattr(self._thread_local, "speaker", None)
+        if speaker is None:
+            try:
+                import pythoncom
+                import win32com.client
+                pythoncom.CoInitialize()
+                speaker = win32com.client.Dispatch("SAPI.SpVoice")
+                if self._selected_voice_id:
+                    voices = speaker.GetVoices()
+                    for i in range(voices.Count):
+                        v = voices.Item(i)
+                        if v.Id == self._selected_voice_id:
+                            speaker.Voice = v
+                            break
+
+                sapi_rate = max(-10, min(10, int((self._current_ui_rate - 155) / 10)))
+                speaker.Rate = sapi_rate
+                self._thread_local.speaker = speaker
+                with self._lock:
+                    self._active_thread_speakers.add(speaker)
+            except Exception as e:
+                logger.error(f"Thread uchun SAPI SpVoice yaratishda xatolik: {e}")
+                return self._sapi_speaker
+        return speaker
+
     def _pyttsx3_worker(self):
         """pyttsx3 alohida oqimida navbatdagi so'zlarni aytish."""
         while True:
@@ -175,36 +212,30 @@ class TTSEngine:
         logger.info(f"[AUDIO] Talaffuz so'rovi ({len(clean_text)} belgi): '{preview}' (dvigatel: {self._engine_type})")
 
         # Agar avval pauzada bo'lsa, tozalaymiz
-        if self._is_paused and self._engine_type == "SAPI5" and self._sapi_speaker:
-            try:
-                self._sapi_speaker.Resume()
-            except Exception:
-                pass
         self._is_paused = False
 
         # 1. SAPI5 (Eng tez va barqaror)
-        if self._engine_type == "SAPI5" and self._sapi_speaker:
-            try:
-                import pythoncom
-                pythoncom.CoInitialize()
-                # Flag 1 = Async, Flag 2 = PurgeBeforeSpeak (oldingi ovozni to'xtatib yangisini darhol gapirish)
-                self._sapi_speaker.Speak(clean_text, SVSFlagsAsync | SVSFPurgeBeforeSpeak)
-                return
-            except Exception as e:
-                logger.error(f"SAPI5 ovoz chiqarishda xatolik: {e}. Qayta tiklanmoqda...")
-                # Qayta tiklashga urinish
+        if self._engine_type == "SAPI5":
+            spk = self._get_thread_sapi_speaker() or self._sapi_speaker
+            if spk:
                 try:
-                    self._init_engine()
-                    if self._sapi_speaker:
-                        self._sapi_speaker.Speak(clean_text, SVSFlagsAsync | SVSFPurgeBeforeSpeak)
-                        return
-                except Exception:
-                    pass
+                    import pythoncom
+                    pythoncom.CoInitialize()
+                    spk.Speak(clean_text, SVSFlagsAsync | SVSFPurgeBeforeSpeak)
+                    return
+                except Exception as e:
+                    logger.error(f"SAPI5 ovoz chiqarishda xatolik: {e}. Qayta tiklanmoqda...")
+                    try:
+                        self._init_engine()
+                        if self._sapi_speaker:
+                            self._sapi_speaker.Speak(clean_text, SVSFlagsAsync | SVSFPurgeBeforeSpeak)
+                            return
+                    except Exception:
+                        pass
 
         # 2. pyttsx3
         if self._engine_type == "pyttsx3" and self._pyttsx3_queue:
             try:
-                # Navbatni tozalash (faqat oxirgi bosilgan so'zni aytish uchun)
                 while not self._pyttsx3_queue.empty():
                     try:
                         self._pyttsx3_queue.get_nowait()
@@ -228,7 +259,6 @@ class TTSEngine:
                 f"$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
                 f"$s.SpeakAsync('{safe_text}')"
             ]
-            # Qora konsol oynasi miltillab ketmasligi uchun CREATE_NO_WINDOW
             create_flags = 0
             if sys.platform == "win32":
                 create_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
@@ -237,32 +267,101 @@ class TTSEngine:
         except Exception as e:
             logger.critical(f"Barcha TTS vositalari xatolik berdi: {e}")
 
+    def speak_and_wait(self, text: str, max_wait: float = 6.0, cancel_check=None) -> bool:
+        """
+        Matnni talaffuz qiladi va u to'liq tugaguncha bloklaydi (worker thread ichida 100% sinxron ishlash uchun).
+        cancel_check callable bo'lib, agar u True qaytarsa zudlik bilan talaffuzni to'xtatib chiqadi.
+        """
+        if not text or not str(text).strip():
+            return False
+
+        if cancel_check and cancel_check():
+            return False
+
+        raw_text = str(text).strip()
+        clean_text = clean_english_for_tts(raw_text)
+        if not clean_text:
+            clean_text = raw_text
+
+        preview = (clean_text[:75] + "...") if len(clean_text) > 75 else clean_text
+        logger.info(f"[AUDIO] Sinxron talaffuz so'rovi ({len(clean_text)} belgi): '{preview}'")
+
+        if self._engine_type == "SAPI5":
+            spk = self._get_thread_sapi_speaker()
+            if spk:
+                try:
+                    import pythoncom
+                    pythoncom.CoInitialize()
+                    spk.Speak(clean_text, SVSFlagsAsync | SVSFPurgeBeforeSpeak)
+                    self._is_paused = False
+
+                    start = time.time()
+                    time.sleep(0.06)
+
+                    while time.time() - start < max_wait:
+                        if cancel_check and cancel_check():
+                            try:
+                                spk.Speak("", SVSFPurgeBeforeSpeak)
+                            except Exception:
+                                pass
+                            return False
+
+                        try:
+                            done = bool(spk.WaitUntilDone(40))
+                            if done:
+                                return True
+                        except Exception as e:
+                            logger.debug(f"SAPI WaitUntilDone xatolik: {e}")
+                            break
+                        time.sleep(0.02)
+                    return True
+                except Exception as e:
+                    logger.error(f"SAPI speak_and_wait xatolik: {e}")
+
+        # pyttsx3 yoki boshqa fallback holatida
+        self.speak(clean_text)
+        start = time.time()
+        time.sleep(0.06)
+        while time.time() - start < max_wait:
+            if cancel_check and cancel_check():
+                self.stop()
+                return False
+            if not self.is_speaking():
+                break
+            time.sleep(0.04)
+
+        return True
+
     def pause(self) -> bool:
         """Talaffuzni vaqtincha to'xtatish (Pause)."""
-        if self._engine_type == "SAPI5" and self._sapi_speaker:
-            try:
-                import pythoncom
-                pythoncom.CoInitialize()
-                self._sapi_speaker.Pause()
-                self._is_paused = True
-                logger.info("TTS talaffuzi pauza qilindi.")
-                return True
-            except Exception as e:
-                logger.error(f"TTS pause xatolik: {e}")
+        if self._engine_type == "SAPI5":
+            spk = self._get_thread_sapi_speaker() or self._sapi_speaker
+            if spk:
+                try:
+                    import pythoncom
+                    pythoncom.CoInitialize()
+                    spk.Pause()
+                    self._is_paused = True
+                    logger.info("TTS talaffuzi pauza qilindi.")
+                    return True
+                except Exception as e:
+                    logger.error(f"TTS pause xatolik: {e}")
         return False
 
     def resume(self) -> bool:
         """Pauza qilingan joyidan xatosiz davom ettirish (Resume)."""
-        if self._engine_type == "SAPI5" and self._sapi_speaker:
-            try:
-                import pythoncom
-                pythoncom.CoInitialize()
-                self._sapi_speaker.Resume()
-                self._is_paused = False
-                logger.info("TTS talaffuzi qolgan joyidan davom ettirildi.")
-                return True
-            except Exception as e:
-                logger.error(f"TTS resume xatolik: {e}")
+        if self._engine_type == "SAPI5":
+            spk = self._get_thread_sapi_speaker() or self._sapi_speaker
+            if spk:
+                try:
+                    import pythoncom
+                    pythoncom.CoInitialize()
+                    spk.Resume()
+                    self._is_paused = False
+                    logger.info("TTS talaffuzi qolgan joyidan davom ettirildi.")
+                    return True
+                except Exception as e:
+                    logger.error(f"TTS resume xatolik: {e}")
         return False
 
     def is_paused(self) -> bool:
@@ -271,30 +370,43 @@ class TTSEngine:
 
     def is_speaking(self) -> bool:
         """Hozirgi vaqtda audio faol ijro etilayotganini tekshirish."""
-        if self._engine_type == "SAPI5" and self._sapi_speaker:
-            try:
-                # 2 = SRSEIsSpeaking
-                return self._sapi_speaker.Status.RunningState == 2
-            except Exception:
-                pass
+        if self._engine_type == "SAPI5":
+            spk = self._get_thread_sapi_speaker() or self._sapi_speaker
+            if spk:
+                try:
+                    # 2 = SRSEIsSpeaking
+                    return spk.Status.RunningState == 2
+                except Exception:
+                    pass
         return False
 
     def stop(self):
-        """Ovozni darhol to'xtatish."""
-        if self._engine_type == "SAPI5" and self._sapi_speaker:
-            try:
-                import pythoncom
-                pythoncom.CoInitialize()
-                if self._is_paused:
-                    try:
-                        self._sapi_speaker.Resume()
-                    except Exception:
-                        pass
-                self._sapi_speaker.Speak("", SVSFPurgeBeforeSpeak)
-                self._is_paused = False
-                logger.info("TTS talaffuzi to'liq to'xtatildi.")
-            except Exception as e:
-                logger.debug(f"SAPI5 stop xatolik: {e}")
+        """Ovozni darhol to'xtatish (barcha faol oqimlarni tozalaydi)."""
+        if self._engine_type == "SAPI5":
+            speakers_to_stop = []
+            with self._lock:
+                speakers_to_stop.extend(list(self._active_thread_speakers))
+            if self._sapi_speaker:
+                speakers_to_stop.append(self._sapi_speaker)
+            cur = getattr(self._thread_local, "speaker", None)
+            if cur:
+                speakers_to_stop.append(cur)
+
+            for spk in set(speakers_to_stop):
+                try:
+                    import pythoncom
+                    pythoncom.CoInitialize()
+                    if self._is_paused:
+                        try:
+                            spk.Resume()
+                        except Exception:
+                            pass
+                    spk.Speak("", SVSFPurgeBeforeSpeak)
+                except Exception:
+                    pass
+
+            self._is_paused = False
+            logger.info("TTS talaffuzi to'liq to'xtatildi.")
         elif self._engine_type == "pyttsx3" and self._pyttsx3_queue:
             try:
                 while not self._pyttsx3_queue.empty():
@@ -365,6 +477,12 @@ def speak(text: str):
 def speak_async(text: str):
     """Asinxron oflayn talaffuz qilish (speak bilan bir xil)."""
     speak(text)
+
+
+def speak_and_wait(text: str, max_wait: float = 6.0, cancel_check=None) -> bool:
+    """Matnni talaffuz qilib, tugaguncha kutuvchi sinxron funksiya."""
+    engine = _get_engine()
+    return engine.speak_and_wait(text, max_wait, cancel_check)
 
 
 def stop():

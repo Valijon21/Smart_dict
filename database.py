@@ -436,6 +436,11 @@ def search_words(query: str = "", status_filter: str = "all", hard_only: bool = 
         return conn.execute(sql, params).fetchall()
 
 
+def get_words_by_status(status: str = "learning") -> list[sqlite3.Row]:
+    """Berilgan status bo'yicha so'zlarni qaytaradi (masalan: 'learning', 'mastered')."""
+    return search_words(status_filter=status)
+
+
 def update_word(
     word_id: int,
     english: str,
