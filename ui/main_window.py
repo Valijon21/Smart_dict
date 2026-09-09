@@ -22,6 +22,7 @@ from ui.word_fall_game import WordFallGameWidget
 from ui.crossword_game import CrosswordGameWidget
 from ui.classroom_page import ClassroomPageWidget
 from ui.spotlight_search import SpotlightSearchDialog
+from ui.topic_words_page import TopicWordsWidget
 import database as db
 import theme_manager
 from logger import get_logger
@@ -32,6 +33,7 @@ logger = get_logger("main_window")
 NAV_ITEMS = [
     ("📊  Dashboard", "dashboard"),
     ("📖  Lug'at", "dictionary"),
+    ("🗂️  Mavzuli so'zlar", "topic_words"),
     ("📚  Aqlli o'qish", "reader"),
     ("🎮  So'z juftlash", "match"),
     ("⚡  Blitz Marafon", "blitz"),
@@ -119,6 +121,11 @@ class MainWindow(QMainWindow):
             on_start_practice=self.start_custom_practice,
         )
         self.dictionary = DictionaryWidget(on_words_changed=self._on_words_changed)
+        self.topic_words = TopicWordsWidget(
+            self,
+            on_words_changed=self._on_words_changed,
+            on_start_practice=self.start_custom_practice,
+        )
         self.reader_widget = ReaderWidget(
             on_words_changed=self._on_words_changed,
             on_start_practice=self.start_custom_practice,
@@ -140,6 +147,7 @@ class MainWindow(QMainWindow):
         self.pages = {
             "dashboard": self.dashboard,
             "dictionary": self.dictionary,
+            "topic_words": self.topic_words,
             "reader": self.reader_widget,
             "match": self.match_game,
             "blitz": self.blitz_game,
@@ -478,6 +486,8 @@ class MainWindow(QMainWindow):
             self.dashboard.refresh()
         elif key == "dictionary":
             self.dictionary.load_words()
+        elif key == "topic_words":
+            self.topic_words.back_to_grid()
         elif key == "reader":
             self.reader_widget.refresh_reader()
         elif key == "blitz":
@@ -495,6 +505,8 @@ class MainWindow(QMainWindow):
     def _on_words_changed(self):
         self.dashboard.refresh()
         self.dictionary.load_words()
+        if hasattr(self, "topic_words"):
+            self.topic_words.back_to_grid()
         if hasattr(self, "reader_widget"):
             self.reader_widget.refresh_reader()
         self.update_tray_tooltip()
