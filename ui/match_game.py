@@ -1,15 +1,16 @@
 """
 Vocab Master Pro — Word Match (Quizlet uslubidagi so'z juftlash mini-o'yini).
-Foydalanuvchi 6 ta inglizcha va ularning 6 ta o'zbekcha tarjimasini
+Foydalanuvchi inglizcha so'zlarni ularning o'zbekcha tarjimalari bilan
 eng qisqa vaqt ichida to'g'ri juftlab chiqishi kerak.
-Bilgan so'zni qayta-qayta bermaslik, xato qilingan so'zni qayta berish
+Sanoq tanlash (4, 6, 8, 10 ta juftlik), "Boshlash" tugmasi, xato so'zlarni qayta berish
 va o'yinni istalgan payt yakunlash imkoniyati bilan.
+Gamifikatsiya qat'iy qoidasi: 0 juftlik bilan chiqilganda XP berilmaydi!
 """
 import random
 import time
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton,
-    QLabel, QFrame, QDialog, QApplication
+    QLabel, QFrame, QDialog, QApplication, QComboBox, QMessageBox
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -34,7 +35,7 @@ class MatchTile(QPushButton):
         self.is_selected = False
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumSize(140, 84)
+        self.setMinimumSize(140, 80)
         self.setSizePolicy(
             QPushButton().sizePolicy().horizontalPolicy().Expanding,
             QPushButton().sizePolicy().verticalPolicy().Expanding
@@ -141,7 +142,7 @@ class VictoryDialog(QDialog):
             xp_badge = QLabel(f"⭐ +{xp_gained} XP berildi! (Jami: {total_xp} XP)")
             xp_badge.setStyleSheet("color: #A5B4FC; font-size: 14px; font-weight: 700;")
         else:
-            xp_badge = QLabel("ℹ️ Hech qanday so'z topilmadi (0 XP)")
+            xp_badge = QLabel("ℹ️ Hech qanday juftlik topilmadi (0 XP)")
             xp_badge.setStyleSheet("color: #9CA3AF; font-size: 14px; font-weight: 600;")
         xp_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(xp_badge)
@@ -194,6 +195,7 @@ class MatchGameWidget(QWidget):
         self.tiles: list[MatchTile] = []
         self.first_selected: MatchTile | None = None
         self.matched_pairs = 0
+        self.target_pair_count = 6
         self.total_pairs = 6
         self.is_game_active = False
 
@@ -212,6 +214,7 @@ class MatchGameWidget(QWidget):
         self._setup_ui()
         theme_manager.register_listener(self.apply_theme)
         self.apply_theme(theme_manager.get_active_theme())
+        self.prepare_board()
 
     def _setup_ui(self):
         self.layout_root = QVBoxLayout(self)
@@ -227,24 +230,46 @@ class MatchGameWidget(QWidget):
         self.title_label.setStyleSheet("color: white; font-size: 22px; font-weight: 700;")
         header_vbox.addWidget(self.title_label)
 
-        self.subtitle_label = QLabel("Inglizcha so'zlarni ularning o'zbekcha tarjimalari bilan tezkor juftlang!")
+        self.subtitle_label = QLabel("So'zlar sonini tanlang va 'Boshlash' tugmasini bosing yoki istalgan kartochkani tanlang.")
         self.subtitle_label.setStyleSheet("color: #9CA3AF; font-size: 13px;")
         header_vbox.addWidget(self.subtitle_label)
         header_row.addLayout(header_vbox)
 
         header_row.addStretch()
 
-        self.btn_finish_game = QPushButton("🏁 O'yinni yakunlash")
+        # Juftliklar sonini tanlash
+        pair_ctrl_layout = QHBoxLayout()
+        pair_ctrl_layout.setSpacing(8)
+        self.lbl_pair_count = QLabel("🎯 Juftliklar:")
+        self.lbl_pair_count.setStyleSheet("color: #9CA3AF; font-size: 12px; font-weight: 600;")
+        pair_ctrl_layout.addWidget(self.lbl_pair_count)
+
+        self.combo_pair_count = QComboBox()
+        self.combo_pair_count.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.combo_pair_count.addItem("4 ta juftlik (8 kartochka — Tezkor)", 4)
+        self.combo_pair_count.addItem("6 ta juftlik (12 kartochka — Standart)", 6)
+        self.combo_pair_count.addItem("8 ta juftlik (16 kartochka — O'rta)", 8)
+        self.combo_pair_count.addItem("10 ta juftlik (20 kartochka — Qiyin)", 10)
+        self.combo_pair_count.setCurrentIndex(1)  # 6 juftlik standart
+        self.combo_pair_count.currentIndexChanged.connect(self._on_pair_count_changed)
+        pair_ctrl_layout.addWidget(self.combo_pair_count)
+
+        header_row.addLayout(pair_ctrl_layout)
+
+        # Boshlash / Qayta boshlash tugmasi
+        self.btn_start_game = QPushButton("▶️ O'yinni Boshlash")
+        self.btn_start_game.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_start_game.setMinimumHeight(40)
+        self.btn_start_game.clicked.connect(self.start_game)
+        header_row.addWidget(self.btn_start_game)
+
+        # O'yinni yakunlash tugmasi
+        self.btn_finish_game = QPushButton("🏁 Yakunlash")
         self.btn_finish_game.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_finish_game.setMinimumHeight(40)
+        self.btn_finish_game.setEnabled(False)
         self.btn_finish_game.clicked.connect(self._finish_game_manually)
         header_row.addWidget(self.btn_finish_game)
-
-        self.btn_new_game = QPushButton("🔄 Yangi o'yin")
-        self.btn_new_game.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_new_game.setMinimumHeight(40)
-        self.btn_new_game.clicked.connect(self.start_new_game)
-        header_row.addWidget(self.btn_new_game)
 
         self.layout_root.addLayout(header_row)
 
@@ -291,7 +316,7 @@ class MatchGameWidget(QWidget):
         stats_layout.addStretch()
         self.layout_root.addWidget(self.stats_frame)
 
-        # 3. G'alaba banneri (o'yin yakunlanganda doimiy ko'rinib turuvchi panel)
+        # 3. G'alaba banneri
         self.victory_banner = QFrame()
         self.victory_banner.setStyleSheet(
             "QFrame { background-color: #064E3B; border: 1.5px solid #10B981; border-radius: 12px; }"
@@ -300,7 +325,7 @@ class MatchGameWidget(QWidget):
         vb_layout.setContentsMargins(18, 10, 18, 10)
         vb_layout.setSpacing(14)
 
-        self.victory_banner_lbl = QLabel("🎉 Barcha 6 ta juftlik muvaffaqiyatli topildi!")
+        self.victory_banner_lbl = QLabel("🎉 Barcha juftliklar muvaffaqiyatli topildi!")
         self.victory_banner_lbl.setStyleSheet("color: #A7F3D0; font-size: 14px; font-weight: 700;")
         vb_layout.addWidget(self.victory_banner_lbl, 1)
 
@@ -311,13 +336,13 @@ class MatchGameWidget(QWidget):
             "border-radius: 8px; padding: 7px 18px; font-size: 13px; font-weight: 700; }"
             "QPushButton:hover { background-color: #059669; }"
         )
-        self.btn_banner_again.clicked.connect(self.start_new_game)
+        self.btn_banner_again.clicked.connect(lambda: self.start_game(recreate_cards=True))
         vb_layout.addWidget(self.btn_banner_again)
 
         self.victory_banner.setVisible(False)
         self.layout_root.addWidget(self.victory_banner)
 
-        # 4. O'yin maydoni (Grid 4x3)
+        # 4. O'yin maydoni
         self.grid_container = QWidget()
         self.grid_layout = QGridLayout(self.grid_container)
         self.grid_layout.setContentsMargins(0, 4, 0, 4)
@@ -343,34 +368,87 @@ class MatchGameWidget(QWidget):
             self.subtitle_label.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
         if hasattr(self, "stats_frame"):
             self.stats_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
+        if hasattr(self, "lbl_pair_count"):
+            self.lbl_pair_count.setStyleSheet(f"color: {t.text_muted}; font-size: 12px; font-weight: 600;")
 
-        self.btn_new_game.setStyleSheet(
-            f"QPushButton {{ background-color: {t.primary}; color: white; border: none;"
-            f"border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: 700; }}"
-            f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
-        )
-        self.btn_finish_game.setStyleSheet(
-            f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1.5px solid {t.border};"
-            f"border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: 700; }}"
-            f"QPushButton:hover {{ background-color: {t.bg_card_secondary}; border-color: #EF4444; color: #EF4444; }}"
-        )
+        if hasattr(self, "combo_pair_count"):
+            self.combo_pair_count.setStyleSheet(
+                f"QComboBox {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1.5px solid {t.border}; "
+                f"border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; min-width: 170px; }} "
+                f"QComboBox::drop-down {{ border: none; }} "
+                f"QComboBox QAbstractItemView {{ background-color: {t.bg_card}; color: {t.text_main}; selection-background-color: {t.primary}; }}"
+            )
+
+        if hasattr(self, "btn_start_game"):
+            self.btn_start_game.setStyleSheet(
+                f"QPushButton {{ background-color: {t.primary}; color: white; border: none; "
+                f"border-radius: 8px; padding: 8px 20px; font-size: 13px; font-weight: 700; }} "
+                f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
+            )
+        if hasattr(self, "btn_finish_game"):
+            self.btn_finish_game.setStyleSheet(
+                f"QPushButton {{ background-color: {t.bg_card}; color: #EF4444; border: 1.5px solid #7F1D1D; "
+                f"border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 700; }} "
+                f"QPushButton:hover:enabled {{ background-color: #7F1D1D; color: white; }}"
+            )
 
         for tile in self.tiles:
             if not tile.is_matched and not tile.is_selected:
                 tile.set_state("default", t)
 
-    def start_new_game(self):
-        """Yangi o'yin partiyasini boshlash."""
+    def _on_pair_count_changed(self, index: int):
+        val = self.combo_pair_count.currentData()
+        if val:
+            self.target_pair_count = int(val)
+            # Sanoq o'zgarganda taymer boshlanmaydi! Faqat maydon tayyorlanadi.
+            self.prepare_board()
+
+    def prepare_board(self):
+        """O'yin maydonini tayyorlash — taymer boshlanmaydi."""
+        self.timer.stop()
+        self.is_game_active = False
+        self.first_selected = None
+        self.matched_pairs = 0
+        self.elapsed_seconds = 0.0
+        self.timer_display.setText("00:00.0")
+        self.pairs_display.setText(f"0 / {self.target_pair_count}")
+        self.best_display.setText(self._get_best_time_str())
+        self.victory_banner.setVisible(False)
+
+        self.btn_start_game.setText("▶️ O'yinni Boshlash")
+        self.btn_start_game.setEnabled(True)
+        self.combo_pair_count.setEnabled(True)
+        self.btn_finish_game.setEnabled(False)
+
+        self._render_cards()
+
+    def start_game(self, recreate_cards: bool = True):
+        """O'yinni vaqt hisobi bilan boshlash."""
         self.timer.stop()
         self.first_selected = None
         self.matched_pairs = 0
         self.elapsed_seconds = 0.0
         self.timer_display.setText("00:00.0")
-        self.pairs_display.setText("0 / 6")
-        self.best_display.setText(self._get_best_time_str())
+        self.pairs_display.setText(f"0 / {self.target_pair_count}")
         self.victory_banner.setVisible(False)
 
-        # Eski tugmalarni tozalash
+        if recreate_cards or not self.tiles:
+            self._render_cards()
+
+        self.btn_start_game.setText("🔄 Qayta Boshlash")
+        self.combo_pair_count.setEnabled(False)
+        self.btn_finish_game.setEnabled(True)
+
+        self.start_timestamp = time.time()
+        self.is_game_active = True
+        self.timer.start()
+
+    def start_new_game(self):
+        """Eski murojaatlar uchun moslik."""
+        self.start_game(recreate_cards=True)
+
+    def _render_cards(self):
+        """Kartochkalarni bazadan olib maydonga joylashtirish."""
         while self.grid_layout.count():
             item = self.grid_layout.takeAt(0)
             w = item.widget()
@@ -378,53 +456,49 @@ class MatchGameWidget(QWidget):
                 w.deleteLater()
         self.tiles = []
 
-        # Bazadan so'zlarni olish
         all_words = db.get_words_with_progress()
-        if len(all_words) < 6:
+        if len(all_words) < self.target_pair_count:
             all_words = db.get_words(limit=100)
 
         if len(all_words) < 2:
             no_words_lbl = QLabel(
                 "Lug'atda so'zlar yetarli emas!\n"
-                "O'yin o'ynash uchun kamida 6 ta so'z kiriting yoki 'So'z import qilish' bo'limidan qo'shing."
+                f"O'yin o'ynash uchun kamida {self.target_pair_count} ta so'z kiriting yoki 'So'z import qilish' bo'limidan qo'shing."
             )
             no_words_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             no_words_lbl.setStyleSheet("color: #F87171; font-size: 16px; font-weight: 600; padding: 40px;")
             self.grid_layout.addWidget(no_words_lbl, 0, 0)
             return
 
-        # 1. Avvalo xato qilingan so'zlarni tanlash (topmaguncha beriladi)
+        target_count = min(self.target_pair_count, len(all_words))
+        self.total_pairs = target_count
+        self.pairs_display.setText(f"0 / {self.total_pairs}")
+
+        # 1. Avvalo xato qilingan so'zlarni tanlash
         failed_pool = [w for w in all_words if w["id"] in self.failed_word_ids]
         # 2. Hali bu sessiyada chiqmagan yangi so'zlar
         unused_pool = [w for w in all_words if w["id"] not in self.used_word_ids and w["id"] not in self.failed_word_ids]
 
-        if len(unused_pool) + len(failed_pool) < 6:
+        if len(unused_pool) + len(failed_pool) < target_count:
             self.used_word_ids.clear()
             unused_pool = [w for w in all_words if w["id"] not in self.failed_word_ids]
 
-        # Kerakli 6 ta so'zni yig'ish
         selected_words = []
         if failed_pool:
-            selected_words.extend(failed_pool[:6])
+            selected_words.extend(failed_pool[:target_count])
 
-        needed = min(6, len(all_words)) - len(selected_words)
+        needed = target_count - len(selected_words)
         if needed > 0 and unused_pool:
             selected_words.extend(random.sample(unused_pool, min(needed, len(unused_pool))))
 
-        # Agar hali ham yetmasa, mavjud so'zlardan to'ldirish
-        if len(selected_words) < min(6, len(all_words)):
+        if len(selected_words) < target_count:
             remaining = [w for w in all_words if w not in selected_words]
-            fill_count = min(6, len(all_words)) - len(selected_words)
+            fill_count = target_count - len(selected_words)
             if remaining:
                 selected_words.extend(random.sample(remaining, min(fill_count, len(remaining))))
 
-        # Ishlatilgan so'zlar to'plamiga qo'shish
         for w in selected_words:
             self.used_word_ids.add(w["id"])
-
-        sample_size = len(selected_words)
-        self.total_pairs = sample_size
-        self.pairs_display.setText(f"0 / {self.total_pairs}")
 
         cards_data: list[tuple[int, str, str]] = []
         for w in selected_words:
@@ -436,8 +510,12 @@ class MatchGameWidget(QWidget):
 
         random.shuffle(cards_data)
 
-        # 4 ustun x 3 qator (yoki moslashuvchan)
-        cols = 4 if len(cards_data) >= 8 else 3
+        total_cards = len(cards_data)
+        if total_cards >= 20:
+            cols = 5
+        else:
+            cols = 4
+
         t = theme_manager.get_active_theme()
 
         for idx, (item_id, text, lang) in enumerate(cards_data):
@@ -449,10 +527,6 @@ class MatchGameWidget(QWidget):
             self.grid_layout.addWidget(tile, row, col)
             self.tiles.append(tile)
 
-        self.start_timestamp = time.time()
-        self.is_game_active = True
-        self.timer.start()
-
     def _on_timer_tick(self):
         if not self.is_game_active:
             return
@@ -463,8 +537,12 @@ class MatchGameWidget(QWidget):
         self.timer_display.setText(f"{mins:02d}:{secs:02d}.{tenths}")
 
     def _on_tile_clicked(self, tile: MatchTile):
-        if not self.is_game_active or tile.is_matched:
+        if tile.is_matched:
             return
+
+        # Agar o'yin hali rasman boshlanmagan bo'lsa, birinchi kartochkani bosish o'yinni shu onda boshlaydi!
+        if not self.is_game_active:
+            self.start_game(recreate_cards=False)
 
         # 1-kartochkani bosish
         if self.first_selected is None:
@@ -500,7 +578,6 @@ class MatchGameWidget(QWidget):
             if self.matched_pairs >= self.total_pairs:
                 self.is_game_active = False
                 self.timer.stop()
-                # Oxirgi kartochka yashil bo'lishini ko'rsatish uchun 250ms kechikish
                 QTimer.singleShot(250, self._handle_victory)
         else:
             # Xato juftlik
@@ -537,45 +614,42 @@ class MatchGameWidget(QWidget):
         final_time = round(self.elapsed_seconds, 1)
         parent_window = self.window() if self.window() else self
 
+        # GAMIFIKATSIYA QAT'IY QOIDASI: 0 ta juftlik topilsa 0 XP!
         if self.matched_pairs == 0:
-            current_xp = gamification.get_level_info()["total_xp"]
-            self.victory_banner.setVisible(True)
-            self.victory_banner_lbl.setText(
-                f"⏹️ O'yin yakunlandi: 0 / {self.total_pairs} juftlik topildi. Ball to'planmadi."
-            )
-            dlg = VictoryDialog(
+            QMessageBox.information(
                 parent_window,
-                final_time=final_time,
-                is_new_record=False,
-                xp_gained=0,
-                total_xp=current_xp,
-                level_up=False,
-                new_level="",
-                custom_title=f"O'yin Yakunlandi (0/{self.total_pairs} juftlik)"
+                "O'yin Yakunlandi",
+                f"⏹️ <b>O'yin yakunlandi</b><br><br>"
+                f"Siz 0 ta juftlik topdingiz.<br>"
+                f"<i>Qat'iy qoida: 0 ta juftlik bilan XP berilmaydi.</i>"
             )
-        else:
-            xp_to_award = self.matched_pairs * 5
-            new_xp, level_up, new_level = gamification.award_xp(xp_to_award)
-            sound_effects.play_victory()
+            self.prepare_board()
+            return
 
-            self.victory_banner.setVisible(True)
-            self.victory_banner_lbl.setText(
-                f"🏁 O'yin yakunlandi: {self.matched_pairs} / {self.total_pairs} juftlik topildi! Vaqt: {final_time:.1f}s  •  +{xp_to_award} XP"
-            )
+        xp_to_award = self.matched_pairs * 5
+        new_xp, level_up, new_level = gamification.award_xp(xp_to_award)
+        sound_effects.play_victory()
 
-            dlg = VictoryDialog(
-                parent_window,
-                final_time=final_time,
-                is_new_record=False,
-                xp_gained=xp_to_award,
-                total_xp=new_xp,
-                level_up=level_up,
-                new_level=new_level,
-                custom_title=f"O'yin Yakunlandi ({self.matched_pairs}/{self.total_pairs} juftlik)"
-            )
+        self.victory_banner.setVisible(True)
+        self.victory_banner_lbl.setText(
+            f"🏁 O'yin yakunlandi: {self.matched_pairs} / {self.total_pairs} juftlik topildi! Vaqt: {final_time:.1f}s  •  +{xp_to_award} XP"
+        )
+
+        dlg = VictoryDialog(
+            parent_window,
+            final_time=final_time,
+            is_new_record=False,
+            xp_gained=xp_to_award,
+            total_xp=new_xp,
+            level_up=level_up,
+            new_level=new_level,
+            custom_title=f"O'yin Yakunlandi ({self.matched_pairs}/{self.total_pairs} juftlik)"
+        )
 
         if dlg.exec():
-            self.start_new_game()
+            self.start_game(recreate_cards=True)
+        else:
+            self.prepare_board()
 
     def _handle_victory(self):
         """Barcha juftliklar topilganda g'alaba va mukofot."""
@@ -586,8 +660,9 @@ class MatchGameWidget(QWidget):
             final_time = round(self.elapsed_seconds, 1)
             sound_effects.play_milestone()
 
-            # Gamifikatsiya: +30 XP berish
-            new_xp, level_up, new_level = gamification.award_xp(30)
+            # Gamifikatsiya: har bir juftlik uchun 5 XP + 10 XP bonus
+            earned_xp = self.total_pairs * 5 + 10
+            new_xp, level_up, new_level = gamification.award_xp(earned_xp)
 
             # Rekordni tekshirish
             prev_best_str = db.get_setting("match_best_time", "")
@@ -610,7 +685,7 @@ class MatchGameWidget(QWidget):
             self.victory_banner.setVisible(True)
             rec_txt = " (👑 Yangi shaxsiy rekord!)" if is_new_record else ""
             self.victory_banner_lbl.setText(
-                f"🎉 Barcha {self.total_pairs} ta juftlik topildi! Vaqt: {final_time:.1f} soniya{rec_txt}  •  +30 XP"
+                f"🎉 Barcha {self.total_pairs} ta juftlik topildi! Vaqt: {final_time:.1f} soniya{rec_txt}  •  +{earned_xp} XP"
             )
 
             # Maxsus modal g'alaba oynasini ko'rsatish
@@ -619,19 +694,21 @@ class MatchGameWidget(QWidget):
                 parent_window,
                 final_time=final_time,
                 is_new_record=is_new_record,
-                xp_gained=30,
+                xp_gained=earned_xp,
                 total_xp=new_xp,
                 level_up=level_up,
                 new_level=new_level
             )
             if dlg.exec():
-                self.start_new_game()
+                self.start_game(recreate_cards=True)
+            else:
+                self.prepare_board()
         except Exception as e:
             logger.error(f"Word Match g'alaba amallarida xatolik: {e}", exc_info=True)
-            self.start_new_game()
+            self.prepare_board()
 
     def showEvent(self, event):
         super().showEvent(event)
-        # Sahifaga o'tilganda agar o'yin hali boshlanmagan bo'lsa, avtomatik boshlash
+        # Sahifaga o'tilganda taymer boshlanmaydi! Faqat maydon tayyorlanadi.
         if not self.is_game_active and self.matched_pairs == 0:
-            self.start_new_game()
+            self.prepare_board()
