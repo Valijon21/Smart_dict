@@ -85,7 +85,7 @@ class TTSEngine:
         self._is_paused = False
         self._lock = threading.Lock()
         self._thread_local = threading.local()
-        self._active_thread_speakers = weakref.WeakSet() if "weakref" in globals() else set()
+        self._active_thread_speakers = []
 
         self._init_engine()
 
@@ -179,7 +179,7 @@ class TTSEngine:
                 speaker.Rate = sapi_rate
                 self._thread_local.speaker = speaker
                 with self._lock:
-                    self._active_thread_speakers.add(speaker)
+                    self._active_thread_speakers.append(speaker)
             except Exception as e:
                 logger.error(f"Thread uchun SAPI SpVoice yaratishda xatolik: {e}")
                 return self._sapi_speaker
@@ -392,7 +392,11 @@ class TTSEngine:
             if cur:
                 speakers_to_stop.append(cur)
 
-            for spk in set(speakers_to_stop):
+            seen_ids = set()
+            for spk in speakers_to_stop:
+                if spk is None or id(spk) in seen_ids:
+                    continue
+                seen_ids.add(id(spk))
                 try:
                     import pythoncom
                     pythoncom.CoInitialize()

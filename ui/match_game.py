@@ -108,7 +108,8 @@ class VictoryDialog(QDialog):
         layout.setSpacing(16)
 
         # 1. Katta nishoncha
-        icon_lbl = QLabel("🏆")
+        icon = "🏆" if xp_gained > 0 else "⏹️"
+        icon_lbl = QLabel(icon)
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_lbl.setStyleSheet("font-size: 50px;")
         layout.addWidget(icon_lbl)
@@ -126,7 +127,7 @@ class VictoryDialog(QDialog):
         layout.addWidget(time_lbl)
 
         # 4. Rekord
-        if is_new_record:
+        if is_new_record and xp_gained > 0:
             rec_badge = QLabel("👑 YANGI SHAXSIY REKORD O'RNATILDI!")
             rec_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
             rec_badge.setStyleSheet(
@@ -136,13 +137,17 @@ class VictoryDialog(QDialog):
             layout.addWidget(rec_badge)
 
         # 5. XP mukofoti
-        xp_badge = QLabel(f"⭐ +{xp_gained} XP berildi! (Jami: {total_xp} XP)")
+        if xp_gained > 0:
+            xp_badge = QLabel(f"⭐ +{xp_gained} XP berildi! (Jami: {total_xp} XP)")
+            xp_badge.setStyleSheet("color: #A5B4FC; font-size: 14px; font-weight: 700;")
+        else:
+            xp_badge = QLabel("ℹ️ Hech qanday so'z topilmadi (0 XP)")
+            xp_badge.setStyleSheet("color: #9CA3AF; font-size: 14px; font-weight: 600;")
         xp_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        xp_badge.setStyleSheet("color: #A5B4FC; font-size: 14px; font-weight: 700;")
         layout.addWidget(xp_badge)
 
         # 6. Yangi daraja
-        if level_up:
+        if level_up and xp_gained > 0:
             lvl_lbl = QLabel(f"🎊 TABRIKLAYMIZ! Yangi daraja: {new_level}")
             lvl_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lvl_lbl.setStyleSheet("color: #34D399; font-size: 14px; font-weight: 700;")
@@ -530,26 +535,45 @@ class MatchGameWidget(QWidget):
         self.timer.stop()
 
         final_time = round(self.elapsed_seconds, 1)
-        xp_to_award = max(5, self.matched_pairs * 5)
-        new_xp, level_up, new_level = gamification.award_xp(xp_to_award)
-        sound_effects.play_victory()
-
-        self.victory_banner.setVisible(True)
-        self.victory_banner_lbl.setText(
-            f"🏁 O'yin yakunlandi: {self.matched_pairs} / {self.total_pairs} juftlik topildi! Vaqt: {final_time:.1f}s  •  +{xp_to_award} XP"
-        )
-
         parent_window = self.window() if self.window() else self
-        dlg = VictoryDialog(
-            parent_window,
-            final_time=final_time,
-            is_new_record=False,
-            xp_gained=xp_to_award,
-            total_xp=new_xp,
-            level_up=level_up,
-            new_level=new_level,
-            custom_title=f"O'yin Yakunlandi ({self.matched_pairs}/{self.total_pairs} juftlik)"
-        )
+
+        if self.matched_pairs == 0:
+            current_xp = gamification.get_level_info()["total_xp"]
+            self.victory_banner.setVisible(True)
+            self.victory_banner_lbl.setText(
+                f"⏹️ O'yin yakunlandi: 0 / {self.total_pairs} juftlik topildi. Ball to'planmadi."
+            )
+            dlg = VictoryDialog(
+                parent_window,
+                final_time=final_time,
+                is_new_record=False,
+                xp_gained=0,
+                total_xp=current_xp,
+                level_up=False,
+                new_level="",
+                custom_title=f"O'yin Yakunlandi (0/{self.total_pairs} juftlik)"
+            )
+        else:
+            xp_to_award = self.matched_pairs * 5
+            new_xp, level_up, new_level = gamification.award_xp(xp_to_award)
+            sound_effects.play_victory()
+
+            self.victory_banner.setVisible(True)
+            self.victory_banner_lbl.setText(
+                f"🏁 O'yin yakunlandi: {self.matched_pairs} / {self.total_pairs} juftlik topildi! Vaqt: {final_time:.1f}s  •  +{xp_to_award} XP"
+            )
+
+            dlg = VictoryDialog(
+                parent_window,
+                final_time=final_time,
+                is_new_record=False,
+                xp_gained=xp_to_award,
+                total_xp=new_xp,
+                level_up=level_up,
+                new_level=new_level,
+                custom_title=f"O'yin Yakunlandi ({self.matched_pairs}/{self.total_pairs} juftlik)"
+            )
+
         if dlg.exec():
             self.start_new_game()
 

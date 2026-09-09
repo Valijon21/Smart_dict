@@ -152,6 +152,11 @@ def award_xp(amount: int) -> tuple[int, bool, str]:
     To'g'ridan-to'g'ri foydalanuvchiga XP berish (Word Match, Mini vidjet yoki maxsus sovrinlar).
     Qaytaradi: (new_total_xp, level_up: bool, new_level_title: str)
     """
+    if amount <= 0:
+        info = get_level_info()
+        title = f"{info['badge']} {info['level']}-Daraja: {info['title']}"
+        return info["total_xp"], False, title
+
     old_level = get_level_info()["level"]
     new_total_xp = db.add_xp(amount)
     new_info = get_level_info(new_total_xp)

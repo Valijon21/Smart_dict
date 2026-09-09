@@ -55,12 +55,14 @@ class BlitzSummaryDialog(QDialog):
         c_layout.setSpacing(14)
         c_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        title = QLabel("⚡ MARAFON YAKUNI!")
-        title.setStyleSheet(f"color: {t.primary_light}; font-size: 24px; font-weight: 800;")
+        has_played = self.stats.get("correct", 0) > 0 or self.stats.get("score", 0) > 0
+        title_text = "⚡ MARAFON YAKUNI!" if has_played else "⏹️ MARAFON TO'XTATILDI"
+        title = QLabel(title_text)
+        title.setStyleSheet(f"color: {t.primary_light if has_played else t.text_muted}; font-size: 24px; font-weight: 800;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         c_layout.addWidget(title)
 
-        if self.stats.get("is_new_best"):
+        if self.stats.get("is_new_best") and has_played:
             badge = QLabel("🏆 YANGI SHAXSIY REKORD!")
             badge.setStyleSheet(
                 "background-color: #78350F; color: #FDE68A; border: 1.5px solid #F59E0B; "
@@ -107,10 +109,14 @@ class BlitzSummaryDialog(QDialog):
             i_layout.addWidget(l1, row, 0)
             i_layout.addWidget(l2, row, 1)
 
+        xp_val = self.stats.get('xp', 0)
+        xp_str = f"⭐ +{xp_val} XP" if xp_val > 0 else "0 XP (Ball to'planmadi)"
+        xp_color = "#60A5FA" if xp_val > 0 else "#9CA3AF"
+
         add_stat_row(0, "To'g'ri javoblar:", f"✅ {self.stats.get('correct', 0)} ta", "#10B981")
         add_stat_row(1, "Xato javoblar:", f"❌ {self.stats.get('wrong', 0)} ta", "#EF4444")
         add_stat_row(2, "Maksimal Combo:", f"🔥 x{self.stats.get('max_combo', 1)}", "#F59E0B")
-        add_stat_row(3, "Qo'lga kiritilgan XP:", f"⭐ +{self.stats.get('xp', 0)} XP", "#60A5FA")
+        add_stat_row(3, "Qo'lga kiritilgan XP:", xp_str, xp_color)
         add_stat_row(4, "Eng yuqori rekord:", f"👑 {self.stats.get('best_score', 0)} ball", "#FBBF24")
 
         c_layout.addWidget(info_frame)
@@ -528,13 +534,26 @@ class BlitzGameWidget(QWidget):
         self.btn_start.setText("🚀 MARAFONNI QAYTA BOSHLASH")
         self.btn_finish.setEnabled(False)
 
-        # Natijalarni bazaga yozish
-        res = db.record_blitz_score(self.score, self.correct_count, self.wrong_count)
+        # Natijalarni bazaga yozish (agar kamida bitta savolga javob berilgan bo'lsa)
+        if self.correct_count > 0 or self.wrong_count > 0:
+            res = db.record_blitz_score(self.score, self.correct_count, self.wrong_count)
+        else:
+            prev_best = int(db.get_setting("blitz_best_score", "0") or "0")
+            res = {
+                "score": 0,
+                "is_new_best": False,
+                "best_score": prev_best,
+                "correct": 0,
+                "wrong": 0,
+            }
 
-        # XP mukofoti
-        awarded_xp = max(10, self.score // 5)
-        gamification.award_xp(awarded_xp)
-        sound_effects.play_victory()
+        # XP mukofoti: faqat foydalanuvchi to'g'ri javob berib ball to'plagan bo'lsa
+        if self.score > 0 and self.correct_count > 0:
+            awarded_xp = max(5, self.score // 5)
+            gamification.award_xp(awarded_xp)
+            sound_effects.play_victory()
+        else:
+            awarded_xp = 0
 
         stats = {
             "score": self.score,
