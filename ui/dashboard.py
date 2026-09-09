@@ -1,14 +1,17 @@
 import datetime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QProgressBar, QSpinBox, QPushButton, QScrollArea, QGridLayout
+    QProgressBar, QSpinBox, QPushButton, QScrollArea, QGridLayout,
+    QLineEdit
 )
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtCore import Qt, QRectF, QTimer
 from PyQt6.QtGui import QPainter, QColor, QFont, QPen, QBrush, QPainterPath
 
 import database as db
 import gamification
 import theme_manager
+import tts
+import global_dict_service
 from ui.achievements_dialog import AchievementsDialog
 from logger import get_logger
 
@@ -455,6 +458,114 @@ class DashboardWidget(QWidget):
         header_row.addWidget(self.achievements_btn)
         self.layout_root.addLayout(header_row)
 
+        # =====================================================================
+        # 🔍 UNIVERSAL SMART SEARCH (Hero Search Command Center)
+        # 100% aniqlikdagi ikki tomonlama qidiruv (Inglizcha ↔ O'zbekcha)
+        # =====================================================================
+        self.search_container = QFrame()
+        self.search_container.setObjectName("dashboard_search_container")
+        t = theme_manager.get_active_theme()
+
+        search_box_layout = QVBoxLayout(self.search_container)
+        search_box_layout.setContentsMargins(0, 4, 0, 4)
+        search_box_layout.setSpacing(8)
+
+        # 1. Qidiruv paneli ramkasi (Search bar frame)
+        self.search_bar_frame = QFrame()
+        self.search_bar_frame.setStyleSheet(
+            f"QFrame {{ background-color: {t.bg_card}; border: 1.5px solid #4338CA; border-radius: 12px; }} "
+            f"QFrame:hover {{ border: 1.5px solid #6366F1; }}"
+        )
+        bar_layout = QHBoxLayout(self.search_bar_frame)
+        bar_layout.setContentsMargins(14, 8, 14, 8)
+        bar_layout.setSpacing(10)
+
+        # Qidiruv belgisi
+        lbl_search_icon = QLabel("🔍")
+        lbl_search_icon.setStyleSheet("font-size: 16px; border: none; background: transparent;")
+        bar_layout.addWidget(lbl_search_icon)
+
+        # Matn kiritish maydoni
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText(
+            "Aqlli qidiruv: inglizcha yoki o'zbekcha so'z kiriting (masalan: achieve, muvaffaqiyat, book, oila)..."
+        )
+        self.search_input.setStyleSheet(
+            f"QLineEdit {{ background: transparent; border: none; color: {t.text_main}; "
+            f"font-size: 13px; font-weight: 500; selection-background-color: {t.primary}; }}"
+        )
+        self.search_input.setClearButtonEnabled(False)
+        bar_layout.addWidget(self.search_input, 1)
+
+        # Status nishoni: "🌐 64k Oxford + 📚 Shaxsiy"
+        self.badge_search_mode = QLabel("🌐 64k Oxford + 📚 Shaxsiy")
+        self.badge_search_mode.setStyleSheet(
+            "background-color: #1E1B4B; color: #A5B4FC; font-size: 11px; font-weight: 600; "
+            "border: 1px solid #3730A3; border-radius: 6px; padding: 3px 8px;"
+        )
+        bar_layout.addWidget(self.badge_search_mode)
+
+        # Tozalash tugmasi (✕)
+        self.btn_search_clear = QPushButton("✕")
+        self.btn_search_clear.setToolTip("Qidiruvni tozalash")
+        self.btn_search_clear.setFixedSize(26, 26)
+        self.btn_search_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_search_clear.setStyleSheet(
+            "QPushButton { background-color: #2A2A3C; color: #9CA3AF; border: none; "
+            "border-radius: 13px; font-size: 12px; font-weight: 700; }"
+            "QPushButton:hover { background-color: #EF4444; color: white; }"
+        )
+        self.btn_search_clear.setVisible(False)
+        self.btn_search_clear.clicked.connect(self._clear_search)
+        bar_layout.addWidget(self.btn_search_clear)
+
+        search_box_layout.addWidget(self.search_bar_frame)
+
+        # 2. Interaktiv natijalar paneli (Dropdown / Expandable panel)
+        self.search_results_frame = QFrame()
+        self.search_results_frame.setStyleSheet(
+            f"background-color: {t.bg_card}; border: 1.5px solid {t.border}; border-radius: 12px;"
+        )
+        self.results_layout = QVBoxLayout(self.search_results_frame)
+        self.results_layout.setContentsMargins(16, 12, 16, 12)
+        self.results_layout.setSpacing(10)
+
+        # Natijalar sarlavhasi qatori
+        self.results_header_row = QHBoxLayout()
+        self.lbl_results_status = QLabel("Natijalar")
+        self.lbl_results_status.setStyleSheet(f"color: {t.text_main}; font-size: 13px; font-weight: 700;")
+        self.results_header_row.addWidget(self.lbl_results_status)
+        self.results_header_row.addStretch()
+
+        btn_close_results = QPushButton("✕ Yopish")
+        btn_close_results.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_close_results.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {t.text_muted}; border: 1px solid {t.border}; "
+            f"border-radius: 6px; padding: 4px 12px; font-size: 11px; font-weight: 600; }} "
+            f"QPushButton:hover {{ background-color: {t.border}; color: {t.text_main}; }}"
+        )
+        btn_close_results.clicked.connect(self._clear_search)
+        self.results_header_row.addWidget(btn_close_results)
+        self.results_layout.addLayout(self.results_header_row)
+
+        # Natijalar kartalari konteyneri
+        self.search_items_container = QVBoxLayout()
+        self.search_items_container.setSpacing(8)
+        self.results_layout.addLayout(self.search_items_container)
+
+        self.search_results_frame.setVisible(False)
+        search_box_layout.addWidget(self.search_results_frame)
+
+        self.layout_root.addWidget(self.search_container)
+
+        # Real-time tezkor qidiruv uchun 120ms debounce taymeri
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(120)
+        self._search_timer.timeout.connect(self._do_search)
+
+        self.search_input.textChanged.connect(self._on_search_text_changed)
+
         # 5 ta statistika kartalari qatori
         self.cards_row = QHBoxLayout()
         self.cards_row.setSpacing(12)
@@ -720,6 +831,22 @@ class DashboardWidget(QWidget):
             self.radar_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
         if hasattr(self, "radar_title"):
             self.radar_title.setStyleSheet(f"color: {t.text_main}; font-size: 14px; font-weight: 700;")
+        if hasattr(self, "search_bar_frame"):
+            self.search_bar_frame.setStyleSheet(
+                f"QFrame {{ background-color: {t.bg_card}; border: 1.5px solid {t.primary}; border-radius: 12px; }} "
+                f"QFrame:hover {{ border: 1.5px solid {t.primary_light}; }}"
+            )
+        if hasattr(self, "search_results_frame"):
+            self.search_results_frame.setStyleSheet(
+                f"background-color: {t.bg_card}; border: 1.5px solid {t.border}; border-radius: 12px;"
+            )
+        if hasattr(self, "search_input"):
+            self.search_input.setStyleSheet(
+                f"QLineEdit {{ background: transparent; border: none; color: {t.text_main}; "
+                f"font-size: 13px; font-weight: 500; selection-background-color: {t.primary}; }}"
+            )
+        if hasattr(self, "lbl_results_status"):
+            self.lbl_results_status.setStyleSheet(f"color: {t.text_main}; font-size: 13px; font-weight: 700;")
 
     def _muted_label(self, text: str) -> QLabel:
         lbl = QLabel(text)
@@ -899,4 +1026,237 @@ class DashboardWidget(QWidget):
     def _practice_single_word(self, word_id: int):
         if self.on_start_practice:
             self.on_start_practice([word_id], direction="en_uz")
+
+    # =========================================================================
+    # 🔍 UNIVERSAL SMART SEARCH EVENT HANDLERS
+    # =========================================================================
+
+    def _on_search_text_changed(self, text: str):
+        query = text.strip()
+        self.btn_search_clear.setVisible(bool(query))
+        if not query:
+            self._search_timer.stop()
+            self.search_results_frame.setVisible(False)
+            self._clear_result_widgets()
+            return
+        self._search_timer.start()
+
+    def _clear_search(self):
+        self.search_input.clear()
+        self.search_results_frame.setVisible(False)
+        self.btn_search_clear.setVisible(False)
+        self._clear_result_widgets()
+
+    def _clear_result_widgets(self):
+        while self.search_items_container.count() > 0:
+            item = self.search_items_container.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+    def _do_search(self):
+        query = self.search_input.text().strip()
+        if not query:
+            self.search_results_frame.setVisible(False)
+            return
+
+        # 100% aniqlikdagi universal qidiruv
+        results = global_dict_service.search_universal_words(query, limit=8)
+
+        self._clear_result_widgets()
+        t = theme_manager.get_active_theme()
+
+        if not results:
+            self.lbl_results_status.setText(f"🔍 '{query}' bo'yicha hech narsa topilmadi")
+            empty_card = QFrame()
+            empty_card.setStyleSheet(
+                f"background-color: {t.bg_card_secondary}; border: 1px dashed {t.border}; border-radius: 8px;"
+            )
+            empty_layout = QHBoxLayout(empty_card)
+            empty_layout.setContentsMargins(14, 10, 14, 10)
+
+            lbl_info = QLabel("Imlo xatosi yo'qligini tekshiring yoki so'zni yangi so'z sifatida shaxsiy lug'atingizga kiriting:")
+            lbl_info.setStyleSheet(f"color: {t.text_muted}; font-size: 12px;")
+            empty_layout.addWidget(lbl_info, 1)
+
+            btn_add_custom = QPushButton("➕ Yangi so'z qo'shish")
+            btn_add_custom.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_add_custom.setStyleSheet(
+                f"QPushButton {{ background-color: {t.primary}; color: white; border: none; "
+                f"border-radius: 6px; padding: 6px 14px; font-size: 11px; font-weight: 700; }} "
+                f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
+            )
+            btn_add_custom.clicked.connect(lambda: self._go("import"))
+            empty_layout.addWidget(btn_add_custom)
+
+            self.search_items_container.addWidget(empty_card)
+            self.search_results_frame.setVisible(True)
+            return
+
+        self.lbl_results_status.setText(
+            f"🔍 Topildi: {len(results)} ta so'z (Inglizcha ↔ O'zbekcha universal moslik)"
+        )
+
+        for item in results:
+            card = self._create_search_result_card(item, t)
+            self.search_items_container.addWidget(card)
+
+        self.search_results_frame.setVisible(True)
+
+    def _create_search_result_card(self, item: dict, t: theme_manager.Theme) -> QFrame:
+        card = QFrame()
+        card.setStyleSheet(
+            f"QFrame {{ background-color: {t.bg_card_secondary}; border: 1px solid {t.border}; border-radius: 10px; }} "
+            f"QFrame:hover {{ border: 1px solid {t.primary}; }}"
+        )
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(12)
+
+        # 1. Audio Pronounce Button (🔊)
+        audio_btn = QPushButton("🔊")
+        audio_btn.setToolTip("Talaffuzni eshitish (TTS)")
+        audio_btn.setFixedSize(36, 36)
+        audio_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        audio_btn.setStyleSheet(
+            f"QPushButton {{ background-color: {t.primary}; color: white; border: none; "
+            f"border-radius: 8px; font-size: 15px; }} "
+            f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
+        )
+        eng_text = item["english"]
+        audio_btn.clicked.connect(lambda _, w=eng_text: tts.speak(w))
+        layout.addWidget(audio_btn)
+
+        # 2. Details Column
+        info_col = QVBoxLayout()
+        info_col.setSpacing(3)
+
+        # Top row: English word, Phonetic, POS, Star, Status badge
+        top_row = QHBoxLayout()
+        top_row.setSpacing(8)
+
+        lbl_eng = QLabel(item["english"])
+        lbl_eng.setStyleSheet(f"color: {t.text_main}; font-size: 15px; font-weight: 800;")
+        top_row.addWidget(lbl_eng)
+
+        if item.get("phonetic"):
+            lbl_ph = QLabel(item["phonetic"])
+            lbl_ph.setStyleSheet("color: #818CF8; font-size: 12px; font-weight: 500;")
+            top_row.addWidget(lbl_ph)
+
+        if item.get("pos"):
+            lbl_pos = QLabel(f"[{item['pos']}]")
+            lbl_pos.setStyleSheet(
+                "background-color: #312E81; color: #C7D2FE; font-size: 10px; font-weight: 700; "
+                "border-radius: 4px; padding: 2px 5px;"
+            )
+            top_row.addWidget(lbl_pos)
+
+        star_val = str(item.get("star", "0"))
+        if star_val and star_val != "0":
+            lbl_star = QLabel(f"★ {star_val}/3")
+            lbl_star.setStyleSheet("color: #F59E0B; font-size: 11px; font-weight: 700;")
+            top_row.addWidget(lbl_star)
+
+        top_row.addStretch()
+
+        # Status Badge (Shaxsiy vs Global)
+        if item.get("is_in_study_list"):
+            lbl_badge = QLabel(f"✨ Shaxsiy: Box {item.get('box_level', 0)}")
+            lbl_badge.setStyleSheet(
+                "background-color: #064E3B; color: #34D399; border: 1px solid #059669; "
+                "border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700;"
+            )
+        else:
+            lbl_badge = QLabel("🌐 64k Lug'at")
+            lbl_badge.setStyleSheet(
+                "background-color: #1E1B4B; color: #A5B4FC; border: 1px solid #4338CA; "
+                "border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600;"
+            )
+        top_row.addWidget(lbl_badge)
+        info_col.addLayout(top_row)
+
+        # Bottom row: Uzbek translation & example
+        bottom_row = QHBoxLayout()
+        bottom_row.setSpacing(8)
+
+        lbl_uz = QLabel(item.get("uzbek", ""))
+        lbl_uz.setStyleSheet("color: #10B981; font-size: 13px; font-weight: 700;")
+        lbl_uz.setWordWrap(True)
+        bottom_row.addWidget(lbl_uz, 1)
+
+        info_col.addLayout(bottom_row)
+
+        if item.get("example"):
+            lbl_ex = QLabel(f"“{item['example']}”")
+            lbl_ex.setStyleSheet("color: #94A3B8; font-size: 11px; font-style: italic;")
+            lbl_ex.setWordWrap(True)
+            info_col.addWidget(lbl_ex)
+
+        layout.addLayout(info_col, 1)
+
+        # 3. Action Buttons Column
+        act_col = QHBoxLayout()
+        act_col.setSpacing(6)
+
+        # Add button (if not in study list)
+        if not item.get("is_in_study_list"):
+            btn_add = QPushButton("➕ Qo'shish")
+            btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_add.setStyleSheet(
+                "QPushButton { background-color: #10B981; color: white; border: none; "
+                "border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 700; } "
+                "QPushButton:hover { background-color: #059669; }"
+            )
+            btn_add.clicked.connect(
+                lambda _, it=item, b=btn_add, bg=lbl_badge: self._add_search_word_to_study(it, b, bg)
+            )
+            act_col.addWidget(btn_add)
+
+        # Smart Insights Button
+        btn_details = QPushButton("💡 Tahlil")
+        btn_details.setToolTip("Kollokatsiyalar, sinonimlar va so'z tahlili")
+        btn_details.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_details.setStyleSheet(
+            f"QPushButton {{ background-color: #4338CA; color: white; border: none; "
+            f"border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 700; }} "
+            f"QPushButton:hover {{ background-color: #6366F1; }}"
+        )
+        btn_details.clicked.connect(lambda _, w=eng_text: self._open_word_details(w))
+        act_col.addWidget(btn_details)
+
+        layout.addLayout(act_col)
+        return card
+
+    def _add_search_word_to_study(self, item: dict, btn: QPushButton, badge: QLabel):
+        success, msg, wid = global_dict_service.add_to_study_list(
+            english=item["english"],
+            uzbek=item.get("uzbek", ""),
+            example=item.get("example", "")
+        )
+        if success:
+            item["is_in_study_list"] = True
+            item["local_id"] = wid
+            item["box_level"] = 0
+            btn.setText("✓ Qo'shildi")
+            btn.setEnabled(False)
+            btn.setStyleSheet(
+                "background-color: #064E3B; color: #34D399; border: 1px solid #059669; "
+                "border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 700;"
+            )
+            badge.setText("✨ Shaxsiy: Box 0")
+            badge.setStyleSheet(
+                "background-color: #064E3B; color: #34D399; border: 1px solid #059669; "
+                "border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700;"
+            )
+            self.refresh()
+
+    def _open_word_details(self, english: str):
+        try:
+            from ui.dictionary import WordDetailsDialog
+            dlg = WordDetailsDialog(self, english=english, on_added=self.refresh)
+            dlg.exec()
+            self.refresh()
+        except Exception as e:
+            logger.error(f"WordDetailsDialog ochishda xatolik: {e}")
+
 
