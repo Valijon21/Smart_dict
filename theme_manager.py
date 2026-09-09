@@ -164,8 +164,9 @@ _FONT_LISTENERS: list[Callable[[str], None]] = []
 
 
 def get_font_scale() -> str:
-    scale = db.get_setting("font_scale", "normal")
-    return scale if scale in FONT_SCALE_OPTIONS else "normal"
+    scale = db.get_setting("font_scale", "large")
+    return scale if scale in FONT_SCALE_OPTIONS else "large"
+
 
 
 def set_font_scale(scale_id: str):
@@ -198,9 +199,24 @@ def set_font_scale(scale_id: str):
             logger.error(f"Font listener xatoligi: {e}")
 
 
+def apply_current_font_scale():
+    """Dastur ishga tushganda yoki oyna yaratilganda saqlangan font scaleni QApplication ga qo'llash."""
+    scale_id = get_font_scale()
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtGui import QFont
+    app = QApplication.instance()
+    if app:
+        opt = FONT_SCALE_OPTIONS.get(scale_id, FONT_SCALE_OPTIONS["normal"])
+        f = QFont("Segoe UI")
+        f.setPointSizeF(opt["base_pt"])
+        f.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+        app.setFont(f)
+
+
 def register_font_listener(callback: Callable[[str], None]):
     if callback not in _FONT_LISTENERS:
         _FONT_LISTENERS.append(callback)
+
 
 
 def get_active_theme() -> Theme:

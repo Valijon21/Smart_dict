@@ -166,9 +166,11 @@ class MainWindow(QMainWindow):
         root.addWidget(self.stack, 1)
         self.setCentralWidget(central)
         self.current_page_key = "dashboard"
+        theme_manager.apply_current_font_scale()
         theme_manager.register_listener(self.apply_theme)
         self.apply_theme(theme_manager.get_active_theme())
         self.switch_page("dashboard")
+
 
         # Spotlight universal tezkor qidiruv (Alt+Space va Ctrl+Shift+F)
         self.spotlight_dialog = None
