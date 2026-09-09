@@ -3,13 +3,14 @@ Vocab Master Pro — Topic Based Words Page.
 36 ta tematik to'plamni 4 ustunlik kartalarda ko'rsatish, mavzular bo'yicha
 so'zlarni o'rganish, qidirish, talaffuz qilish va trenajyorda mashq qilish interfeysi.
 """
+from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QScrollArea, QFrame, QGridLayout, QProgressBar, QMessageBox, QTableWidget,
     QTableWidgetItem, QHeaderView, QStackedWidget
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QCursor, QFont
+from PyQt6.QtGui import QColor, QCursor, QFont, QPixmap
 
 import topic_service
 import global_dict_service
@@ -20,6 +21,9 @@ from logger import get_logger
 from ui.dictionary import WordDetailsDialog
 
 logger = get_logger("topic_words_page")
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
 
 
 class TopicCardWidget(QFrame):
@@ -34,14 +38,17 @@ class TopicCardWidget(QFrame):
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setObjectName("TopicCard")
-        self.setFixedHeight(180)
+        self.setFixedHeight(194)
+
+        color = self.topic.get("color", "#6366F1")
+        self.color = color
 
         self._default_style = (
             f"QFrame#TopicCard {{ "
             f"background-color: {t.bg_card}; border: 1px solid {t.border}; "
             f"border-radius: 14px; padding: 14px; }} "
             f"QFrame#TopicCard:hover {{ "
-            f"border: 1.5px solid {self.topic.get('color', t.primary)}; "
+            f"border: 1.5px solid {color}; "
             f"background-color: {t.bg_card_secondary}; }}"
         )
         self.setStyleSheet(self._default_style)
@@ -50,19 +57,29 @@ class TopicCardWidget(QFrame):
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(8)
 
-        # Yuqori qator: Emoji va so'zlar soni chipi
+        # Yuqori qator: Mavzu rasmi (Illustration) va so'zlar soni chipi
         top_row = QHBoxLayout()
         top_row.setSpacing(10)
 
-        # Doiraviy rangli nishon
-        color = self.topic.get("color", "#6366F1")
-        self.icon_badge = QLabel(self.topic.get("emoji", "📚"))
-        self.icon_badge.setFixedSize(40, 40)
+        # Topic Rasmi
+        img_path = ROOT_DIR / "assets" / "topics" / f"{self.topic_id}.png"
+        self.icon_badge = QLabel()
+        self.icon_badge.setFixedSize(54, 54)
         self.icon_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.icon_badge.setStyleSheet(
-            f"background-color: {color}22; color: {color}; border: 1.5px solid {color}55; "
-            f"border-radius: 20px; font-size: 20px;"
-        )
+        if img_path.exists():
+            pm = QPixmap(str(img_path)).scaled(
+                54, 54,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            self.icon_badge.setPixmap(pm)
+            self.icon_badge.setStyleSheet("background: transparent; border: none;")
+        else:
+            self.icon_badge.setText(self.topic.get("emoji", "📚"))
+            self.icon_badge.setStyleSheet(
+                f"background-color: {color}22; color: {color}; border: 1.5px solid {color}55; "
+                f"border-radius: 14px; font-size: 24px;"
+            )
         top_row.addWidget(self.icon_badge)
 
         top_row.addStretch()
@@ -71,15 +88,28 @@ class TopicCardWidget(QFrame):
         self.count_badge = QLabel(f"{words_count} words")
         self.count_badge.setStyleSheet(
             f"background-color: {t.bg_app}; color: {t.text_muted}; border: 1px solid {t.border}; "
-            f"border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700;"
+            f"border-radius: 6px; padding: 4px 9px; font-size: 11px; font-weight: 700;"
         )
         top_row.addWidget(self.count_badge)
         layout.addLayout(top_row)
 
-        # Mavzu nomi
+        # Mavzu nomi va o'zbekcha tarjimasi
+        title_box = QVBoxLayout()
+        title_box.setSpacing(2)
+
         self.title_lbl = QLabel(self.topic.get("title", ""))
-        self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 15px; font-weight: 700;")
-        layout.addWidget(self.title_lbl)
+        self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 14px; font-weight: 700;")
+        title_box.addWidget(self.title_lbl)
+
+        uz_title = self.topic.get("title_uz", "")
+        if uz_title:
+            self.sub_title_lbl = QLabel(uz_title)
+            self.sub_title_lbl.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: 600;")
+            title_box.addWidget(self.sub_title_lbl)
+        else:
+            self.sub_title_lbl = None
+
+        layout.addLayout(title_box)
 
         # Qisqa tavsif
         desc = self.topic.get("description", "")
@@ -108,6 +138,30 @@ class TopicCardWidget(QFrame):
         layout.addLayout(self.progress_row)
 
         self.update_progress()
+
+    def apply_theme(self, t):
+        """Mavzu ranglari o'zgarganda kartani yangilash."""
+        self._default_style = (
+            f"QFrame#TopicCard {{ "
+            f"background-color: {t.bg_card}; border: 1px solid {t.border}; "
+            f"border-radius: 14px; padding: 14px; }} "
+            f"QFrame#TopicCard:hover {{ "
+            f"border: 1.5px solid {self.color}; "
+            f"background-color: {t.bg_card_secondary}; }}"
+        )
+        self.setStyleSheet(self._default_style)
+        self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 14px; font-weight: 700;")
+        self.desc_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; line-height: 1.3;")
+        self.count_badge.setStyleSheet(
+            f"background-color: {t.bg_app}; color: {t.text_muted}; border: 1px solid {t.border}; "
+            f"border-radius: 6px; padding: 4px 9px; font-size: 11px; font-weight: 700;"
+        )
+        self.progress_bar.setStyleSheet(
+            f"QProgressBar {{ background-color: {t.bg_app}; border: none; border-radius: 2px; }} "
+            f"QProgressBar::chunk {{ background-color: {self.color}; border-radius: 2px; }}"
+        )
+        self.progress_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; font-weight: 600;")
+
 
     def update_progress(self):
         """Foydalanuvchining ushbu mavzuni o'zlashtirish progressini yangilash."""
@@ -290,13 +344,11 @@ class TopicWordsWidget(QWidget):
         dh_lay.setContentsMargins(12, 8, 12, 8)
         dh_lay.setSpacing(14)
 
-        self.detail_emoji_lbl = QLabel("📚")
-        self.detail_emoji_lbl.setFixedSize(52, 52)
-        self.detail_emoji_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.detail_emoji_lbl.setStyleSheet(
-            "background-color: #312E81; border-radius: 26px; font-size: 26px;"
-        )
-        dh_lay.addWidget(self.detail_emoji_lbl)
+        self.detail_img_lbl = QLabel()
+        self.detail_img_lbl.setFixedSize(68, 68)
+        self.detail_img_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.detail_img_lbl.setStyleSheet("background: transparent; border: none;")
+        dh_lay.addWidget(self.detail_img_lbl)
 
         d_col = QVBoxLayout()
         d_col.setSpacing(4)
@@ -354,11 +406,22 @@ class TopicWordsWidget(QWidget):
         self.current_topic_id = topic_id
         color = topic.get("color", "#6366F1")
 
-        self.detail_emoji_lbl.setText(topic.get("emoji", "📚"))
-        self.detail_emoji_lbl.setStyleSheet(
-            f"background-color: {color}22; color: {color}; border: 1.5px solid {color}55; "
-            f"border-radius: 26px; font-size: 26px;"
-        )
+        img_path = ROOT_DIR / "assets" / "topics" / f"{topic_id}.png"
+        if img_path.exists():
+            pm = QPixmap(str(img_path)).scaled(
+                68, 68,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            self.detail_img_lbl.setPixmap(pm)
+            self.detail_img_lbl.setStyleSheet("background: transparent; border: none;")
+        else:
+            self.detail_img_lbl.setText(topic.get("emoji", "📚"))
+            self.detail_img_lbl.setStyleSheet(
+                f"background-color: {color}22; color: {color}; border: 1.5px solid {color}55; "
+                f"border-radius: 18px; font-size: 28px;"
+            )
+
         self.detail_title_lbl.setText(f"{topic.get('title')}  •  {topic.get('title_uz', '')}")
         self.detail_desc_lbl.setText(topic.get("description", ""))
 
@@ -610,4 +673,5 @@ class TopicWordsWidget(QWidget):
                 """
             )
         for card in self.topic_cards:
-            card.setStyleSheet(card._default_style)
+            card.apply_theme(t)
+
