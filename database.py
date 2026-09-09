@@ -176,6 +176,9 @@ def init_db():
                 ("user_xp", "0"),
                 ("match_best_time", ""),
                 ("floating_widget_interval", "15"),
+                ("blitz_best_score", "0"),
+                ("periodic_reminder_enabled", "true"),
+                ("periodic_reminder_interval_min", "60"),
             ],
         )
         # Agar ilgari match_best_time '0' bo'lib qolgan bo'lsa, tozalaymiz
@@ -1097,4 +1100,96 @@ def get_achievement(ach_id: str) -> dict | None:
     with get_conn() as conn:
         row = conn.execute("SELECT * FROM achievements WHERE id = ?", (ach_id,)).fetchone()
         return dict(row) if row else None
+
+
+# ---------- Faollik issiqlik xaritasi (Activity Heatmap) & Zaif so'zlar ----------
+
+def get_daily_activity_heatmap(days: int = 365) -> dict[str, int]:
+    """So'nggi `days` kun ichidagi kunlik mashq qilingan so'zlar sonini {YYYY-MM-DD: count} ko'rinishida qaytaradi."""
+    start_date = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT date, practiced FROM daily_stats WHERE date >= ? ORDER BY date ASC",
+            (start_date,)
+        ).fetchall()
+        return {r["date"]: r["practiced"] for r in rows}
+
+
+def get_weakest_words(limit: int = 10) -> list[dict]:
+    """Eng ko'p xato qilingan va unutilish ehtimoli yuqori zaif so'zlarni qaytaradi."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT w.id, w.english, w.uzbek, w.phonetic, w.part_of_speech, w.example,
+                   COALESCE(p.wrong_count, 0) as wrong_count,
+                   COALESCE(p.correct_count, 0) as correct_count,
+                   COALESCE(p.ease_factor, 2.5) as ease_factor
+            FROM words w
+            LEFT JOIN progress p ON w.id = p.word_id
+            WHERE COALESCE(p.wrong_count, 0) > 0 OR w.status = 'learning'
+            ORDER BY wrong_count DESC, ease_factor ASC, w.id ASC
+            LIMIT ?
+            """,
+            (limit,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_random_smart_word() -> dict | None:
+    """Bildirishnoma yoki vidjet uchun o'rganilayotgan yoki interval muddati yetgan so'zni qaytaradi."""
+    with get_conn() as conn:
+        # 1. Avval interval muddati yetgan so'zlardan
+        row = conn.execute(
+            """
+            SELECT w.* FROM words w
+            JOIN progress p ON w.id = p.word_id
+            WHERE p.next_review <= DATE('now')
+            ORDER BY RANDOM() LIMIT 1
+            """
+        ).fetchone()
+        if row:
+            return dict(row)
+
+        # 2. Keyin o'rganilayotgan (learning) so'zlardan
+        row = conn.execute(
+            "SELECT * FROM words WHERE status = 'learning' ORDER BY RANDOM() LIMIT 1"
+        ).fetchone()
+        if row:
+            return dict(row)
+
+        # 3. Nihoyat, ixtiyoriy so'z
+        row = conn.execute("SELECT * FROM words ORDER BY RANDOM() LIMIT 1").fetchone()
+        return dict(row) if row else None
+
+
+def record_blitz_score(score: int, correct: int, wrong: int) -> dict:
+    """Blitz marafoni natijasini qayd etadi, agar yangi rekord bo'lsa yangilaydi."""
+    prev_best = int(get_setting("blitz_best_score", "0") or "0")
+    is_new_best = score > prev_best
+    if is_new_best:
+        set_setting("blitz_best_score", str(score))
+
+    # Daily stats yangilash
+    today = datetime.date.today().isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO daily_stats (date, practiced, correct, wrong)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(date) DO UPDATE SET
+                practiced = practiced + ?,
+                correct = correct + ?,
+                wrong = wrong + ?
+            """,
+            (today, correct + wrong, correct, wrong, correct + wrong, correct, wrong),
+        )
+
+    return {
+        "score": score,
+        "is_new_best": is_new_best,
+        "best_score": max(score, prev_best),
+        "correct": correct,
+        "wrong": wrong,
+    }
+
 

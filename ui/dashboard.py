@@ -1,6 +1,7 @@
+import datetime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QProgressBar, QSpinBox, QPushButton
+    QProgressBar, QSpinBox, QPushButton, QScrollArea, QGridLayout
 )
 from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QPainter, QColor, QFont, QPen, QBrush, QPainterPath
@@ -240,6 +241,140 @@ class BoxChartWidget(QFrame):
             painter.drawText(QRectF(cx - 30, chart_bottom + 6, 60, 20), Qt.AlignmentFlag.AlignCenter, f"Box {i}")
 
 
+class ActivityHeatmapWidget(QFrame):
+    """GitHub uslubidagi 365 kunlik (52 hafta) mashqlar faollik xaritasi (Heatmap)."""
+    HEAT_COLORS = ["#1F2937", "#065F46", "#059669", "#10B981", "#34D399"]
+    DAYS = ["Dush", "Chor", "Juma"]
+    MONTHS = ["Yan", "Fev", "Mar", "Apr", "May", "Iyun", "Iyul", "Avg", "Sen", "Okt", "Noy", "Dek"]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.heatmap_data: dict[str, int] = {}
+        self.cell_rects = []
+        self.hover_info = ""
+        self.setMinimumHeight(175)
+        self.setMouseTracking(True)
+        self.title_color = QColor("white")
+        self.text_color = QColor("#9CA3AF")
+        t = theme_manager.get_active_theme()
+        self.apply_theme(t)
+
+    def apply_theme(self, t: theme_manager.Theme):
+        self.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
+        self.title_color = QColor(t.text_main)
+        self.text_color = QColor(t.text_muted)
+        self.update()
+
+    def set_data(self, data: dict[str, int]):
+        self.heatmap_data = data
+        self.update()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        w = self.width()
+        h = self.height()
+
+        # Sarlavha
+        painter.setPen(self.title_color)
+        font_title = QFont()
+        font_title.setPointSize(11)
+        font_title.setBold(True)
+        painter.setFont(font_title)
+        painter.drawText(20, 26, "Yillik Mashqlar Faolligi (Activity Heatmap)")
+
+        # Hover info
+        font_sm = QFont()
+        font_sm.setPointSize(9)
+        painter.setFont(font_sm)
+        painter.setPen(self.text_color)
+        if self.hover_info:
+            painter.drawText(w - 240, 26, self.hover_info)
+
+        # 52 hafta x 7 kun katakchalari
+        cols = 52
+        rows = 7
+        tile_size = 11.0
+        gap = 3.0
+        start_x = 44.0
+        start_y = 48.0
+
+        # Hafta kunlari
+        painter.setPen(self.text_color)
+        painter.setFont(QFont("Segoe UI", 8))
+        painter.drawText(QRectF(4, start_y + 1 * (tile_size + gap) - 2, 34, 14), Qt.AlignmentFlag.AlignRight, "Dush")
+        painter.drawText(QRectF(4, start_y + 3 * (tile_size + gap) - 2, 34, 14), Qt.AlignmentFlag.AlignRight, "Chor")
+        painter.drawText(QRectF(4, start_y + 5 * (tile_size + gap) - 2, 34, 14), Qt.AlignmentFlag.AlignRight, "Juma")
+
+        today = datetime.date.today()
+        start_date = today - datetime.timedelta(days=cols * 7)
+        curr_date = start_date
+        self.cell_rects = []
+
+        for c in range(cols):
+            # Oy nomi
+            if curr_date.day <= 7:
+                m_idx = curr_date.month - 1
+                painter.setPen(self.text_color)
+                painter.drawText(int(start_x + c * (tile_size + gap)), int(start_y - 8), self.MONTHS[m_idx])
+
+            for r in range(rows):
+                date_str = curr_date.isoformat()
+                count = self.heatmap_data.get(date_str, 0)
+
+                if count == 0:
+                    color = QColor(self.HEAT_COLORS[0])
+                elif count <= 4:
+                    color = QColor(self.HEAT_COLORS[1])
+                elif count <= 10:
+                    color = QColor(self.HEAT_COLORS[2])
+                elif count <= 20:
+                    color = QColor(self.HEAT_COLORS[3])
+                else:
+                    color = QColor(self.HEAT_COLORS[4])
+
+                x = start_x + c * (tile_size + gap)
+                y = start_y + r * (tile_size + gap)
+                rect = QRectF(x, y, tile_size, tile_size)
+                self.cell_rects.append((rect, date_str, count))
+
+                path = QPainterPath()
+                path.addRoundedRect(rect, 2.5, 2.5)
+                painter.fillPath(path, QBrush(color))
+
+                curr_date += datetime.timedelta(days=1)
+
+        # Legend: Kam [■ ■ ■ ■ ■] Ko'p
+        leg_x = w - 180
+        leg_y = h - 22
+        painter.setPen(self.text_color)
+        painter.drawText(int(leg_x - 32), int(leg_y + 9), "Kam")
+        for i, col_hex in enumerate(self.HEAT_COLORS):
+            bx = leg_x + i * 14
+            path = QPainterPath()
+            path.addRoundedRect(QRectF(bx, leg_y, 10, 10), 2.0, 2.0)
+            painter.fillPath(path, QBrush(QColor(col_hex)))
+        painter.drawText(int(leg_x + 5 * 14 + 6), int(leg_y + 9), "Ko'p")
+
+    def mouseMoveEvent(self, event):
+        pos = event.position()
+        found = False
+        if hasattr(self, "cell_rects"):
+            for rect, date_str, count in self.cell_rects:
+                if rect.contains(pos):
+                    self.hover_info = f"📅 {date_str}: {count} ta so'z"
+                    self.setToolTip(f"{date_str}: {count} ta so'z mashq qilingan")
+                    self.update()
+                    found = True
+                    break
+        if not found and self.hover_info:
+            self.hover_info = ""
+            self.update()
+        super().mouseMoveEvent(event)
+
+
 def _stat_card(title: str, val_label: QLabel, color: str = "#4F46E5", t: theme_manager.Theme = None) -> QFrame:
     if t is None:
         t = theme_manager.get_active_theme()
@@ -273,9 +408,20 @@ class DashboardWidget(QWidget):
         self.on_navigate = on_navigate
         self.on_goal_changed = on_goal_changed
         self.on_start_practice = on_start_practice
-        self.layout_root = QVBoxLayout(self)
+
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.scroll = QScrollArea(self)
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        self.scroll_content = QWidget()
+        self.layout_root = QVBoxLayout(self.scroll_content)
         self.layout_root.setContentsMargins(24, 24, 24, 24)
         self.layout_root.setSpacing(16)
+        self.scroll.setWidget(self.scroll_content)
+        outer_layout.addWidget(self.scroll)
 
         header_row = QHBoxLayout()
         header = QLabel("Dashboard")
@@ -415,6 +561,16 @@ class DashboardWidget(QWidget):
         btn_match.clicked.connect(lambda: self._go("match"))
         actions_layout.addWidget(btn_match)
 
+        btn_audio = QPushButton("🎧 Audio pleyer")
+        btn_audio.setStyleSheet(self._action_btn_style("#0284C7"))
+        btn_audio.clicked.connect(lambda: self._go("audio_player"))
+        actions_layout.addWidget(btn_audio)
+
+        btn_blitz = QPushButton("⚡ Blitz marafon")
+        btn_blitz.setStyleSheet(self._action_btn_style("#D97706"))
+        btn_blitz.clicked.connect(lambda: self._go("blitz"))
+        actions_layout.addWidget(btn_blitz)
+
         actions_layout.addStretch()
         self.layout_root.addWidget(self.actions_frame)
 
@@ -481,6 +637,36 @@ class DashboardWidget(QWidget):
         charts_row.addWidget(self.box_chart, 1)
 
         self.layout_root.addLayout(charts_row)
+
+        # --- Yillik Faollik Issiqlik Xaritasi (Activity Heatmap) ---
+        self.heatmap_chart = ActivityHeatmapWidget()
+        self.layout_root.addWidget(self.heatmap_chart)
+
+        # --- Zaif So'zlar Radari (Top 5 Weakest Words) ---
+        self.radar_frame = QFrame()
+        self.radar_frame.setStyleSheet("background-color: #1E1E2E; border-radius: 12px;")
+        r_layout = QVBoxLayout(self.radar_frame)
+        r_layout.setContentsMargins(18, 14, 18, 14)
+        r_layout.setSpacing(10)
+
+        r_top = QHBoxLayout()
+        self.radar_title = QLabel("🎯 Zaif So'zlar Radari (Eng ko'p xato qilinganlar)")
+        self.radar_title.setStyleSheet("color: white; font-size: 14px; font-weight: 700;")
+        r_top.addWidget(self.radar_title)
+        r_top.addStretch()
+
+        self.btn_practice_radar = QPushButton("⚡ Hammasini Mashq Qilish")
+        self.btn_practice_radar.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_practice_radar.setStyleSheet(self._action_btn_style("#DC2626"))
+        self.btn_practice_radar.clicked.connect(self._practice_weak_words)
+        r_top.addWidget(self.btn_practice_radar)
+        r_layout.addLayout(r_top)
+
+        self.radar_list_layout = QVBoxLayout()
+        self.radar_list_layout.setSpacing(6)
+        r_layout.addLayout(self.radar_list_layout)
+
+        self.layout_root.addWidget(self.radar_frame)
         self.layout_root.addStretch()
 
         self.goal_spin.setValue(db.get_daily_goal())
@@ -524,6 +710,16 @@ class DashboardWidget(QWidget):
             self.week_chart.apply_theme(t)
         if hasattr(self, "box_chart"):
             self.box_chart.apply_theme(t)
+        if hasattr(self, "scroll"):
+            self.scroll.setStyleSheet(f"QScrollArea {{ border: none; background-color: {t.bg_app}; }}")
+        if hasattr(self, "scroll_content"):
+            self.scroll_content.setStyleSheet(f"background-color: {t.bg_app};")
+        if hasattr(self, "heatmap_chart"):
+            self.heatmap_chart.apply_theme(t)
+        if hasattr(self, "radar_frame"):
+            self.radar_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
+        if hasattr(self, "radar_title"):
+            self.radar_title.setStyleSheet(f"color: {t.text_main}; font-size: 14px; font-weight: 700;")
 
     def _muted_label(self, text: str) -> QLabel:
         lbl = QLabel(text)
@@ -640,3 +836,67 @@ class DashboardWidget(QWidget):
         # --- 2-Grafik: Leitner Box taqsimoti ---
         box_dist = db.get_box_distribution()
         self.box_chart.set_data(box_dist)
+
+        # --- 3-Grafik: Yillik Faollik Issiqlik Xaritasi ---
+        if hasattr(self, "heatmap_chart"):
+            heatmap_data = db.get_daily_activity_heatmap(365)
+            self.heatmap_chart.set_data(heatmap_data)
+
+        # --- Zaif so'zlar radari yangilanishi ---
+        if hasattr(self, "radar_list_layout"):
+            while self.radar_list_layout.count() > 0:
+                item = self.radar_list_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+
+            weak_list = db.get_weakest_words(limit=5)
+            if weak_list:
+                self.radar_frame.setVisible(True)
+                t = theme_manager.get_active_theme()
+                for w in weak_list:
+                    row_f = QFrame()
+                    row_f.setStyleSheet(f"background-color: {t.bg_card_secondary}; border-radius: 8px; border: 1px solid {t.border};")
+                    rf_lay = QHBoxLayout(row_f)
+                    rf_lay.setContentsMargins(12, 6, 12, 6)
+
+                    lbl_eng = QLabel(w.get("english", ""))
+                    lbl_eng.setStyleSheet(f"color: {t.text_main}; font-weight: 700; font-size: 13px;")
+                    rf_lay.addWidget(lbl_eng)
+
+                    pho = w.get("phonetic", "")
+                    if pho:
+                        lbl_pho = QLabel(pho)
+                        lbl_pho.setStyleSheet(f"color: {t.primary_light}; font-size: 12px;")
+                        rf_lay.addWidget(lbl_pho)
+
+                    rf_lay.addStretch()
+
+                    lbl_uz = QLabel(w.get("uzbek", ""))
+                    lbl_uz.setStyleSheet("color: #10B981; font-weight: 600; font-size: 13px;")
+                    rf_lay.addWidget(lbl_uz)
+
+                    wr_cnt = w.get("wrong_count", 0)
+                    lbl_wrong = QLabel(f"❌ {wr_cnt} ta xato")
+                    lbl_wrong.setStyleSheet(
+                        "background-color: #7F1D1D; color: #FCA5A5; border-radius: 4px; "
+                        "padding: 2px 8px; font-size: 11px; font-weight: 700;"
+                    )
+                    rf_lay.addWidget(lbl_wrong)
+
+                    btn_p = QPushButton("Mashq")
+                    btn_p.setCursor(Qt.CursorShape.PointingHandCursor)
+                    btn_p.setStyleSheet(
+                        f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 4px; "
+                        f"padding: 4px 12px; font-size: 11px; font-weight: 700; }}"
+                    )
+                    btn_p.clicked.connect(lambda _, wid=w["id"]: self._practice_single_word(wid))
+                    rf_lay.addWidget(btn_p)
+
+                    self.radar_list_layout.addWidget(row_f)
+            else:
+                self.radar_frame.setVisible(False)
+
+    def _practice_single_word(self, word_id: int):
+        if self.on_start_practice:
+            self.on_start_practice([word_id], direction="en_uz")
+

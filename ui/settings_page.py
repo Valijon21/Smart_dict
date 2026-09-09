@@ -3,7 +3,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QCheckBox,
     QTimeEdit, QSlider, QPushButton, QFrame, QFileDialog, QMessageBox,
-    QScrollArea, QGridLayout
+    QScrollArea, QGridLayout, QComboBox
 )
 from PyQt6.QtCore import Qt, QTime, QTimer
 
@@ -128,6 +128,25 @@ class SettingsWidget(QWidget):
         self.chk_tray.setStyleSheet("color: white; font-size: 13px;")
         self.chk_tray.toggled.connect(self._auto_save_settings)
         rem_layout.addWidget(self.chk_tray)
+
+        self.chk_periodic_toast = QCheckBox("Kun so'zi eslatmalari (Desktop Smart Toast bildirishnomasi)")
+        self.chk_periodic_toast.setStyleSheet("color: white; font-size: 13px;")
+        self.chk_periodic_toast.toggled.connect(self._auto_save_settings)
+        rem_layout.addWidget(self.chk_periodic_toast)
+
+        row_interval = QHBoxLayout()
+        row_interval.addWidget(QLabel("Smart Toast chiqish oralig'i:"))
+        self.combo_toast_interval = QComboBox()
+        self.combo_toast_interval.addItems([
+            "Har 30 daqiqada",
+            "Har 1 soatda",
+            "Har 2 soatda",
+            "Har 3 soatda"
+        ])
+        self.combo_toast_interval.currentIndexChanged.connect(self._auto_save_settings)
+        row_interval.addWidget(self.combo_toast_interval)
+        row_interval.addStretch()
+        rem_layout.addLayout(row_interval)
 
         layout.addWidget(card_reminder)
 
@@ -329,6 +348,11 @@ class SettingsWidget(QWidget):
         card_qss = f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};"
         for card in getattr(self, "cards", []):
             card.setStyleSheet(card_qss)
+        if hasattr(self, "combo_toast_interval"):
+            self.combo_toast_interval.setStyleSheet(
+                f"QComboBox {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 1px solid {t.border}; "
+                f"border-radius: 6px; padding: 4px 10px; font-size: 12px; }}"
+            )
         self.refresh_theme_cards()
 
     def _build_theme_swatch_card(self, t: theme_manager.Theme) -> QFrame:
@@ -456,6 +480,10 @@ class SettingsWidget(QWidget):
         db.set_setting("minimize_to_tray", "true" if self.chk_tray.isChecked() else "false")
         db.set_setting("tts_autoplay", "true" if self.chk_autoplay.isChecked() else "false")
         db.set_setting("sound_effects_enabled", "true" if self.chk_sound_fx.isChecked() else "false")
+        db.set_setting("periodic_reminder_enabled", "true" if self.chk_periodic_toast.isChecked() else "false")
+        intervals = ["30", "60", "120", "180"]
+        c_idx = max(0, min(self.combo_toast_interval.currentIndex(), len(intervals) - 1))
+        db.set_setting("periodic_reminder_interval_min", intervals[c_idx])
         if self.on_settings_saved:
             self.on_settings_saved()
 
@@ -548,6 +576,13 @@ class SettingsWidget(QWidget):
             self.lbl_rate_val.setText(str(rate))
             tts.set_rate(rate)
 
+            periodic_en = (db.get_setting("periodic_reminder_enabled", "true") == "true")
+            self.chk_periodic_toast.setChecked(periodic_en)
+
+            cur_int = db.get_setting("periodic_reminder_interval_min", "60")
+            int_map = {"30": 0, "60": 1, "120": 2, "180": 3}
+            self.combo_toast_interval.setCurrentIndex(int_map.get(cur_int, 1))
+
             self.lbl_db_path.setText(f"Baza joylashuvi: {db.DB_PATH}")
             self.lbl_log_path.setText(f"Log fayli: {logger.get_log_file_path()}")
             self.lbl_log_size.setText(f"Hozirgi hajm: {logger.get_log_size_str()}")
@@ -564,6 +599,10 @@ class SettingsWidget(QWidget):
         db.set_setting("tts_autoplay", "true" if self.chk_autoplay.isChecked() else "false")
         db.set_setting("sound_effects_enabled", "true" if self.chk_sound_fx.isChecked() else "false")
         db.set_setting("tts_rate", str(self.slider_rate.value()))
+        db.set_setting("periodic_reminder_enabled", "true" if self.chk_periodic_toast.isChecked() else "false")
+        intervals = ["30", "60", "120", "180"]
+        c_idx = max(0, min(self.combo_toast_interval.currentIndex(), len(intervals) - 1))
+        db.set_setting("periodic_reminder_interval_min", intervals[c_idx])
 
         log.info(f"Barcha sozlamalar saqlandi. Kunlik reja: {val} ta so'z")
 

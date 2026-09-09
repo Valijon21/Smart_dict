@@ -13,6 +13,7 @@ import phonetics
 from logger import get_logger
 
 from ui.word_packs_dialog import WordPacksDialog
+from ui.worksheet_generator import WorksheetGeneratorDialog
 
 logger = get_logger("dictionary")
 
@@ -164,6 +165,16 @@ class DictionaryWidget(QWidget):
         )
         packs_btn.clicked.connect(self.open_word_packs)
         top_row.addWidget(packs_btn)
+
+        print_btn = QPushButton("🖨️ Chop etish / PDF")
+        print_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        print_btn.setStyleSheet(
+            "QPushButton { background-color: #1E1E2E; color: #F59E0B; border: 1px solid #F59E0B;"
+            "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
+            "QPushButton:hover { background-color: #78350F; color: white; }"
+        )
+        print_btn.clicked.connect(self.open_worksheet_generator)
+        top_row.addWidget(print_btn)
 
         layout.addLayout(top_row)
 
@@ -604,3 +615,9 @@ class DictionaryWidget(QWidget):
             count = db.export_to_json(path)
             logger.info(f"Lug'at JSON faylga saqlandi ({count} ta so'z): {path}")
             QMessageBox.information(self, "Muvaffaqiyatli", f"{count} ta so'z muvaffaqiyatli JSON faylga saqlandi!")
+
+    def open_worksheet_generator(self):
+        """Chop etish va flashcardlar dialogini ochish."""
+        dlg = WorksheetGeneratorDialog(self)
+        dlg.exec()
+

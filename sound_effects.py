@@ -78,6 +78,8 @@ def _ensure_sounds():
             (783.99, 0.10, 0.40),
             (1046.50, 0.28, 0.45)
         ])
+        # Vaqt tugayotganidagi chertish (tick): 900 Hz, 0.03s
+        _TICK_WAV = _generate_tone_wav([(880.0, 0.03, 0.20)])
         _INITIALIZED = True
     except Exception as e:
         logger.warning(f"Audio generatsiyasida xatolik: {e}")
@@ -120,3 +122,28 @@ def play_milestone():
 
 
 play_victory = play_milestone
+
+
+def play_combo(level: int = 2):
+    """Blitz yoki mashqlarda ketma-ket combo oshganda baland yorqin ohang."""
+    if db.get_setting("sound_effects_enabled", "true") != "true":
+        return
+    try:
+        base_freq = 550.0 + min(level, 10) * 60.0
+        combo_wav = _generate_tone_wav([
+            (base_freq, 0.06, 0.30),
+            (base_freq * 1.25, 0.12, 0.40),
+        ])
+        threading.Thread(target=_play_wav_async, args=(combo_wav,), daemon=True).start()
+    except Exception as e:
+        logger.debug(f"Combo tovushida xatolik: {e}")
+
+
+def play_tick():
+    """Vaqt oz qolganda (oxirgi soniyalar) qisqa chertish."""
+    if db.get_setting("sound_effects_enabled", "true") != "true":
+        return
+    _ensure_sounds()
+    if "_TICK_WAV" in globals() and _TICK_WAV:
+        threading.Thread(target=_play_wav_async, args=(_TICK_WAV,), daemon=True).start()
+

@@ -16,6 +16,8 @@ from ui.reader import ReaderWidget
 from ui.quick_capture import QuickCaptureDialog
 from ui.match_game import MatchGameWidget
 from ui.mini_widget import MiniWidget
+from ui.audio_player import AudioPlayerWidget
+from ui.blitz_game import BlitzGameWidget
 import database as db
 import theme_manager
 from logger import get_logger
@@ -28,6 +30,8 @@ NAV_ITEMS = [
     ("📖  Lug'at", "dictionary"),
     ("📚  Aqlli o'qish", "reader"),
     ("🎮  So'z juftlash", "match"),
+    ("⚡  Blitz Marafon", "blitz"),
+    ("🎧  Audio Pleyer", "audio_player"),
     ("🇬🇧→🇺🇿  EN → UZ mashq", "en_uz"),
     ("🇺🇿→🇬🇧  UZ → EN mashq", "uz_en"),
     ("📥  So'z import qilish", "import"),
@@ -112,6 +116,8 @@ class MainWindow(QMainWindow):
             on_start_practice=self.start_custom_practice,
         )
         self.match_game = MatchGameWidget(self)
+        self.blitz_game = BlitzGameWidget(self)
+        self.audio_player = AudioPlayerWidget(self)
         self.settings_page = SettingsWidget(on_settings_saved=self._on_settings_saved)
 
         self.pages = {
@@ -119,6 +125,8 @@ class MainWindow(QMainWindow):
             "dictionary": self.dictionary,
             "reader": self.reader_widget,
             "match": self.match_game,
+            "blitz": self.blitz_game,
+            "audio_player": self.audio_player,
             "en_uz": self.practice_en_uz,
             "uz_en": self.practice_uz_en,
             "import": self.import_widget,
@@ -183,6 +191,14 @@ class MainWindow(QMainWindow):
         match_act = QAction("🎮 So'zlarni juftlash", self)
         match_act.triggered.connect(lambda: self._tray_navigate("match"))
         tray_menu.addAction(match_act)
+
+        blitz_act = QAction("⚡ Blitz Marafon", self)
+        blitz_act.triggered.connect(lambda: self._tray_navigate("blitz"))
+        tray_menu.addAction(blitz_act)
+
+        audio_act = QAction("🎧 Audio Pleyer", self)
+        audio_act.triggered.connect(lambda: self._tray_navigate("audio_player"))
+        tray_menu.addAction(audio_act)
 
         practice_act = QAction("⚡ EN → UZ Mashq", self)
         practice_act.triggered.connect(lambda: self._tray_practice("en_uz"))
@@ -260,10 +276,15 @@ class MainWindow(QMainWindow):
             self.quit_app()
 
     def setup_reminder_timer(self):
-        """Har daqiqada kunlik eslatma vaqti kelganligini tekshiruvchi taymer."""
+        """Har daqiqada kunlik va davriy eslatmalarni tekshiruvchi taymer."""
+        self._periodic_minute_counter = 0
         self.reminder_timer = QTimer(self)
-        self.reminder_timer.timeout.connect(self.check_daily_reminder)
+        self.reminder_timer.timeout.connect(self._on_minute_tick)
         self.reminder_timer.start(60000)  # Har 60 sekundda
+
+    def _on_minute_tick(self):
+        self.check_daily_reminder()
+        self.check_periodic_smart_toast()
 
     def check_daily_reminder(self):
         enabled = (db.get_setting("reminder_enabled", "true") == "true")
@@ -284,6 +305,35 @@ class MainWindow(QMainWindow):
                     f"Bugungi rejangiz hali to'lmadi! Yana {remaining} ta so'z qoldi. Streak'ni saqlab qoling!",
                     QSystemTrayIcon.MessageIcon.Information,
                     6000
+                )
+
+    def check_periodic_smart_toast(self):
+        """Fonda turganida vaqti-vaqti bilan yangi so'zni Toast bildirishnoma orqali ko'rsatish."""
+        enabled = (db.get_setting("periodic_reminder_enabled", "true") == "true")
+        if not enabled or not hasattr(self, "tray_icon"):
+            return
+
+        interval_min = int(db.get_setting("periodic_reminder_interval_min", "60") or "60")
+        self._periodic_minute_counter += 1
+
+        if self._periodic_minute_counter >= interval_min:
+            self._periodic_minute_counter = 0
+            smart_word = db.get_random_smart_word()
+            if smart_word:
+                eng = smart_word.get("english", "")
+                pho = smart_word.get("phonetic", "")
+                uz = smart_word.get("uzbek", "")
+                ex = smart_word.get("example", "")
+                title = f"🧠 Kun so'zi: {eng} {pho}".strip()
+                msg = f"Tarjimasi: {uz}"
+                if ex:
+                    msg += f"\nMisol: “{ex}”"
+
+                self.tray_icon.showMessage(
+                    title,
+                    msg,
+                    QSystemTrayIcon.MessageIcon.Information,
+                    5000
                 )
 
     def start_custom_practice(self, word_ids: list[int], direction: str = "en_uz"):
@@ -366,6 +416,10 @@ class MainWindow(QMainWindow):
             self.dictionary.load_words()
         elif key == "reader":
             self.reader_widget.refresh_reader()
+        elif key == "blitz":
+            self.blitz_game.load_best_score()
+        elif key == "audio_player":
+            self.audio_player.load_words()
         elif key == "settings":
             self.settings_page.load_settings()
         elif key in ("en_uz", "uz_en"):
