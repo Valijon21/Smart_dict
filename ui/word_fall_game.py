@@ -3,6 +3,7 @@ Vocab Master Pro — Word Fall (Tezkor So'z Yomg'iri Arkada O'yini).
 Ekranning yuqorisidan tushayotgan so'zlarni vaqtida yozib yo'q qilish.
 Gamifikatsiya qat'iy qoidasi: 0 ball bilan chiqilganda XP berilmaydi!
 """
+import re
 import random
 import time
 from PyQt6.QtWidgets import (
@@ -21,6 +22,27 @@ from logger import get_logger
 logger = get_logger("word_fall_game")
 
 
+def normalize_game_text(text: str) -> str:
+    """Apostroflar, nuqta-vergullar va ortiqcha belgilarni tozalash."""
+    s = text.strip().lower()
+    for ap in ["’", "‘", "`", "ʻ", "ʼ", "'"]:
+        s = s.replace(ap, "'")
+    s = "".join(c for c in s if c.isalnum() or c.isspace() or c == "'").strip()
+    return " ".join(s.split())
+
+
+def _extract_text_variants(text: str) -> set[str]:
+    """Matndan barcha ehtimoliy normalizatsiya qilingan variantlarni ajratib olish."""
+    variants = set()
+    norm = normalize_game_text(text)
+    if norm:
+        variants.add(norm)
+        variants.add(norm.replace(" ", ""))
+        variants.add(norm.replace("'", ""))
+        variants.add(norm.replace("'", "").replace(" ", ""))
+    return variants
+
+
 class FallingWord:
     """Tushayotgan so'z ob'ekti."""
     def __init__(self, word_data: dict, x: float, speed: float):
@@ -28,7 +50,20 @@ class FallingWord:
         self.word_data = wd
         self.english = wd.get("english", "").strip()
         self.uzbek = wd.get("uzbek", "").strip()
-        self.clean_uzbek_options = [u.strip().lower() for u in self.uzbek.split(",")]
+
+        # Barcha qabul qilinadigan variantlar: inglizcha so'z va o'zbekcha tarjimalar
+        self.accepted_answers: set[str] = set()
+
+        # 1. Ekranda ko'rinayotgan inglizcha so'z
+        self.accepted_answers.update(_extract_text_variants(self.english))
+
+        # 2. O'zbekcha tarjimalar (vergul, nuqta-vergul, slesh yoki qavs bilan ajratilgan)
+        raw_uz = self.uzbek.replace(";", ",").replace("/", ",")
+        for part in raw_uz.split(","):
+            cleaned_part = re.sub(r"\(.*?\)", "", part).strip()
+            if cleaned_part:
+                self.accepted_answers.update(_extract_text_variants(cleaned_part))
+
         self.x = x
         self.y = 10.0
         self.speed = speed
@@ -163,7 +198,7 @@ class WordFallGameWidget(QWidget):
 
         root.addLayout(top_bar)
 
-        desc = QLabel("Tepadan tushayotgan inglizcha so'zning o'zbekcha ma'nosini pastdagi qatorda yozing va Enter bosing.")
+        desc = QLabel("Tepadan tushayotgan so'zni (inglizcha yoki o'zbekcha tarjimasini) yozing va Enter bosing.")
         desc.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
         root.addWidget(desc)
 
@@ -176,7 +211,7 @@ class WordFallGameWidget(QWidget):
         bottom_bar.setSpacing(12)
 
         self.answer_input = QLineEdit()
-        self.answer_input.setPlaceholderText("Tarjimasini yozing va Enter bosing...")
+        self.answer_input.setPlaceholderText("So'zni yoki tarjimasini yozing va Enter bosing...")
         self.answer_input.setEnabled(False)
         self.answer_input.setStyleSheet(
             f"QLineEdit {{ background-color: {t.bg_card}; color: {t.text_main}; border: 2px solid {t.border}; "
@@ -281,22 +316,32 @@ class WordFallGameWidget(QWidget):
         self.base_speed = 1.1 + (self.words_cleared // 5) * 0.15
 
     def _check_typed_answer(self):
-        typed = self.answer_input.text().strip().lower()
+        typed = self.answer_input.text().strip()
         if not typed or not self.is_playing:
             return
 
+        typed_variants = _extract_text_variants(typed)
+        if not typed_variants:
+            return
+
         matched_fw = None
-        # Eng pastdagi to'g'ri kelgan so'zni topish
         candidates = []
         for fw in self.falling_words:
             if not fw.is_destroyed:
-                for opt in fw.clean_uzbek_options:
-                    if typed == opt or (len(typed) >= 3 and typed in opt):
-                        candidates.append(fw)
-                        break
+                # 1. Aniq moslik (variantlardan biri accepted_answers ichida bormi)
+                if any(v in fw.accepted_answers for v in typed_variants):
+                    candidates.append(fw)
+                else:
+                    # 2. Agar 4 tadan ko'p harf kiritilgan bo'lsa va qaysidir javob shu bilan boshlansa
+                    norm_typed = normalize_game_text(typed)
+                    if len(norm_typed) >= 4:
+                        for ans in fw.accepted_answers:
+                            if ans.startswith(norm_typed) or norm_typed in ans:
+                                candidates.append(fw)
+                                break
 
         if candidates:
-            # Eng pastdagisi (y qiymati eng kattasi)
+            # Eng pastdagisi (y qiymati eng kattasi — xavf darajasi yuqorisi)
             candidates.sort(key=lambda w: w.y, reverse=True)
             matched_fw = candidates[0]
 
@@ -316,6 +361,7 @@ class WordFallGameWidget(QWidget):
             sound_effects.play_wrong()
             self.combo = 0
             self._update_hud()
+            self.answer_input.selectAll()
 
     def _update_hud(self):
         hearts = "❤️" * max(0, self.lives) + "🖤" * max(0, 3 - self.lives)
@@ -334,14 +380,14 @@ class WordFallGameWidget(QWidget):
         # GAMIFIKATSIYA QAT'IY QOIDASI: 0 ball bilan XP berilmaydi!
         if self.score > 0:
             earned_xp = max(1, self.score // 10)
-            res = gamification.award_xp(earned_xp)
+            new_total_xp, level_up, level_title = gamification.award_xp(earned_xp)
             sound_effects.play_victory()
             msg = (
                 f"🌧️ <b>O'yin yakunlandi!</b><br><br>"
                 f"🏆 To'plangan ball: <b>{self.score}</b><br>"
                 f"✅ Yo'q qilingan so'zlar: <b>{self.words_cleared} ta</b><br>"
                 f"⚡ Maksimal combo: <b>{self.max_combo}x</b><br>"
-                f"⭐ Berilgan mukofot: <b>+{earned_xp} XP</b> (Jami: {res['total_xp']} XP)"
+                f"⭐ Berilgan mukofot: <b>+{earned_xp} XP</b> (Jami: {new_total_xp} XP)"
             )
         else:
             # 0 ball = 0 XP, ovozsiz

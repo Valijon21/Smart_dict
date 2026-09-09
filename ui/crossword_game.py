@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QFrame, QGridLayout, QScrollArea, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QPainter, QColor
 
 import database as db
 import gamification
@@ -33,6 +33,15 @@ class CrosswordWord:
         self.direction = direction  # 'across' yoki 'down'
         self.is_solved = False
 
+    def get_cells(self) -> list[tuple[int, int]]:
+        """Ushbu so'z egallagan kataklar koordinatalari."""
+        coords = []
+        for step in range(len(self.word)):
+            r = self.row + (step if self.direction == "down" else 0)
+            c = self.col + (0 if self.direction == "down" else step)
+            coords.append((r, c))
+        return coords
+
 
 class CrosswordGenerator:
     """Baza so'zlaridan kesishuvchi krossvord panjarasini yasovchi aqlli algoritm."""
@@ -41,7 +50,7 @@ class CrosswordGenerator:
         if not words:
             return [], []
 
-        # Faqat 3 tadan 9 tagacha harfli toza inglizcha so'zlarni saralash
+        # Faqat 3 tadan 8 tagacha harfli toza inglizcha so'zlarni saralash
         clean_words = []
         for w in words:
             wd = dict(w) if not isinstance(w, dict) else w
@@ -81,13 +90,11 @@ class CrosswordGenerator:
             for existing in placed_words:
                 if placed:
                     break
-                # Qarama-qarshi yo'nalishda joylashtirishga harakat qilish
                 target_dir = "down" if existing.direction == "across" else "across"
 
                 for i, ex_char in enumerate(existing.word):
                     for j, cand_char in enumerate(cand_eng):
                         if ex_char == cand_char:
-                            # Kesishish koordinatasini aniqlash
                             if target_dir == "down":
                                 r = existing.row - j
                                 c = existing.col + i
@@ -95,10 +102,8 @@ class CrosswordGenerator:
                                 r = existing.row + i
                                 c = existing.col - j
 
-                            # Panjaradan chiqib ketmasligini tekshirish
                             if 0 <= r and r + (len(cand_eng) if target_dir == "down" else 1) <= GRID_SIZE:
                                 if 0 <= c and c + (1 if target_dir == "down" else len(cand_eng)) <= GRID_SIZE:
-                                    # Konflikt yo'qligini tekshirish
                                     can_place = True
                                     for step in range(len(cand_eng)):
                                         curr_r = r + (step if target_dir == "down" else 0)
@@ -109,7 +114,6 @@ class CrosswordGenerator:
                                             break
 
                                     if can_place:
-                                        # Panjaraga kiritish
                                         for step in range(len(cand_eng)):
                                             curr_r = r + (step if target_dir == "down" else 0)
                                             curr_c = c + (0 if target_dir == "down" else step)
@@ -127,40 +131,118 @@ class CrosswordGenerator:
 
 
 class CrosswordCell(QLineEdit):
-    """Krossvord katagi."""
-    def __init__(self, expected_char: str, row: int, col: int, parent=None):
+    """Krossvord katagi — avtomatik keyingi katakka o'tish, Backspace va raqam ko'rinishi bilan."""
+    letter_entered = pyqtSignal(int, int)  # (row, col)
+    backspace_pressed = pyqtSignal(int, int)  # (row, col)
+    navigate_requested = pyqtSignal(int, int, str)  # (row, col, direction)
+    cell_clicked = pyqtSignal(int, int)  # (row, col)
+    enter_pressed = pyqtSignal()
+
+    def __init__(self, expected_char: str, row: int, col: int, cell_number: str = "", parent=None):
         super().__init__(parent)
         self.expected_char = expected_char.upper()
         self.row = row
         self.col = col
+        self.cell_number = str(cell_number) if cell_number else ""
+        self.is_highlighted = False
+        self.state = "normal"
+
         self.setMaxLength(1)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        self.setFixedSize(38, 38)
-        self.setStyleSheet(
-            "QLineEdit { background-color: #1E1B4B; color: white; border: 1.5px solid #4338CA; border-radius: 6px; } "
-            "QLineEdit:focus { border: 2px solid #818CF8; background-color: #312E81; }"
-        )
+        self.setFixedSize(40, 40)
+        self._apply_style()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.cell_number:
+            p = QPainter(self)
+            p.setRenderHint(QPainter.RenderHint.Antialiasing)
+            p.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
+            p.setPen(QColor(165, 180, 252, 230))
+            p.drawText(3, 10, self.cell_number)
+            p.end()
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self.cell_clicked.emit(self.row, self.col)
+
+    def keyPressEvent(self, event):
+        key = event.key()
+
+        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.enter_pressed.emit()
+            return
+
+        if key == Qt.Key.Key_Backspace:
+            if self.text():
+                self.setText("")
+            else:
+                self.backspace_pressed.emit(self.row, self.col)
+            return
+
+        if key == Qt.Key.Key_Left:
+            self.navigate_requested.emit(self.row, self.col, "left")
+            return
+        if key == Qt.Key.Key_Right:
+            self.navigate_requested.emit(self.row, self.col, "right")
+            return
+        if key == Qt.Key.Key_Up:
+            self.navigate_requested.emit(self.row, self.col, "up")
+            return
+        if key == Qt.Key.Key_Down:
+            self.navigate_requested.emit(self.row, self.col, "down")
+            return
+
+        text = event.text()
+        if text and text.isalpha():
+            char = text.upper()
+            self.setText(char)
+            self.letter_entered.emit(self.row, self.col)
+            return
+
+        super().keyPressEvent(event)
 
     def set_state(self, state: str):
-        if state == "correct":
+        self.state = state
+        self._apply_style()
+
+    def set_highlight(self, active: bool):
+        self.is_highlighted = active
+        self._apply_style()
+
+    def _apply_style(self):
+        if self.state == "correct":
             self.setStyleSheet(
-                "QLineEdit { background-color: #064E3B; color: #6EE7B7; border: 1.5px solid #10B981; border-radius: 6px; font-weight: 800; }"
+                "QLineEdit { background-color: #064E3B; color: #6EE7B7; border: 1.5px solid #10B981; "
+                "border-radius: 6px; font-weight: 800; font-size: 14px; } "
+                "QLineEdit:focus { border: 2px solid #34D399; }"
             )
             self.setEnabled(False)
-        elif state == "wrong":
+        elif self.state == "wrong":
             self.setStyleSheet(
-                "QLineEdit { background-color: #7F1D1D; color: #FCA5A5; border: 1.5px solid #EF4444; border-radius: 6px; font-weight: 800; }"
+                "QLineEdit { background-color: #7F1D1D; color: #FCA5A5; border: 1.5px solid #EF4444; "
+                "border-radius: 6px; font-weight: 800; font-size: 14px; } "
+                "QLineEdit:focus { border: 2px solid #F87171; }"
             )
-        elif state == "hint":
+        elif self.state == "hint":
             self.setText(self.expected_char)
             self.setStyleSheet(
-                "QLineEdit { background-color: #78350F; color: #FDE68A; border: 1.5px solid #F59E0B; border-radius: 6px; font-weight: 800; }"
+                "QLineEdit { background-color: #78350F; color: #FDE68A; border: 1.5px solid #F59E0B; "
+                "border-radius: 6px; font-weight: 800; font-size: 14px; } "
+                "QLineEdit:focus { border: 2px solid #FBBF24; }"
             )
             self.setEnabled(False)
+        elif self.is_highlighted:
+            self.setStyleSheet(
+                "QLineEdit { background-color: #312E81; color: #FFFFFF; border: 1.5px solid #6366F1; "
+                "border-radius: 6px; font-weight: 700; font-size: 14px; } "
+                "QLineEdit:focus { border: 2px solid #A5B4FC; background-color: #3730A3; }"
+            )
         else:
             self.setStyleSheet(
-                "QLineEdit { background-color: #1E1B4B; color: white; border: 1.5px solid #4338CA; border-radius: 6px; } "
+                "QLineEdit { background-color: #1E1B4B; color: white; border: 1.5px solid #4338CA; "
+                "border-radius: 6px; font-size: 14px; } "
                 "QLineEdit:focus { border: 2px solid #818CF8; background-color: #312E81; }"
             )
 
@@ -174,6 +256,9 @@ class CrosswordGameWidget(QWidget):
         self.grid_data = []
         self.words: list[CrosswordWord] = []
         self.cells: dict[tuple[int, int], CrosswordCell] = {}
+        self.clue_buttons: dict[int, QPushButton] = {}
+        self.active_word: CrosswordWord | None = None
+        self.active_direction: str = "across"
         self.solved_words = 0
         self.hints_used = 0
         self.is_active = False
@@ -202,7 +287,7 @@ class CrosswordGameWidget(QWidget):
         top_bar.addWidget(self.lbl_progress)
         root.addLayout(top_bar)
 
-        desc = QLabel("O'zbekcha ta'riflar bo'yicha inglizcha so'zlarni krossvord kataklariga yozing va tekshiring.")
+        desc = QLabel("Krossvord kataklariga yoki o'ngdagi ta'riflarga bosib so'zlarni yozing. Harflar avtomatik keyingisiga o'tadi.")
         desc.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
         root.addWidget(desc)
 
@@ -250,7 +335,7 @@ class CrosswordGameWidget(QWidget):
         btn_bar = QHBoxLayout()
         btn_bar.setSpacing(12)
 
-        self.btn_hint = QPushButton("💡 Harfni ochish (-5 ball)")
+        self.btn_hint = QPushButton("💡 Harfni ochish (-2 ball)")
         self.btn_hint.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_hint.setStyleSheet(
             f"QPushButton {{ background-color: {t.bg_card}; color: #F59E0B; border: 1px solid #D97706; "
@@ -260,7 +345,7 @@ class CrosswordGameWidget(QWidget):
         self.btn_hint.clicked.connect(self._give_hint)
         btn_bar.addWidget(self.btn_hint)
 
-        self.btn_check = QPushButton("✅ Javoblarni Tekshirish")
+        self.btn_check = QPushButton("✅ Javoblarni Tekshirish (Enter)")
         self.btn_check.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_check.setStyleSheet(
             "QPushButton { background-color: #10B981; color: white; border-radius: 8px; "
@@ -311,6 +396,8 @@ class CrosswordGameWidget(QWidget):
         self.solved_words = 0
         self.hints_used = 0
         self.is_active = True
+        self.active_word = None
+        self.clue_buttons = {}
 
         # Panjarani tozalash
         while self.grid_layout.count():
@@ -320,17 +407,30 @@ class CrosswordGameWidget(QWidget):
                 w.deleteLater()
         self.cells = {}
 
+        # Kataklardagi boshlang'ich raqamlarni aniqlash
+        start_cell_numbers: dict[tuple[int, int], list[int]] = {}
+        for w in self.words:
+            start_cell_numbers.setdefault((w.row, w.col), []).append(w.number)
+
         # Kataklarni joylashtirish
         for r in range(GRID_SIZE):
             for c in range(GRID_SIZE):
                 ch = grid[r][c]
                 if ch is not None:
-                    cell = CrosswordCell(ch, r, c, self)
+                    nums = start_cell_numbers.get((r, c), [])
+                    num_str = ",".join(str(n) for n in nums) if nums else ""
+                    cell = CrosswordCell(ch, r, c, cell_number=num_str, parent=self)
+                    cell.letter_entered.connect(self._on_cell_letter_entered)
+                    cell.backspace_pressed.connect(self._on_cell_backspace_pressed)
+                    cell.navigate_requested.connect(self._on_cell_navigate)
+                    cell.cell_clicked.connect(self._on_cell_clicked)
+                    cell.enter_pressed.connect(self.check_answers)
+
                     self.cells[(r, c)] = cell
                     self.grid_layout.addWidget(cell, r, c)
                 else:
                     empty = QLabel()
-                    empty.setFixedSize(38, 38)
+                    empty.setFixedSize(40, 40)
                     empty.setStyleSheet("background-color: transparent;")
                     self.grid_layout.addWidget(empty, r, c)
 
@@ -348,33 +448,184 @@ class CrosswordGameWidget(QWidget):
 
         if across_words:
             h_lbl = QLabel("➡️ <b>Eniga (Across):</b>")
-            h_lbl.setStyleSheet(f"color: {t.primary}; font-size: 13px;")
+            h_lbl.setStyleSheet(f"color: {t.primary}; font-size: 13px; font-weight: 700;")
             self.clues_layout.addWidget(h_lbl)
             for w in across_words:
-                lbl = QLabel(f"<b>{w.number}.</b> {w.clue} <i>({len(w.word)} ta harf)</i>")
-                lbl.setWordWrap(True)
-                lbl.setStyleSheet(f"color: {t.text_main}; font-size: 12px; padding: 2px 0;")
-                self.clues_layout.addWidget(lbl)
+                btn = QPushButton(f"{w.number}. {w.clue} ({len(w.word)} ta harf)")
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.setStyleSheet(
+                    "QPushButton { text-align: left; background-color: #1E1B4B; color: #E0E7FF; "
+                    "border: 1px solid #3730A3; border-radius: 8px; padding: 7px 12px; font-size: 12px; } "
+                    "QPushButton:hover { background-color: #312E81; border-color: #6366F1; }"
+                )
+                btn.clicked.connect(lambda _, word=w: self._select_word(word))
+                self.clue_buttons[w.number] = btn
+                self.clues_layout.addWidget(btn)
 
         if down_words:
             v_lbl = QLabel("⬇️ <b>Bo'yiga (Down):</b>")
-            v_lbl.setStyleSheet(f"color: #10B981; font-size: 13px; margin-top: 8px;")
+            v_lbl.setStyleSheet("color: #10B981; font-size: 13px; font-weight: 700; margin-top: 8px;")
             self.clues_layout.addWidget(v_lbl)
             for w in down_words:
-                lbl = QLabel(f"<b>{w.number}.</b> {w.clue} <i>({len(w.word)} ta harf)</i>")
-                lbl.setWordWrap(True)
-                lbl.setStyleSheet(f"color: {t.text_main}; font-size: 12px; padding: 2px 0;")
-                self.clues_layout.addWidget(lbl)
+                btn = QPushButton(f"{w.number}. {w.clue} ({len(w.word)} ta harf)")
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.setStyleSheet(
+                    "QPushButton { text-align: left; background-color: #1E1B4B; color: #E0E7FF; "
+                    "border: 1px solid #3730A3; border-radius: 8px; padding: 7px 12px; font-size: 12px; } "
+                    "QPushButton:hover { background-color: #312E81; border-color: #6366F1; }"
+                )
+                btn.clicked.connect(lambda _, word=w: self._select_word(word))
+                self.clue_buttons[w.number] = btn
+                self.clues_layout.addWidget(btn)
 
         self.clues_layout.addStretch()
         self.lbl_progress.setText(f"✅ Yechildi: 0 / {len(self.words)}")
+
+        # Dastlab birinchi so'zni tanlab qo'yish
+        if self.words:
+            self._select_word(self.words[0])
+
+    def _select_word(self, word: CrosswordWord, focus_coord: tuple[int, int] | None = None):
+        """Krossvorddagi faol so'zni tanlash va uning kataklarini yoritish."""
+        self.active_word = word
+        self.active_direction = word.direction
+
+        word_coords = set(word.get_cells())
+
+        # 1. Kataklar belgilanishini yangilash
+        for coord, cell in self.cells.items():
+            cell.set_highlight(coord in word_coords)
+
+        # 2. Ta'rif tugmalarining uslubini yangilash
+        for num, btn in self.clue_buttons.items():
+            w = next((x for x in self.words if x.number == num), None)
+            if w and w.is_solved:
+                btn.setStyleSheet(
+                    "QPushButton { text-align: left; background-color: #064E3B; color: #6EE7B7; "
+                    "border: 1px solid #10B981; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600; }"
+                )
+            elif num == word.number:
+                btn.setStyleSheet(
+                    "QPushButton { text-align: left; background-color: #312E81; color: #FFFFFF; "
+                    "border: 1.5px solid #818CF8; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 700; }"
+                )
+            else:
+                btn.setStyleSheet(
+                    "QPushButton { text-align: left; background-color: #1E1B4B; color: #E0E7FF; "
+                    "border: 1px solid #3730A3; border-radius: 8px; padding: 7px 12px; font-size: 12px; } "
+                    "QPushButton:hover { background-color: #312E81; border-color: #6366F1; }"
+                )
+
+        # 3. Fokusni joylashtirish
+        if focus_coord and focus_coord in self.cells:
+            c = self.cells[focus_coord]
+            if c.isEnabled():
+                c.setFocus()
+                c.selectAll()
+                return
+
+        # Bo'sh bo'lgan birinchi katakka fokus qilish
+        for coord in word.get_cells():
+            c = self.cells.get(coord)
+            if c and c.isEnabled() and not c.text().strip():
+                c.setFocus()
+                c.selectAll()
+                return
+
+        # Aks holda birinchi faol katakka
+        for coord in word.get_cells():
+            c = self.cells.get(coord)
+            if c and c.isEnabled():
+                c.setFocus()
+                c.selectAll()
+                return
+
+    def _on_cell_clicked(self, row: int, col: int):
+        """Foydalanuvchi katakka bosganda tegishli so'zni tanlash."""
+        matching = [w for w in self.words if (row, col) in w.get_cells()]
+        if not matching:
+            return
+
+        if len(matching) == 1:
+            self._select_word(matching[0], focus_coord=(row, col))
+        else:
+            # Ikki yo'nalish kesishgan katak: yana bosilsa yo'nalishni almashtirish
+            if self.active_word and self.active_word in matching:
+                other = next((w for w in matching if w != self.active_word), matching[0])
+                self._select_word(other, focus_coord=(row, col))
+            else:
+                across_w = next((w for w in matching if w.direction == "across"), matching[0])
+                self._select_word(across_w, focus_coord=(row, col))
+
+    def _on_cell_letter_entered(self, row: int, col: int):
+        """Harf kiritilganda avtomatik keyingi katakka o'tish."""
+        if not self.active_word:
+            matches = [w for w in self.words if (row, col) in w.get_cells()]
+            if matches:
+                self.active_word = matches[0]
+
+        if self.active_word:
+            coords = self.active_word.get_cells()
+            if (row, col) in coords:
+                idx = coords.index((row, col))
+                for next_idx in range(idx + 1, len(coords)):
+                    nc = self.cells.get(coords[next_idx])
+                    if nc and nc.isEnabled():
+                        nc.setFocus()
+                        nc.selectAll()
+                        return
+        else:
+            step_r = 1 if self.active_direction == "down" else 0
+            step_c = 0 if self.active_direction == "down" else 1
+            nc = self.cells.get((row + step_r, col + step_c))
+            if nc and nc.isEnabled():
+                nc.setFocus()
+                nc.selectAll()
+
+    def _on_cell_backspace_pressed(self, row: int, col: int):
+        """Backspace bosilganda oldingi katakka qaytish."""
+        if self.active_word:
+            coords = self.active_word.get_cells()
+            if (row, col) in coords:
+                idx = coords.index((row, col))
+                if idx > 0:
+                    for prev_idx in range(idx - 1, -1, -1):
+                        pc = self.cells.get(coords[prev_idx])
+                        if pc and pc.isEnabled():
+                            pc.setText("")
+                            pc.setFocus()
+                            return
+        else:
+            step_r = -1 if self.active_direction == "down" else 0
+            step_c = 0 if self.active_direction == "down" else -1
+            pc = self.cells.get((row + step_r, col + step_c))
+            if pc and pc.isEnabled():
+                pc.setText("")
+                pc.setFocus()
+
+    def _on_cell_navigate(self, row: int, col: int, direction: str):
+        """Strelkalar yordamida harakatlanish."""
+        dr, dc = 0, 0
+        if direction == "left":
+            dc = -1
+        elif direction == "right":
+            dc = 1
+        elif direction == "up":
+            dr = -1
+        elif direction == "down":
+            dr = 1
+
+        target = self.cells.get((row + dr, col + dc))
+        if target and target.isEnabled():
+            target.setFocus()
+            target.selectAll()
 
     def _give_hint(self):
         """Bitta bo'sh katakdagi to'g'ri harfni ochish."""
         if not self.is_active:
             return
 
-        unsolved_cells = [cell for cell in self.cells.values() if cell.text().upper() != cell.expected_char]
+        unsolved_cells = [cell for cell in self.cells.values() if cell.isEnabled() and cell.text().upper() != cell.expected_char]
         if unsolved_cells:
             chosen = random.choice(unsolved_cells)
             chosen.set_state("hint")
@@ -388,23 +639,27 @@ class CrosswordGameWidget(QWidget):
         now_solved = 0
         for w in self.words:
             word_correct = True
-            for step in range(len(w.word)):
-                r = w.row + (step if w.direction == "down" else 0)
-                c = w.col + (0 if w.direction == "down" else step)
+            for r, c in w.get_cells():
                 cell = self.cells.get((r, c))
-                if not cell or cell.text().strip().upper() != w.word[step]:
+                if not cell or cell.text().strip().upper() != cell.expected_char:
                     word_correct = False
                     break
 
             if word_correct:
                 w.is_solved = True
                 now_solved += 1
-                for step in range(len(w.word)):
-                    r = w.row + (step if w.direction == "down" else 0)
-                    c = w.col + (0 if w.direction == "down" else step)
+                for r, c in w.get_cells():
                     cell = self.cells.get((r, c))
                     if cell:
                         cell.set_state("correct")
+
+                btn = self.clue_buttons.get(w.number)
+                if btn:
+                    btn.setText(f"✅ {w.number}. {w.clue} ({w.word})")
+                    btn.setStyleSheet(
+                        "QPushButton { text-align: left; background-color: #064E3B; color: #6EE7B7; "
+                        "border: 1px solid #10B981; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600; }"
+                    )
 
         self.solved_words = now_solved
         self.lbl_progress.setText(f"✅ Yechildi: {self.solved_words} / {len(self.words)}")
@@ -426,12 +681,13 @@ class CrosswordGameWidget(QWidget):
         # GAMIFIKATSIYA QAT'IY QOIDASI: 0 ta so'z yechilsa 0 XP!
         if self.solved_words > 0:
             earned_xp = max(1, self.solved_words * 5 - self.hints_used * 2)
-            res = gamification.award_xp(earned_xp)
+            new_total_xp, level_up, level_title = gamification.award_xp(earned_xp)
+            sound_effects.play_victory()
             msg = (
                 f"🧩 <b>Krossvord yakunlandi!</b><br><br>"
                 f"✅ Yechilgan so'zlar: <b>{self.solved_words} / {len(self.words)} ta</b><br>"
                 f"💡 Ishlatilgan maslahatlar: <b>{self.hints_used} ta</b><br>"
-                f"⭐ Berilgan mukofot: <b>+{earned_xp} XP</b> (Jami: {res['total_xp']} XP)"
+                f"⭐ Berilgan mukofot: <b>+{earned_xp} XP</b> (Jami: {new_total_xp} XP)"
             )
         else:
             msg = (
