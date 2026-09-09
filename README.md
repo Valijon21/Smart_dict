@@ -101,11 +101,7 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 - **Lug'at Krossvordi:** Bazadagi so'zlardan avtomatik kesishuvchi krossvord panjarasini yaratuvchi algoritm.
 - *Qat'iy Gamifikatsiya qoidasi:* Hech qanday so'z topilmasa (0 ball), XP berilmaydi!
 
-### 15. 👨‍🏫 O'qituvchi Rejimi (.smartpack & A4 Sertifikat)
-- **.smartpack To'plamlari:** O'qituvchi mavzulashtirilgan so'zlar to'plamini eksport qilishi, o'quvchilar esa bitta tugma bilan bazasiga qo'shishi mumkin.
-- **O'quvchi Hisoboti & Sertifikat:** O'quvchining so'z boyligi, CEFR darajasi, o'rganish zanjiri bo'yicha rasmiy A4 formatdagi chop etiladigan HTML/PDF sertifikat generatori.
-
-### 16. 🛡️ Mahalliy Data Vault (Formatdan Himoyalangan Avto-Zaxira)
+### 15. 🛡️ Mahalliy Data Vault (Formatdan Himoyalangan Avto-Zaxira)
 - Windows tizimi qayta o'rnatilganda (format qilinganda) foydalanuvchining oylar davomida yig'gan lug'ati va statistikasi yo'qolib ketmasligi uchun dastur yonidagi `backups/` papkasida 100% lokal xavfsiz avtomatik zaxira nusxalari yuritiladi. Hech qanday tashqi serverlarga ma'lumot yuborilmaydi.
 
 ---

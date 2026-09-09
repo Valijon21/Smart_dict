@@ -20,7 +20,6 @@ from ui.audio_player import AudioPlayerWidget
 from ui.blitz_game import BlitzGameWidget
 from ui.word_fall_game import WordFallGameWidget
 from ui.crossword_game import CrosswordGameWidget
-from ui.classroom_page import ClassroomPageWidget
 from ui.spotlight_search import SpotlightSearchDialog
 from ui.topic_words_page import TopicWordsWidget
 import database as db
@@ -42,7 +41,6 @@ NAV_ITEMS = [
     ("🎧  Audio Pleyer", "audio_player"),
     ("🇬🇧→🇺🇿  EN → UZ mashq", "en_uz"),
     ("🇺🇿→🇬🇧  UZ → EN mashq", "uz_en"),
-    ("👨‍🏫  O'qituvchi", "classroom"),
     ("📥  So'z import qilish", "import"),
     ("⚙️  Sozlamalar", "settings"),
 ]
@@ -141,7 +139,6 @@ class MainWindow(QMainWindow):
         self.word_fall = WordFallGameWidget(self)
         self.crossword = CrosswordGameWidget(self)
         self.audio_player = AudioPlayerWidget(self)
-        self.classroom = ClassroomPageWidget(self)
         self.settings_page = SettingsWidget(on_settings_saved=self._on_settings_saved)
 
         self.pages = {
@@ -156,7 +153,6 @@ class MainWindow(QMainWindow):
             "audio_player": self.audio_player,
             "en_uz": self.practice_en_uz,
             "uz_en": self.practice_uz_en,
-            "classroom": self.classroom,
             "import": self.import_widget,
             "settings": self.settings_page,
         }
@@ -248,10 +244,6 @@ class MainWindow(QMainWindow):
         crossword_act = QAction("🧩 Krossvord o'yini", self)
         crossword_act.triggered.connect(lambda: self._tray_navigate("crossword"))
         tray_menu.addAction(crossword_act)
-
-        classroom_act = QAction("👨‍🏫 O'qituvchi rejimi", self)
-        classroom_act.triggered.connect(lambda: self._tray_navigate("classroom"))
-        tray_menu.addAction(classroom_act)
 
         audio_act = QAction("🎧 Audio Pleyer", self)
         audio_act.triggered.connect(lambda: self._tray_navigate("audio_player"))
