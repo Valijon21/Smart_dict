@@ -467,6 +467,18 @@ class TopicWordsWidget(QWidget):
             btn_speak.clicked.connect(lambda checked, w=eng: tts.speak(w))
             lay_en.addWidget(btn_speak)
 
+            btn_mic = QPushButton("🎙️")
+            btn_mic.setFixedSize(30, 30)
+            btn_mic.setToolTip("Talaffuzni sinash")
+            btn_mic.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_mic.setStyleSheet(
+                f"QPushButton {{ background-color: {t.bg_app}; color: #F43F5E; "
+                f"border: 1px solid {t.border}; border-radius: 6px; font-size: 13px; }} "
+                f"QPushButton:hover {{ background-color: #BE123C; color: white; }}"
+            )
+            btn_mic.clicked.connect(lambda checked, r=row: self._open_speech_test(r))
+            lay_en.addWidget(btn_mic)
+
             col_en = QVBoxLayout()
             col_en.setSpacing(2)
             lbl_en = QLabel(eng)
@@ -629,6 +641,14 @@ class TopicWordsWidget(QWidget):
                 self, "Mashq boshlash",
                 f"'{self.detail_title_lbl.text()}' to'plamidagi {len(word_ids)} ta so'z mashqqa tayyorlandi!"
             )
+
+    def _open_speech_test(self, row: dict):
+        """Mavzu so'zi uchun ovozli talaffuzni sinash dialogini ochish."""
+        try:
+            import speech_recognizer
+            speech_recognizer.open_pronunciation_dialog(row, parent=self)
+        except Exception as e:
+            logger.error(f"Talaffuz sinovida xatolik: {e}")
 
     def _on_local_word_added(self):
         if self.on_words_changed:

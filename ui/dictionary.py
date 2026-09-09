@@ -68,6 +68,18 @@ class WordDetailsDialog(QDialog):
         audio_btn.clicked.connect(lambda: tts.speak(self.english))
         h_layout.addWidget(audio_btn)
 
+        mic_btn = QPushButton("🎙️")
+        mic_btn.setToolTip("O'z talaffuzingizni sinash va baholash")
+        mic_btn.setFixedSize(46, 46)
+        mic_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        mic_btn.setStyleSheet(
+            "QPushButton { background-color: #BE123C; color: white; border: none; "
+            "border-radius: 10px; font-size: 18px; } "
+            "QPushButton:hover { background-color: #E11D48; }"
+        )
+        mic_btn.clicked.connect(self._open_pronunciation_test)
+        h_layout.addWidget(mic_btn)
+
         # So'z nomi va transkripsiya
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
@@ -263,6 +275,26 @@ class WordDetailsDialog(QDialog):
                 self.on_added()
         else:
             QMessageBox.information(self, "Ma'lumot", msg)
+
+    def _open_pronunciation_test(self):
+        """Ushbu so'z uchun talaffuzni sinash va baholash dialogini ochish."""
+        try:
+            import speech_recognizer
+            ph_info = phonetics.get_word_info(self.english)
+            uz_text = ""
+            if self.details and self.details.get("uzbek_translations"):
+                uz_text = ", ".join(self.details["uzbek_translations"])
+            elif self.local_word:
+                uz_text = self.local_word.get("uzbek", "")
+
+            word_data = {
+                "english": self.english,
+                "uzbek": uz_text,
+                "phonetic": ph_info.get("phonetic", ""),
+            }
+            speech_recognizer.open_pronunciation_dialog(word_data, parent=self)
+        except Exception as e:
+            logger.error(f"Talaffuz dialogini ochishda xatolik: {e}")
 
 
 class EditWordDialog(QDialog):

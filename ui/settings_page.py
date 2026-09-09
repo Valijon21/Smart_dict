@@ -165,6 +165,11 @@ class SettingsWidget(QWidget):
         self.chk_periodic_toast.toggled.connect(self._auto_save_settings)
         rem_layout.addWidget(self.chk_periodic_toast)
 
+        self.chk_clipboard_lookup = QCheckBox("📋 Global Clipboard Avto-Qidiruv: Matn nusxalanganda (Ctrl+C) avtomatik tarjima popup ko'rsatilsin")
+        self.chk_clipboard_lookup.setStyleSheet("color: white; font-size: 13px;")
+        self.chk_clipboard_lookup.toggled.connect(self._auto_save_settings)
+        rem_layout.addWidget(self.chk_clipboard_lookup)
+
         row_interval = QHBoxLayout()
         row_interval.addWidget(QLabel("Smart Toast chiqish oralig'i:"))
         self.combo_toast_interval = QComboBox()
@@ -575,6 +580,7 @@ class SettingsWidget(QWidget):
         db.set_setting("tts_autoplay", "true" if self.chk_autoplay.isChecked() else "false")
         db.set_setting("sound_effects_enabled", "true" if self.chk_sound_fx.isChecked() else "false")
         db.set_setting("periodic_reminder_enabled", "true" if self.chk_periodic_toast.isChecked() else "false")
+        db.set_setting("clipboard_lookup_enabled", "true" if self.chk_clipboard_lookup.isChecked() else "false")
         intervals = ["30", "60", "120", "180"]
         c_idx = max(0, min(self.combo_toast_interval.currentIndex(), len(intervals) - 1))
         db.set_setting("periodic_reminder_interval_min", intervals[c_idx])
@@ -681,6 +687,9 @@ class SettingsWidget(QWidget):
             periodic_en = (db.get_setting("periodic_reminder_enabled", "true") == "true")
             self.chk_periodic_toast.setChecked(periodic_en)
 
+            clip_en = (db.get_setting("clipboard_lookup_enabled", "true") == "true")
+            self.chk_clipboard_lookup.setChecked(clip_en)
+
             cur_int = db.get_setting("periodic_reminder_interval_min", "60")
             int_map = {"30": 0, "60": 1, "120": 2, "180": 3}
             self.combo_toast_interval.setCurrentIndex(int_map.get(cur_int, 1))
@@ -700,6 +709,7 @@ class SettingsWidget(QWidget):
         db.set_setting("minimize_to_tray", "true" if self.chk_tray.isChecked() else "false")
         db.set_setting("tts_autoplay", "true" if self.chk_autoplay.isChecked() else "false")
         db.set_setting("sound_effects_enabled", "true" if self.chk_sound_fx.isChecked() else "false")
+        db.set_setting("clipboard_lookup_enabled", "true" if self.chk_clipboard_lookup.isChecked() else "false")
         db.set_setting("tts_rate", str(self.slider_rate.value()))
         audio_sec = self.slider_audio_interval.value() / 10.0
         db.set_setting("audio_player_interval_sec", f"{audio_sec:.1f}")

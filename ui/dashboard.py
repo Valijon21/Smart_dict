@@ -12,6 +12,7 @@ import gamification
 import theme_manager
 import tts
 import global_dict_service
+import retention_analytics
 from ui.achievements_dialog import AchievementsDialog
 from logger import get_logger
 
@@ -405,6 +406,217 @@ def _stat_card(title: str, val_label: QLabel, color: str = "#4F46E5", t: theme_m
     return frame
 
 
+class EbbinghausRetentionWidget(QFrame):
+    """
+    Hermann Ebbinghaus Xotirada Saqlanish Tahlili va 7 Kunlik Prognoz Vidjeti.
+    Formula: R = exp(-Δt / S)
+    """
+    def __init__(self, on_start_rescue=None, parent=None):
+        super().__init__(parent)
+        self.on_start_rescue = on_start_rescue
+        self.vulnerable_word_ids = []
+        self._build_ui()
+
+    def _build_ui(self):
+        t = theme_manager.get_active_theme()
+        self.setStyleSheet(
+            f"QFrame {{ background-color: {t.bg_card}; border: 1.5px solid #4338CA; border-radius: 14px; }}"
+        )
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(14)
+
+        # 1. Header
+        head_row = QHBoxLayout()
+        head_row.setSpacing(10)
+
+        title = QLabel("🧠 Ebbinghaus Xotirada Saqlanish Tahlili (Memory Retention)")
+        title.setStyleSheet(f"font-size: 16px; font-weight: 800; color: {t.text_main};")
+        head_row.addWidget(title)
+
+        formula_badge = QLabel("📐 R = e^(-Δt/S)")
+        formula_badge.setStyleSheet(
+            "background-color: #1E1B4B; color: #A5B4FC; border: 1px solid #3730A3; "
+            "border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700;"
+        )
+        head_row.addWidget(formula_badge)
+        head_row.addStretch()
+
+        self.btn_rescue = QPushButton("⚡ Zaif so'zlarni qutqarish")
+        self.btn_rescue.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_rescue.setStyleSheet(
+            "QPushButton { background-color: #DC2626; color: white; border-radius: 8px; "
+            "padding: 6px 16px; font-size: 12px; font-weight: 700; border: none; }"
+            "QPushButton:hover { background-color: #B91C1C; }"
+        )
+        self.btn_rescue.clicked.connect(self._on_rescue_clicked)
+        head_row.addWidget(self.btn_rescue)
+        layout.addLayout(head_row)
+
+        # 2. Main content
+        content_row = QHBoxLayout()
+        content_row.setSpacing(20)
+
+        # Left Column
+        left_col = QVBoxLayout()
+        left_col.setSpacing(10)
+
+        score_row = QHBoxLayout()
+        score_row.setSpacing(12)
+
+        self.lbl_score = QLabel("0%")
+        self.lbl_score.setStyleSheet("font-size: 38px; font-weight: 900; color: #10B981;")
+        score_row.addWidget(self.lbl_score)
+
+        score_desc_col = QVBoxLayout()
+        score_desc_col.setSpacing(2)
+        score_title = QLabel("Umumiy Saqlanish Ko'rsatkichi")
+        score_title.setStyleSheet(f"font-size: 14px; font-weight: 700; color: {t.text_main};")
+        score_desc_col.addWidget(score_title)
+
+        self.lbl_recommendation = QLabel("Tahlil qilinmoqda...")
+        self.lbl_recommendation.setWordWrap(True)
+        self.lbl_recommendation.setStyleSheet(f"font-size: 12px; color: {t.text_muted};")
+        score_desc_col.addWidget(self.lbl_recommendation)
+        score_row.addLayout(score_desc_col, 1)
+
+        left_col.addLayout(score_row)
+
+        # Status Chips
+        chips_row = QHBoxLayout()
+        chips_row.setSpacing(8)
+
+        self.chip_stable = QLabel("🟢 Mustahkam: 0")
+        self.chip_stable.setStyleSheet(
+            "background-color: #064E3B; color: #6EE7B7; border: 1px solid #059669; "
+            "border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700;"
+        )
+        chips_row.addWidget(self.chip_stable)
+
+        self.chip_consolidating = QLabel("🟡 O'rtacha: 0")
+        self.chip_consolidating.setStyleSheet(
+            "background-color: #451A03; color: #FCD34D; border: 1px solid #D97706; "
+            "border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700;"
+        )
+        chips_row.addWidget(self.chip_consolidating)
+
+        self.chip_vulnerable = QLabel("🔴 Zaif: 0")
+        self.chip_vulnerable.setStyleSheet(
+            "background-color: #4C1D1D; color: #FCA5A5; border: 1px solid #DC2626; "
+            "border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700;"
+        )
+        chips_row.addWidget(self.chip_vulnerable)
+        chips_row.addStretch()
+
+        left_col.addLayout(chips_row)
+        content_row.addLayout(left_col, 1)
+
+        # Right Column
+        self.right_frame = QFrame()
+        self.right_frame.setStyleSheet(
+            f"background-color: {t.bg_card_secondary}; border-radius: 10px; border: 1px solid {t.border};"
+        )
+        rf_layout = QVBoxLayout(self.right_frame)
+        rf_layout.setContentsMargins(14, 10, 14, 10)
+        rf_layout.setSpacing(8)
+
+        self.rf_title = QLabel("📉 Kelgusi 7 kunlik Unutish Prognozi (Mashqsiz)")
+        self.rf_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {t.text_main};")
+        rf_layout.addWidget(self.rf_title)
+
+        self.forecast_row = QHBoxLayout()
+        self.forecast_row.setSpacing(8)
+        self.forecast_labels = []
+
+        for i in range(4):
+            f_box = QFrame()
+            f_box.setStyleSheet(
+                f"background-color: {t.bg_card}; border: 1px solid {t.border}; border-radius: 8px; padding: 4px;"
+            )
+            fb_lay = QVBoxLayout(f_box)
+            fb_lay.setContentsMargins(8, 6, 8, 6)
+            fb_lay.setSpacing(2)
+            fb_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            lbl_day = QLabel("")
+            lbl_day.setStyleSheet("font-size: 11px; color: #9CA3AF; font-weight: 600;")
+            lbl_day.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            fb_lay.addWidget(lbl_day)
+
+            lbl_pct = QLabel("")
+            lbl_pct.setStyleSheet("font-size: 15px; font-weight: 800; color: #38BDF8;")
+            lbl_pct.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            fb_lay.addWidget(lbl_pct)
+
+            self.forecast_labels.append((lbl_day, lbl_pct, f_box))
+            self.forecast_row.addWidget(f_box)
+
+        rf_layout.addLayout(self.forecast_row)
+        content_row.addWidget(self.right_frame, 1)
+
+        layout.addLayout(content_row)
+
+    def set_data(self, data: dict):
+        pct = data.get("overall_retention_pct", 100.0)
+        stable = data.get("stable_count", 0)
+        consolidating = data.get("consolidating_count", 0)
+        vulnerable = data.get("vulnerable_count", 0)
+        self.vulnerable_word_ids = data.get("vulnerable_word_ids", [])
+
+        self.lbl_score.setText(f"{pct}%")
+        if pct >= 80:
+            self.lbl_score.setStyleSheet("font-size: 38px; font-weight: 900; color: #10B981;")
+        elif pct >= 65:
+            self.lbl_score.setStyleSheet("font-size: 38px; font-weight: 900; color: #F59E0B;")
+        else:
+            self.lbl_score.setStyleSheet("font-size: 38px; font-weight: 900; color: #EF4444;")
+
+        self.chip_stable.setText(f"🟢 Mustahkam: {stable}")
+        self.chip_consolidating.setText(f"🟡 O'rtacha: {consolidating}")
+        self.chip_vulnerable.setText(f"🔴 Zaif: {vulnerable}")
+        self.lbl_recommendation.setText(data.get("recommendation", ""))
+
+        if self.vulnerable_word_ids:
+            self.btn_rescue.setText(f"⚡ {len(self.vulnerable_word_ids)} ta zaif so'zni qutqarish")
+            self.btn_rescue.setVisible(True)
+        else:
+            self.btn_rescue.setVisible(False)
+
+        forecast = data.get("forecast", [])
+        for idx, item in enumerate(forecast[:4]):
+            if idx < len(self.forecast_labels):
+                lbl_day, lbl_pct, f_box = self.forecast_labels[idx]
+                lbl_day.setText(item.get("label", ""))
+                f_pct = item.get("retention_pct", 0)
+                lbl_pct.setText(f"{f_pct}%")
+                if f_pct >= 75:
+                    lbl_pct.setStyleSheet("font-size: 15px; font-weight: 800; color: #10B981;")
+                elif f_pct >= 60:
+                    lbl_pct.setStyleSheet("font-size: 15px; font-weight: 800; color: #F59E0B;")
+                else:
+                    lbl_pct.setStyleSheet("font-size: 15px; font-weight: 800; color: #EF4444;")
+
+    def apply_theme(self, t: theme_manager.Theme):
+        self.setStyleSheet(
+            f"QFrame {{ background-color: {t.bg_card}; border: 1.5px solid {t.primary}; border-radius: 14px; }}"
+        )
+        if hasattr(self, "right_frame"):
+            self.right_frame.setStyleSheet(
+                f"background-color: {t.bg_card_secondary}; border-radius: 10px; border: 1px solid {t.border};"
+            )
+        if hasattr(self, "rf_title"):
+            self.rf_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {t.text_main};")
+        if hasattr(self, "forecast_labels"):
+            for _, _, f_box in self.forecast_labels:
+                f_box.setStyleSheet(
+                    f"background-color: {t.bg_card}; border: 1px solid {t.border}; border-radius: 8px;"
+                )
+
+    def _on_rescue_clicked(self):
+        if self.vulnerable_word_ids and self.on_start_rescue:
+            self.on_start_rescue(self.vulnerable_word_ids)
+
+
 class DashboardWidget(QWidget):
     def __init__(self, on_navigate=None, on_goal_changed=None, on_start_practice=None):
         super().__init__()
@@ -682,6 +894,11 @@ class DashboardWidget(QWidget):
         btn_blitz.clicked.connect(lambda: self._go("blitz"))
         actions_layout.addWidget(btn_blitz)
 
+        btn_cefr = QPushButton("🎓 CEFR & IELTS")
+        btn_cefr.setStyleSheet(self._action_btn_style("#059669"))
+        btn_cefr.clicked.connect(self._open_cefr_dialog)
+        actions_layout.addWidget(btn_cefr)
+
         actions_layout.addStretch()
         self.layout_root.addWidget(self.actions_frame)
 
@@ -736,6 +953,10 @@ class DashboardWidget(QWidget):
 
         self.weak_frame.setVisible(False)
         self.layout_root.addWidget(self.weak_frame)
+
+        # --- Ebbinghaus Xotira Saqlanish Tahlili Vidjeti ---
+        self.retention_widget = EbbinghausRetentionWidget(on_start_rescue=self._practice_rescue_words)
+        self.layout_root.addWidget(self.retention_widget)
 
         # --- Grafiklar qatori (100% Native PyQt6 QPainter grafiklari) ---
         charts_row = QHBoxLayout()
@@ -817,6 +1038,8 @@ class DashboardWidget(QWidget):
             self.actions_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
         if hasattr(self, "due_frame"):
             self.due_frame.setStyleSheet(f"QFrame {{ background-color: {t.bg_card}; border: 1.5px solid {t.primary}; border-radius: 12px; }}")
+        if hasattr(self, "retention_widget"):
+            self.retention_widget.apply_theme(t)
         if hasattr(self, "week_chart"):
             self.week_chart.apply_theme(t)
         if hasattr(self, "box_chart"):
@@ -969,6 +1192,11 @@ class DashboardWidget(QWidget):
             heatmap_data = db.get_daily_activity_heatmap(365)
             self.heatmap_chart.set_data(heatmap_data)
 
+        # --- 4-Vidjet: Ebbinghaus Xotirada Saqlanish Tahlili ---
+        if hasattr(self, "retention_widget"):
+            ret_data = retention_analytics.get_memory_retention_overview()
+            self.retention_widget.set_data(ret_data)
+
         # --- Zaif so'zlar radari yangilanishi ---
         if hasattr(self, "radar_list_layout"):
             while self.radar_list_layout.count() > 0:
@@ -1027,6 +1255,17 @@ class DashboardWidget(QWidget):
     def _practice_single_word(self, word_id: int):
         if self.on_start_practice:
             self.on_start_practice([word_id], direction="en_uz")
+
+    def _practice_rescue_words(self, word_ids: list[int]):
+        """Ebbinghaus xotira tahlili bo'yicha zaiflashgan so'zlarni zudlik bilan mashqqa yuborish."""
+        if self.on_start_practice and word_ids:
+            self.on_start_practice(word_ids, direction="en_uz")
+
+    def _open_cefr_dialog(self):
+        """CEFR (A1-C2) & IELTS akademik to'plamlar modalini ochish."""
+        from ui.word_packs_dialog import WordPacksDialog
+        dlg = WordPacksDialog(self, on_words_imported=self.refresh, on_start_practice=self.on_start_practice)
+        dlg.exec()
 
     # =========================================================================
     # 🔍 UNIVERSAL SMART SEARCH EVENT HANDLERS

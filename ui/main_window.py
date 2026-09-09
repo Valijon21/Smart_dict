@@ -194,6 +194,10 @@ class MainWindow(QMainWindow):
         self.setup_tray()
         self.setup_reminder_timer()
 
+        # Global Clipboard avto-qidiruv monitoring (Ctrl+C popup)
+        from clipboard_monitor import ClipboardMonitor
+        self.clipboard_monitor = ClipboardMonitor(parent=self, on_words_changed=self._on_words_changed)
+
     def setup_tray(self):
         """Windows soat yonidagi System Tray ikonkasini sozlash."""
         if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -518,4 +522,6 @@ class MainWindow(QMainWindow):
         self.dashboard.refresh()
         if hasattr(self, "audio_player"):
             self.audio_player.load_interval_from_settings()
+        if hasattr(self, "clipboard_monitor") and self.clipboard_monitor:
+            self.clipboard_monitor.reload_settings()
         self.update_tray_tooltip()
