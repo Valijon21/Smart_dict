@@ -407,6 +407,23 @@ def get_words(limit: int = 50, order_by: str = "created_at DESC") -> list[sqlite
         return conn.execute(f"SELECT * FROM words ORDER BY {order_by} LIMIT ?", (limit,)).fetchall()
 
 
+def get_word_by_english(english: str) -> sqlite3.Row | None:
+    """Inglizcha so'z bo'yicha bazadan qidirish."""
+    eng_n = normalize(english)
+    if not eng_n:
+        return None
+    with get_conn() as conn:
+        return conn.execute(
+            """
+            SELECT w.*, p.box_level, p.next_review, p.correct_count, p.wrong_count
+            FROM words w LEFT JOIN progress p ON p.word_id = w.id
+            WHERE LOWER(w.english) = LOWER(?)
+            LIMIT 1
+            """,
+            (eng_n,),
+        ).fetchone()
+
+
 def search_words(query: str = "", status_filter: str = "all", hard_only: bool = False, limit: int | None = None) -> list[sqlite3.Row]:
     """So'zlarni qidirish va filtrlash."""
     clauses = []

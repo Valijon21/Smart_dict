@@ -14,6 +14,7 @@ from PyQt6.QtGui import QColor, QKeyEvent
 import database as db
 import tts
 import theme_manager
+import global_dict_service
 from logger import get_logger
 
 logger = get_logger("spotlight_search")
@@ -21,10 +22,11 @@ logger = get_logger("spotlight_search")
 
 class SpotlightResultItemWidget(QWidget):
     """Qidiruv natijalari ro'yxatidagi har bir so'zning zamonaviy kartasi."""
-    def __init__(self, word_data: dict, parent=None):
+    def __init__(self, word_data: dict, on_quick_add=None, parent=None):
         super().__init__(parent)
         wd = dict(word_data) if not isinstance(word_data, dict) else word_data
         self.word_data = wd
+        self.on_quick_add = on_quick_add
         t = theme_manager.get_active_theme()
 
         layout = QHBoxLayout(self)
@@ -47,7 +49,8 @@ class SpotlightResultItemWidget(QWidget):
             lbl_ph.setStyleSheet("color: #A5B4FC; font-size: 12px; font-weight: 500;")
             en_row.addWidget(lbl_ph)
 
-        pos = wd.get("part_of_speech", "").strip()
+        pos = wd.get("part_of_speech", "") or wd.get("pos", "")
+        pos = pos.strip()
         if pos:
             lbl_pos = QLabel(f"[{pos}]")
             lbl_pos.setStyleSheet("color: #34D399; font-size: 11px; font-weight: 600;")
@@ -62,14 +65,54 @@ class SpotlightResultItemWidget(QWidget):
 
         layout.addLayout(left_col, 1)
 
-        # O'ng: Leitner Box yoki O'rganish holati
-        box = wd.get("box", 1)
-        lbl_box = QLabel(f"Box {box}")
-        lbl_box.setStyleSheet(
-            "background-color: #1E1B4B; color: #C7D2FE; font-size: 11px; font-weight: 700; "
-            "border-radius: 6px; padding: 3px 8px;"
-        )
-        layout.addWidget(lbl_box)
+        # O'ng: Leitner Box yoki Global Lug'at holati
+        is_global = wd.get("source") == "global" or wd.get("is_global", False)
+
+        if not is_global:
+            box = wd.get("box_level", wd.get("box", 1))
+            lbl_box = QLabel(f"Box {box}")
+            lbl_box.setStyleSheet(
+                "background-color: #1E1B4B; color: #C7D2FE; font-size: 11px; font-weight: 700; "
+                "border-radius: 6px; padding: 3px 8px;"
+            )
+            layout.addWidget(lbl_box)
+        else:
+            in_study = wd.get("is_in_study_list", False)
+            if in_study:
+                lbl_status = QLabel("✅ O'rganilmoqda")
+                lbl_status.setStyleSheet(
+                    "background-color: #064E3B; color: #6EE7B7; font-size: 11px; font-weight: 700; "
+                    "border-radius: 6px; padding: 3px 8px;"
+                )
+                layout.addWidget(lbl_status)
+            else:
+                lbl_badge = QLabel("🌐 64k")
+                lbl_badge.setStyleSheet(
+                    "background-color: #1E293B; color: #94A3B8; font-size: 11px; font-weight: 600; "
+                    "border-radius: 6px; padding: 3px 6px;"
+                )
+                layout.addWidget(lbl_badge)
+
+                self.btn_add = QPushButton("➕ Qo'shish")
+                self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
+                self.btn_add.setStyleSheet(
+                    "QPushButton { background-color: #10B981; color: white; border: none; "
+                    "border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600; } "
+                    "QPushButton:hover { background-color: #059669; }"
+                )
+                self.btn_add.clicked.connect(self._handle_add_click)
+                layout.addWidget(self.btn_add)
+
+    def _handle_add_click(self):
+        if self.on_quick_add:
+            success = self.on_quick_add(self.word_data)
+            if success and hasattr(self, "btn_add"):
+                self.btn_add.setText("✅ Qo'shildi")
+                self.btn_add.setStyleSheet(
+                    "QPushButton { background-color: #065F46; color: #A7F3D0; border: none; "
+                    "border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600; }"
+                )
+                self.btn_add.setEnabled(False)
 
 
 class SpotlightSearchDialog(QDialog):
@@ -253,8 +296,19 @@ class SpotlightSearchDialog(QDialog):
         if not query:
             # Eng so'nggi qo'shilgan 15 ta so'zni ko'rsatish
             rows = db.get_latest_added_words(limit=15)
+            local_count = len(rows)
+            global_count = 0
         else:
-            rows = db.search_words(query, limit=25)
+            local_rows = db.search_words(query, limit=15)
+            global_rows = global_dict_service.search_global_words(query, limit=20)
+
+            # Shaxsiy va global bazani dublikatsiz birlashtirish
+            local_engs = {r["english"].strip().lower() for r in local_rows}
+            clean_global = [g for g in global_rows if g["english"].strip().lower() not in local_engs]
+
+            rows = list(local_rows) + clean_global
+            local_count = len(local_rows)
+            global_count = len(clean_global)
 
         self.current_results = rows
 
@@ -271,18 +325,42 @@ class SpotlightSearchDialog(QDialog):
         self.btn_speak.setVisible(True)
         self.btn_open_dict.setVisible(True)
         self.btn_add_new.setVisible(False)
-        self.lbl_action_hint.setText(f"Topildi: {len(rows)} ta so'z  |  ↑/↓: Navigatsiya")
+
+        if not query:
+            self.lbl_action_hint.setText(f"Shaxsiy lug'at: {local_count} ta so'z  |  ↑/↓: Navigatsiya")
+        else:
+            hint_parts = []
+            if local_count > 0:
+                hint_parts.append(f"{local_count} ta shaxsiy")
+            if global_count > 0:
+                hint_parts.append(f"{global_count} ta 64k lug'atdan")
+            self.lbl_action_hint.setText(f"Topildi: {' + '.join(hint_parts)}  |  Enter: Tanlash / Ochish")
 
         for r in rows:
             item = QListWidgetItem(self.results_list)
             item.setData(Qt.ItemDataRole.UserRole, r)
-            w = SpotlightResultItemWidget(r)
+            w = SpotlightResultItemWidget(r, on_quick_add=self._quick_add_global_word)
             item.setSizeHint(w.sizeHint())
             self.results_list.addItem(item)
             self.results_list.setItemWidget(item, w)
 
         if self.results_list.count() > 0:
             self.results_list.setCurrentRow(0)
+
+    def _quick_add_global_word(self, word_data: dict) -> bool:
+        """Global lug'atdagi so'zni shaxsiy ro'yxatga tezkor qo'shish."""
+        eng = word_data.get("english", "").strip()
+        uz = word_data.get("uzbek", "")
+        ex = word_data.get("example", "")
+        success, msg, w_id = global_dict_service.add_to_study_list(eng, uz, ex)
+        if success:
+            word_data["is_in_study_list"] = True
+            word_data["local_id"] = w_id
+            self.lbl_action_hint.setText(f"🎉 {msg}")
+            return True
+        else:
+            self.lbl_action_hint.setText(f"ℹ️ {msg}")
+            return False
 
     def _on_item_selected(self, current: QListWidgetItem, previous: QListWidgetItem):
         if not current:
@@ -293,8 +371,12 @@ class SpotlightSearchDialog(QDialog):
             eng = data.get("english", "")
             uz = data.get("uzbek", "")
             ex = data.get("example", "")
+            is_global = data.get("source") == "global" or data.get("is_global", False)
+
             if ex:
                 self.lbl_action_hint.setText(f"💡 Misol: \"{ex[:60]}...\"" if len(ex) > 60 else f"💡 Misol: \"{ex}\"")
+            elif is_global:
+                self.lbl_action_hint.setText(f"🌐 64k Lug'at: {eng} — {uz}")
             else:
                 self.lbl_action_hint.setText(f"📖 {eng} — {uz}")
 
@@ -316,9 +398,27 @@ class SpotlightSearchDialog(QDialog):
             return
         raw = cur.data(Qt.ItemDataRole.UserRole)
         data = dict(raw) if raw and not isinstance(raw, dict) else raw
-        if data:
+        if not data:
+            return
+
+        is_global = data.get("source") == "global" or data.get("is_global", False)
+        if is_global:
+            # Agar so'z hali shaxsiy bazada bo'lmasa, uni avtomatik qo'shib keyin ochamiz
+            if not data.get("is_in_study_list"):
+                global_dict_service.add_to_study_list(
+                    data.get("english", ""),
+                    data.get("uzbek", ""),
+                    data.get("example", "")
+                )
+            local_row = db.get_word_by_english(data.get("english", ""))
+            if local_row:
+                self.word_selected.emit(dict(local_row))
+            else:
+                self.word_selected.emit(data)
+        else:
             self.word_selected.emit(data)
-            self.close()
+
+        self.close()
 
     def _request_quick_add(self):
         text = self.search_input.text().strip()

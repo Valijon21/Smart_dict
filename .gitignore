@@ -33,6 +33,9 @@ venv.bak/
 *.db-wal
 *.db-shm
 *.db-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
 VocabMaster/
 data/
 backups/
