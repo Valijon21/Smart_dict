@@ -278,9 +278,10 @@ class MainWindow(QMainWindow):
         self.tray_icon.activated.connect(self._on_tray_activated)
         self.tray_icon.show()
 
-    @pyqtSlot()
-    def _on_tray_activated(self):
+    def _on_tray_activated(self, reason=None):
         """Tray ikonka bosilganda oynani tiklash (PyQt6 type-safe)."""
+        if reason == QSystemTrayIcon.ActivationReason.Context:
+            return
         self.restore_window()
 
     def restore_window(self):

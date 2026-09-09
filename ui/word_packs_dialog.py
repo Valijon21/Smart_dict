@@ -295,12 +295,16 @@ class WordPacksDialog(QDialog):
         )
 
     def _import_cefr_action(self, level_id: str, count: int, title: str, status_lbl: QLabel):
-        added, total = cefr_service.import_cefr_words_to_study(level_id, count=count)
-        now_count = cefr_service.get_imported_count_for_level(level_id)
-        status_lbl.setText(f"✅ {now_count} / {total} ta lug'atingizda bor")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            added, total = cefr_service.import_cefr_words_to_study(level_id, count=count)
+            now_count = cefr_service.get_imported_count_for_level(level_id)
+            status_lbl.setText(f"✅ {now_count} / {total} ta lug'atingizda bor")
 
-        if self.on_words_imported:
-            self.on_words_imported()
+            if self.on_words_imported:
+                self.on_words_imported()
+        finally:
+            QApplication.restoreOverrideCursor()
 
         QMessageBox.information(
             self,

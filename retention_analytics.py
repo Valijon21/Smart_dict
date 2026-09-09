@@ -12,12 +12,24 @@ kelgusi 7 kunlik unutish xavfi prognozini va zaiflashgan so'zlar ro'yxatini hiso
 """
 import math
 import datetime
+import time
 from typing import Any
 
 import database as db
 from logger import get_logger
 
 logger = get_logger("retention_analytics")
+
+# Xotira egri chizig'i natijalari uchun TTL kesh (15 soniya)
+_RETENTION_CACHE: dict | None = None
+_RETENTION_CACHE_TIME: float = 0.0
+
+
+def invalidate_retention_cache():
+    """Baza ma'lumotlari yangilanganda keshni tozalash."""
+    global _RETENTION_CACHE, _RETENTION_CACHE_TIME
+    _RETENTION_CACHE = None
+    _RETENTION_CACHE_TIME = 0.0
 
 
 def calculate_word_stability(
@@ -92,6 +104,11 @@ def get_memory_retention_overview() -> dict:
     - Kelgusi 7 kunlik prognoz;
     - Zudlik bilan takrorlash lozim bo'lgan zaif so'zlar ID lari.
     """
+    global _RETENTION_CACHE, _RETENTION_CACHE_TIME
+    now = time.time()
+    if _RETENTION_CACHE is not None and (now - _RETENTION_CACHE_TIME) < 15.0:
+        return _RETENTION_CACHE
+
     with db.get_conn() as conn:
         rows = conn.execute(
             """
@@ -211,7 +228,7 @@ def get_memory_retention_overview() -> dict:
     else:
         rec = f"⚠️ Diqqat: {len(vulnerable_ids)} ta so'z unutish xavfi ostida! Zudlik bilan 'Qutqarish' mashqini o'tkazing."
 
-    return {
+    result = {
         "total_words": total_words,
         "overall_retention_pct": avg_current_pct,
         "stable_count": stable_count,
@@ -221,3 +238,6 @@ def get_memory_retention_overview() -> dict:
         "forecast": forecast,
         "recommendation": rec
     }
+    _RETENTION_CACHE = result
+    _RETENTION_CACHE_TIME = now
+    return result

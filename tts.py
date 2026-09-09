@@ -179,6 +179,8 @@ class TTSEngine:
                 speaker.Rate = sapi_rate
                 self._thread_local.speaker = speaker
                 with self._lock:
+                    if len(self._active_thread_speakers) > 15:
+                        self._active_thread_speakers = self._active_thread_speakers[-10:]
                     self._active_thread_speakers.append(speaker)
             except Exception as e:
                 logger.error(f"Thread uchun SAPI SpVoice yaratishda xatolik: {e}")
@@ -386,6 +388,7 @@ class TTSEngine:
             speakers_to_stop = []
             with self._lock:
                 speakers_to_stop.extend(list(self._active_thread_speakers))
+                self._active_thread_speakers.clear()
             if self._sapi_speaker:
                 speakers_to_stop.append(self._sapi_speaker)
             cur = getattr(self._thread_local, "speaker", None)

@@ -16,11 +16,13 @@ from typing import Any
 
 import database as db
 import phonetics
-from logger import get_logger
+from logger import get_logger, get_app_dir
 
 logger = get_logger("global_dict_service")
 
-DB_PATH = Path(r"D:\Proyekt\suz surash\db.sqlite3")
+DB_PATH = get_app_dir() / "db.sqlite3"
+if not DB_PATH.exists():
+    DB_PATH = Path(__file__).resolve().parent / "db.sqlite3"
 
 
 def get_db_connection() -> sqlite3.Connection | None:

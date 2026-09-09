@@ -438,9 +438,17 @@ class TopicWordsWidget(QWidget):
         self.stack.setCurrentIndex(1)
 
     def back_to_grid(self):
-        """Asosiy 36 ta mavzu kartalari sahifasiga qaytish."""
+        """Asosiy 36 ta mavzu kartalari sahifasiga qaytish (bir zumda yangilanish)."""
+        prog_map = topic_service.get_all_topics_progress()
         for card in self.topic_cards:
-            card.update_progress()
+            if card.topic_id in prog_map:
+                learned, total = prog_map[card.topic_id]
+                if total > 0:
+                    card.progress_bar.setValue(int((learned / total) * 100))
+                    card.progress_lbl.setText(f"{learned}/{total}")
+                else:
+                    card.progress_bar.setValue(0)
+                    card.progress_lbl.setText("0/0")
         self.stack.setCurrentIndex(0)
 
     def _populate_words_table(self, words: list[dict]):

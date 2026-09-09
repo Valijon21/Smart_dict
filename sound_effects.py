@@ -16,6 +16,7 @@ logger = get_logger("sound_effects")
 _CORRECT_WAV: bytes = b""
 _WRONG_WAV: bytes = b""
 _MILESTONE_WAV: bytes = b""
+_TICK_WAV: bytes = b""
 _INITIALIZED: bool = False
 
 
@@ -57,7 +58,7 @@ def _generate_tone_wav(notes: list[tuple[float, float, float]]) -> bytes:
 
 
 def _ensure_sounds():
-    global _CORRECT_WAV, _WRONG_WAV, _MILESTONE_WAV, _INITIALIZED
+    global _CORRECT_WAV, _WRONG_WAV, _MILESTONE_WAV, _TICK_WAV, _INITIALIZED
     if _INITIALIZED:
         return
     try:

@@ -675,7 +675,9 @@ class DictionaryWidget(QWidget):
 
         rows = db.search_words(query=query, status_filter=status, hard_only=hard_only)
         self._current_rows_data = rows
-        self.table.setRowCount(len(rows))
+        self.table.setUpdatesEnabled(False)
+        try:
+            self.table.setRowCount(len(rows))
 
         # Agar shaxsiy bazada topilmasa va qidiruv kiritilgan bo'lsa, 64k bazadan tavsiya
         clean_q = query.strip()
@@ -741,9 +743,12 @@ class DictionaryWidget(QWidget):
             eng_label.setStyleSheet("color: #FFFFFF; font-size: 15px; font-weight: 700;")
             eng_box.addWidget(eng_label)
 
-            ph_info = phonetics.get_word_info(eng_word)
-            ph_val = row["phonetic"] if "phonetic" in row.keys() and row["phonetic"] else ph_info["phonetic"]
-            pos_val = row["part_of_speech"] if "part_of_speech" in row.keys() and row["part_of_speech"] else ph_info["part_of_speech"]
+            ph_val = row["phonetic"] if "phonetic" in row.keys() and row["phonetic"] else ""
+            pos_val = row["part_of_speech"] if "part_of_speech" in row.keys() and row["part_of_speech"] else ""
+            if not ph_val or not pos_val:
+                ph_info = phonetics.get_word_info(eng_word)
+                ph_val = ph_val or ph_info["phonetic"]
+                pos_val = pos_val or ph_info["part_of_speech"]
 
             sub_lbl = QLabel(
                 f"<span style='color: #A5B4FC; font-size: 12px; font-weight: 600;'>{ph_val}</span>  "
@@ -836,6 +841,8 @@ class DictionaryWidget(QWidget):
             act_lay.addWidget(del_btn)
 
             self.table.setCellWidget(i, 5, act_cell)
+        finally:
+            self.table.setUpdatesEnabled(True)
 
         self.count_label.setText(f"Ko'rsatilmoqda: {len(rows)} ta so'z")
 

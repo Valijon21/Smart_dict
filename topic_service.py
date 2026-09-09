@@ -367,7 +367,27 @@ def get_topic_by_id(topic_id: str) -> dict | None:
     return None
 
 
-def get_topic_progress(topic_id: str) -> tuple[int, int]:
+def get_all_topics_progress() -> dict[str, tuple[int, int]]:
+    """
+    Barcha 36 ta mavzuning progressini 1 ta SQL so'rov orqali bir zumda hisoblaydi (0.5ms).
+    Qaytaradi: {topic_id: (shaxsiy_bazadagi_so'zlar, jami_so'zlar)}
+    """
+    try:
+        with db.get_conn() as conn:
+            rows = conn.execute("SELECT LOWER(english) FROM words").fetchall()
+            user_words = set(r[0] for r in rows)
+    except Exception as e:
+        logger.error(f"Mavzular progressini olishda xatolik: {e}")
+        user_words = set()
+
+    res = {}
+    for t in get_all_topics():
+        c = sum(1 for w in t["words"] if w.lower() in user_words)
+        res[t["id"]] = (c, len(t["words"]))
+    return res
+
+
+def get_topic_progress(topic_id: str, user_words_set: set[str] | None = None) -> tuple[int, int]:
     """
     Mavzudagi o'zlashtirish progressini hisoblaydi.
     Qaytaradi: (shaxsiy bazada mavjud so'zlar soni, jami so'zlar soni)
@@ -377,12 +397,15 @@ def get_topic_progress(topic_id: str) -> tuple[int, int]:
         return 0, 0
 
     total = len(topic["words"])
-    in_study_count = 0
+    if user_words_set is None:
+        try:
+            with db.get_conn() as conn:
+                rows = conn.execute("SELECT LOWER(english) FROM words").fetchall()
+                user_words_set = set(r[0] for r in rows)
+        except Exception:
+            user_words_set = set()
 
-    for w in topic["words"]:
-        if db.get_word_by_english(w):
-            in_study_count += 1
-
+    in_study_count = sum(1 for w in topic["words"] if w.lower() in user_words_set)
     return in_study_count, total
 
 
@@ -455,21 +478,20 @@ def get_topic_words_details(topic_id: str) -> list[dict]:
 
 def batch_add_topic_to_study(topic_id: str) -> tuple[int, int]:
     """
-    Mavzudagi barcha hali shaxsiy bazada yo'q so'zlarni 1-bosishda vocab.db ga qo'shadi.
+    Mavzudagi barcha hali shaxsiy bazada yo'q so'zlarni 1-bosishda yagona
+    SQLite tranzaksiyasida vocab.db ga qo'shadi (bir zumda).
     Qaytaradi: (qo'shilgan so'zlar soni, jami so'zlar soni)
     """
     words_data = get_topic_words_details(topic_id)
-    added_count = 0
+    candidates = [
+        (item["english"], item["uzbek"], item["example"])
+        for item in words_data
+        if not item["is_in_study_list"]
+    ]
+    if not candidates:
+        return 0, len(words_data)
 
-    for item in words_data:
-        if not item["is_in_study_list"]:
-            success, _, _ = global_dict_service.add_to_study_list(
-                english=item["english"],
-                uzbek=item["uzbek"],
-                example=item["example"]
-            )
-            if success:
-                added_count += 1
-
-    logger.info(f"Mavzudan so'zlar paketli qo'shildi: topic_id='{topic_id}', qo'shildi={added_count}/{len(words_data)}")
+    summary = db.bulk_add_words(candidates, source=f"topic:{topic_id}")
+    added_count = summary.get("added", 0)
+    logger.info(f"Mavzudan so'zlar paketli tezkor qo'shildi: topic_id='{topic_id}', qo'shildi={added_count}/{len(words_data)}")
     return added_count, len(words_data)

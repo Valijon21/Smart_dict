@@ -13,11 +13,18 @@ from typing import Any
 
 import database as db
 import global_dict_service
-from logger import get_logger
+from logger import get_logger, get_app_dir
 
 logger = get_logger("cefr_service")
 
-DB_PATH = Path(r"d:\Proyekt\suz surash\db.sqlite3")
+# Dinamik va ko'chma (portable) baza yo'li
+DB_PATH = get_app_dir() / "db.sqlite3"
+if not DB_PATH.exists():
+    DB_PATH = Path(__file__).resolve().parent / "db.sqlite3"
+
+# Har bir CEFR darajasining so'zlar to'plami xotirada keshlanadi (Tezkor hisoblash uchun)
+_LEVEL_WORDS_CACHE: dict[str, set[str]] = {}
+_STATIC_SUMMARIES_CACHE: list[dict] | None = None
 
 # Academic Word List (AWL) - 570 ta asosiy akademik leksik o'zak
 AWL_HEADWORDS = {
@@ -145,81 +152,93 @@ def _get_db():
 
 
 def get_cefr_levels_summary() -> list[dict]:
-    """Barcha CEFR darajalari haqida to'liq metama'lumot va so'zlar sonini qaytaradi."""
-    conn = _get_db()
-    if not conn:
-        return []
+    """Barcha CEFR darajalari haqida to'liq metama'lumot va so'zlar sonini qaytaradi (bir zumda keshdan)."""
+    global _STATIC_SUMMARIES_CACHE
 
-    summaries = []
     try:
-        cursor = conn.cursor()
-
-        for lvl in CEFR_LEVELS:
-            lvl_id = lvl["id"]
-            if lvl.get("is_awl"):
-                # AWL so'zlari
-                placeholders = ",".join("?" for _ in AWL_HEADWORDS)
-                cursor.execute(
-                    f"SELECT COUNT(*) FROM word_entity WHERE LOWER(word) IN ({placeholders})",
-                    list(AWL_HEADWORDS)
-                )
-                total = cursor.fetchone()[0]
-
-                # Namunalar
-                cursor.execute(
-                    f"""
-                    SELECT we.word, GROUP_CONCAT(wz.word, ', ') AS uzbek 
-                    FROM word_entity we
-                    LEFT JOIN words_uz wz ON we.id = wz.word_id
-                    WHERE LOWER(we.word) IN ({placeholders})
-                    GROUP BY we.id
-                    LIMIT 4
-                    """,
-                    list(AWL_HEADWORDS)
-                )
-                sample_rows = cursor.fetchall()
-            else:
-                star = lvl["star"]
-                cursor.execute(
-                    "SELECT COUNT(*) FROM word_entity WHERE star = ? AND LENGTH(word) >= 2",
-                    (star,)
-                )
-                total = cursor.fetchone()[0]
-
-                cursor.execute(
-                    """
-                    SELECT we.word, GROUP_CONCAT(wz.word, ', ') AS uzbek 
-                    FROM word_entity we
-                    LEFT JOIN words_uz wz ON we.id = wz.word_id
-                    WHERE we.star = ? AND LENGTH(we.word) >= 2
-                    GROUP BY we.id
-                    LIMIT 4
-                    """,
-                    (star,)
-                )
-                sample_rows = cursor.fetchall()
-
-            samples = [
-                {"english": r["word"], "uzbek": (r["uzbek"] or "").split(",")[0].strip()}
-                for r in sample_rows
-            ]
-
-            # Foydalanuvchi vocab.db sida allaqachon nechtasi borligini hisoblash
-            already_imported = get_imported_count_for_level(lvl_id)
-
-            summaries.append({
-                **lvl,
-                "total_words": total,
-                "already_imported": already_imported,
-                "samples": samples
-            })
-
+        with db.get_conn() as local_conn:
+            rows = local_conn.execute("SELECT LOWER(english) FROM words").fetchall()
+            local_words = set(r[0] for r in rows)
     except Exception as e:
-        logger.error(f"CEFR xulosasini olishda xatolik: {e}")
-    finally:
-        conn.close()
+        logger.error(f"Local words olishda xatolik: {e}")
+        local_words = set()
 
-    return summaries
+    if _STATIC_SUMMARIES_CACHE is None:
+        conn = _get_db()
+        if not conn:
+            return []
+        summaries = []
+        try:
+            cursor = conn.cursor()
+            for lvl in CEFR_LEVELS:
+                lvl_id = lvl["id"]
+                if lvl.get("is_awl"):
+                    placeholders = ",".join("?" for _ in AWL_HEADWORDS)
+                    cursor.execute(
+                        f"SELECT COUNT(*) FROM word_entity WHERE LOWER(word) IN ({placeholders})",
+                        list(AWL_HEADWORDS)
+                    )
+                    total = cursor.fetchone()[0]
+
+                    cursor.execute(
+                        f"""
+                        SELECT we.word, GROUP_CONCAT(wz.word, ', ') AS uzbek 
+                        FROM word_entity we
+                        LEFT JOIN words_uz wz ON we.id = wz.word_id
+                        WHERE LOWER(we.word) IN ({placeholders})
+                        GROUP BY we.id
+                        LIMIT 4
+                        """,
+                        list(AWL_HEADWORDS)
+                    )
+                    sample_rows = cursor.fetchall()
+                else:
+                    star = lvl["star"]
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM word_entity WHERE star = ? AND LENGTH(word) >= 2",
+                        (star,)
+                    )
+                    total = cursor.fetchone()[0]
+
+                    cursor.execute(
+                        """
+                        SELECT we.word, GROUP_CONCAT(wz.word, ', ') AS uzbek 
+                        FROM word_entity we
+                        LEFT JOIN words_uz wz ON we.id = wz.word_id
+                        WHERE we.star = ? AND LENGTH(we.word) >= 2
+                        GROUP BY we.id
+                        LIMIT 4
+                        """,
+                        (star,)
+                    )
+                    sample_rows = cursor.fetchall()
+
+                samples = [
+                    {"english": r["word"], "uzbek": (r["uzbek"] or "").split(",")[0].strip()}
+                    for r in sample_rows
+                ]
+
+                summaries.append({
+                    **lvl,
+                    "total_words": total,
+                    "samples": samples
+                })
+            _STATIC_SUMMARIES_CACHE = summaries
+        except Exception as e:
+            logger.error(f"CEFR xulosasini olishda xatolik: {e}")
+            return []
+        finally:
+            conn.close()
+
+    # Har bir darajadagi mavjud so'zlar sonini 0.1ms da xotiradagi kesishish orqali hisoblash
+    result = []
+    for s in _STATIC_SUMMARIES_CACHE:
+        cnt = get_imported_count_for_level(s["id"], local_words=local_words)
+        result.append({
+            **s,
+            "already_imported": cnt
+        })
+    return result
 
 
 def get_words_for_level(level_id: str, limit: int = 100, offset: int = 0) -> list[dict]:
@@ -279,11 +298,15 @@ def get_words_for_level(level_id: str, limit: int = 100, offset: int = 0) -> lis
     return results
 
 
-def get_imported_count_for_level(level_id: str) -> int:
-    """Foydalanuvchi vocab.db sida ushbu darajadan qancha so'z mavjudligini aniqlash."""
+def get_level_words_set(level_id: str) -> set[str]:
+    """Ushbu darajaga tegishli barcha so'zlar to'plamini keshdan yoki db.sqlite3 dan oladi."""
+    global _LEVEL_WORDS_CACHE
+    if level_id in _LEVEL_WORDS_CACHE and _LEVEL_WORDS_CACHE[level_id]:
+        return _LEVEL_WORDS_CACHE[level_id]
+
     conn = _get_db()
     if not conn:
-        return 0
+        return set()
 
     try:
         cursor = conn.cursor()
@@ -300,50 +323,70 @@ def get_imported_count_for_level(level_id: str) -> int:
                 "SELECT LOWER(word) FROM word_entity WHERE star = ? AND LENGTH(word) >= 2",
                 (star,)
             )
-
-        words_in_level = set(r[0] for r in cursor.fetchall())
+        words_set = set(r[0] for r in cursor.fetchall())
+        _LEVEL_WORDS_CACHE[level_id] = words_set
+        return words_set
+    except Exception as e:
+        logger.error(f"CEFR daraja so'zlarini olishda xatolik ({level_id}): {e}")
+        return set()
+    finally:
         conn.close()
 
-        if not words_in_level:
+
+def get_imported_count_for_level(level_id: str, local_words: set[str] | None = None) -> int:
+    """Foydalanuvchi vocab.db sida ushbu darajadan qancha so'z mavjudligini aniqlash."""
+    words_in_level = get_level_words_set(level_id)
+    if not words_in_level:
+        return 0
+
+    if local_words is None:
+        try:
+            with db.get_conn() as local_conn:
+                rows = local_conn.execute("SELECT LOWER(english) FROM words").fetchall()
+                local_words = set(r[0] for r in rows)
+        except Exception as e:
+            logger.error(f"Mahalliy so'zlarni olishda xatolik: {e}")
             return 0
 
-        # vocab.db dagi so'zlar bilan kesishish
-        with db.get_conn() as local_conn:
-            rows = local_conn.execute("SELECT LOWER(english) FROM words").fetchall()
-            local_words = set(r[0] for r in rows)
-            return len(words_in_level.intersection(local_words))
-
-    except Exception as e:
-        logger.error(f"CEFR yuklangan so'zlar sonini tekshirishda xatolik: {e}")
-        return 0
+    return len(words_in_level.intersection(local_words))
 
 
 def import_cefr_words_to_study(level_id: str, count: int = 50) -> tuple[int, int]:
     """
     Ushbu CEFR darajasidan foydalanuvchining shaxsiy lug'atiga hali qo'shilmagan
-    'count' ta yangi so'zni xavfsiz va tezkor import qiladi.
+    'count' ta yangi so'zni xavfsiz va tezkor import qiladi (yagona tranzaksiya).
     Qaytaradi: (yangi_qo'shilgan_soni, darajadagi_jami_so'zlar)
     """
     words = get_words_for_level(level_id, limit=3000)
     if not words:
         return 0, 0
 
-    added_count = 0
+    # vocab.db dagi mavjud so'zlarni 1 ta tezkor so'rov bilan aniqlash
+    try:
+        with db.get_conn() as local_conn:
+            rows = local_conn.execute("SELECT LOWER(english) FROM words").fetchall()
+            local_words = set(r[0] for r in rows)
+    except Exception as e:
+        logger.error(f"Mavjud so'zlarni tekshirishda xatolik: {e}")
+        local_words = set()
+
+    candidates = []
     for w in words:
-        if added_count >= count:
+        if len(candidates) >= count:
             break
         eng = w["english"]
-        if not db.get_word_by_english(eng):
-            uz = w["uzbek"]
-            ex = w["example"]
+        if eng.lower() not in local_words:
+            uz = w.get("uzbek", "")
+            ex = w.get("example", "")
             if ex and "\n" in ex:
                 ex = ex.split("\n")[0]
-            success, msg, _ = global_dict_service.add_to_study_list(
-                english=eng,
-                uzbek=uz,
-                example=ex
-            )
-            if success:
-                added_count += 1
+            candidates.append((eng, uz, ex))
 
-    return added_count, len(words)
+    if not candidates:
+        return 0, len(words)
+
+    # Barcha so'zlarni yagona SQLite tranzaksiyasida qo'shish (tezligi: < 30ms)
+    res = db.bulk_add_words(candidates, source=f"cefr:{level_id}")
+    added = res.get("added", 0)
+    logger.info(f"CEFR to'plamidan tezkor import: {level_id} -> {added} ta so'z qo'shildi")
+    return added, len(words)

@@ -9,14 +9,16 @@ import json
 import time
 import tempfile
 import subprocess
+import wave
 from pathlib import Path
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl, QTimer
+from typing import Any
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl, QTimer, QBuffer, QByteArray, QIODevice
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QProgressBar, QFrame, QMessageBox
 )
 from PyQt6.QtMultimedia import (
-    QMediaCaptureSession, QAudioInput, QMediaRecorder, QMediaPlayer, QAudioOutput, QMediaFormat
+    QAudioSource, QAudioFormat, QMediaDevices, QMediaPlayer, QAudioOutput
 )
 
 import tts
@@ -202,22 +204,36 @@ class PronunciationDialog(QDialog):
     - Mikrofondan o'z ovozini yozib olish va darhol qayta tinglash;
     - Windows Speech Recognition orqali avtomatik ball olish (0-100%).
     """
-    def __init__(self, word_data: dict, parent=None):
+    def __init__(self, word_data: Any, parent=None):
         super().__init__(parent)
         self.word_data = word_data
-        self.word_en = word_data.get("english", "").strip()
-        self.word_uz = word_data.get("uzbek", "").strip()
-        self.word_phonetic = word_data.get("phonetic", "").strip()
+        if hasattr(word_data, "keys"):
+            w_dict = dict(word_data)
+        elif isinstance(word_data, (list, tuple)):
+            w_dict = {
+                "english": word_data[1] if len(word_data) > 1 else "",
+                "uzbek": word_data[2] if len(word_data) > 2 else "",
+                "phonetic": word_data[3] if len(word_data) > 3 else "",
+            }
+        else:
+            w_dict = dict(word_data) if word_data else {}
+
+        self.word_en = str(w_dict.get("english", "") or "").strip()
+        self.word_uz = str(w_dict.get("uzbek", "") or "").strip()
+        self.word_phonetic = str(w_dict.get("phonetic", "") or "").strip()
         self.recorded_file = ""
         self.is_recording = False
         self.worker: WindowsSpeechWorker | None = None
 
-        # Audio yozish sessiyasi
-        self.capture_session = QMediaCaptureSession(self)
-        self.audio_input = QAudioInput(self)
-        self.capture_session.setAudioInput(self.audio_input)
-        self.recorder = QMediaRecorder(self)
-        self.capture_session.setRecorder(self.recorder)
+        # 16kHz 16-bit Mono PCM format (SAPI va WAV standarti)
+        self.audio_format = QAudioFormat()
+        self.audio_format.setSampleRate(16000)
+        self.audio_format.setChannelCount(1)
+        self.audio_format.setSampleFormat(QAudioFormat.SampleFormat.Int16)
+
+        self.audio_source: QAudioSource | None = None
+        self.audio_byte_array = QByteArray()
+        self.audio_buffer: QBuffer | None = None
 
         # Qayta eshitish pleyeri
         self.player = QMediaPlayer(self)
@@ -396,15 +412,19 @@ class PronunciationDialog(QDialog):
         self.progress_bar.setVisible(True)
         self.btn_replay.setEnabled(False)
 
-        # Vaqtinchalik faylga yozish
+        # Vaqtinchalik WAV faylga yozish
         temp_dir = Path(tempfile.gettempdir())
         self.recorded_file = str(temp_dir / f"pronunciation_user_{int(time.time())}.wav")
 
         try:
-            self.recorder.setOutputLocation(QUrl.fromLocalFile(self.recorded_file))
-            self.recorder.record()
+            device = QMediaDevices.defaultAudioInput()
+            self.audio_source = QAudioSource(device, self.audio_format, self)
+            self.audio_byte_array = QByteArray()
+            self.audio_buffer = QBuffer(self.audio_byte_array)
+            self.audio_buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+            self.audio_source.start(self.audio_buffer)
         except Exception as e:
-            logger.error(f"QMediaRecorder xatolik: {e}")
+            logger.error(f"QAudioSource yozishda xatolik: {e}")
 
         self.record_time_ms = 0
         self.record_timer.start()
@@ -437,9 +457,22 @@ class PronunciationDialog(QDialog):
         self.lbl_status.setStyleSheet("font-size: 13px; color: #9CA3AF;")
 
         try:
-            self.recorder.stop()
-        except Exception:
-            pass
+            if self.audio_source:
+                self.audio_source.stop()
+                self.audio_source = None
+            if self.audio_buffer:
+                self.audio_buffer.close()
+                self.audio_buffer = None
+
+            raw_bytes = bytes(self.audio_byte_array.data())
+            if raw_bytes:
+                with wave.open(self.recorded_file, "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(16000)
+                    wf.writeframes(raw_bytes)
+        except Exception as e:
+            logger.error(f"WAV faylga saqlashda xatolik: {e}")
 
         if os.path.exists(self.recorded_file) and os.path.getsize(self.recorded_file) > 100:
             self.btn_replay.setEnabled(True)

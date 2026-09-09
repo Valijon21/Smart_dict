@@ -210,6 +210,14 @@ def backfill_phonetics() -> int:
 
 # ---------- So'zlar bilan ishlash ----------
 
+def _invalidate_cache():
+    try:
+        import retention_analytics
+        retention_analytics.invalidate_retention_cache()
+    except Exception:
+        pass
+
+
 def normalize(word: str) -> str:
     return " ".join(word.strip().lower().split())
 
@@ -244,6 +252,7 @@ def add_word(english: str, uzbek: str, source: str = "manual", example: str = ""
                 (word_id, datetime.date.today().isoformat()),
             )
             logger.info(f"Yangi so'z qo'shildi: ID={word_id}, '{english_n}' -> '{uzbek_n}' ({pos_val})")
+            _invalidate_cache()
             return word_id
         except sqlite3.IntegrityError:
             # Agar mavjud so'zda example yoki fonetika bo'lmasa, to'ldirish
@@ -334,6 +343,7 @@ def bulk_add_words(pairs: list[tuple], source: str = "import") -> dict:
 
     if added:
         bump_daily_stat(new_words_added=added)
+        _invalidate_cache()
     logger.info(f"Tezkor bulk import yakunlandi: {added} qo'shildi, {duplicates} dublikat, {invalid} yaroqsiz")
     return {"added": added, "duplicates": duplicates, "invalid": invalid, "word_ids": added_ids}
 
@@ -507,6 +517,7 @@ def delete_word(word_id: int) -> bool:
         success = cur.rowcount > 0
         if success:
             logger.info(f"So'z o'chirildi: ID={word_id}")
+            _invalidate_cache()
         else:
             logger.warning(f"O'chirish uchun so'z topilmadi: ID={word_id}")
         return success
@@ -784,6 +795,7 @@ def record_sm2_review(word_id: int, quality: int) -> dict:
         conn.execute("UPDATE words SET status=? WHERE id=?", (status, word_id))
 
     bump_daily_stat(practiced=1, correct=1 if is_correct else 0, wrong=0 if is_correct else 1)
+    _invalidate_cache()
     return {
         "word_id": word_id,
         "ease_factor": new_ef,
