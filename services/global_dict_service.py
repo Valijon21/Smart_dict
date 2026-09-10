@@ -14,15 +14,20 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-import database as db
-import phonetics
-from logger import get_logger, get_app_dir
+try:
+    from core import database as db
+    from core import phonetics
+    from utils.logger import get_logger, get_app_dir
+except ImportError:
+    import database as db
+    import phonetics
+    from logger import get_logger, get_app_dir
 
 logger = get_logger("global_dict_service")
 
 DB_PATH = get_app_dir() / "db.sqlite3"
 if not DB_PATH.exists():
-    DB_PATH = Path(__file__).resolve().parent / "db.sqlite3"
+    DB_PATH = Path(__file__).resolve().parent.parent / "db.sqlite3"
 
 
 def get_db_connection() -> sqlite3.Connection | None:
@@ -158,10 +163,13 @@ def search_global_words(query: str, limit: int = 25) -> list[dict]:
     finally:
         conn.close()
 
-    # Foydalanuvchining shaxsiy bazasida (vocab.db) mavjudligini belgilash
+    # Foydalanuvchining shaxsiy bazasida (vocab.db) mavjudligini belgilash (Batch 1 ta so'rov)
     if results:
+        eng_list = [r["english"] for r in results]
+        local_map = db.get_words_by_english_batch(eng_list) if hasattr(db, "get_words_by_english_batch") else {}
         for r in results:
-            local_word = db.get_word_by_english(r["english"])
+            eng_lower = r["english"].strip().lower()
+            local_word = local_map.get(eng_lower)
             r["is_in_study_list"] = local_word is not None
             if local_word:
                 r["local_id"] = local_word["id"]
@@ -251,11 +259,15 @@ def get_word_full_details(word_id: int | None = None, english: str | None = None
         ]
 
         local_word = db.get_word_by_english(eng_word)
+        ph_info = phonetics.get_word_info(eng_word) if hasattr(phonetics, "get_word_info") else {"phonetic": "", "part_of_speech": ""}
+        phonetic_val = ph_info.get("phonetic", "")
+        pos_val = (we_row["word_classword_class"] or "") or ph_info.get("part_of_speech", "")
 
         return {
             "id": w_id,
             "english": eng_word,
-            "pos": we_row["word_classword_class"] or "",
+            "phonetic": phonetic_val,
+            "pos": pos_val,
             "star": we_row["star"] or "0",
             "uzbek_translations": uzbek_list,
             "uzbek_str": ", ".join(uzbek_list),

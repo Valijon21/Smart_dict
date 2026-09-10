@@ -15,7 +15,8 @@ import re
 import csv
 from pathlib import Path
 
-_DELIM_PATTERN = re.compile(r"\s*(?:->|=>|[-–—:=,\t]|\s{2,})\s*")
+_STRONG_DELIM_PATTERN = re.compile(r"\s*(?:->|=>|[-–—:=]|\t|\s{2,})\s*")
+_FALLBACK_DELIM_PATTERN = re.compile(r"\s*,\s*")
 _LEADING_NUM_PATTERN = re.compile(r"^\s*(?:\[?\d+[\.\)\-\]]|[-*•])\s*")
 
 
@@ -25,13 +26,17 @@ def parse_line(line: str) -> tuple[str, str] | None:
         return None
     # Qator boshidagi raqamlash va markerlarni tozalash ("1. apple - olma" -> "apple - olma")
     line = _LEADING_NUM_PATTERN.sub("", line).strip()
-    parts = _DELIM_PATTERN.split(line, maxsplit=1)
-    if len(parts) != 2:
-        return None
-    eng, uz = parts[0].strip(), parts[1].strip()
-    if not eng or not uz:
-        return None
-    return eng, uz
+    # 1. Avval qat'iy ajratuvchilar (->, =>, -, :, tab, 2+ probel) bo'yicha ajratamiz
+    parts = _STRONG_DELIM_PATTERN.split(line, maxsplit=1)
+    if len(parts) == 2 and parts[0].strip() and parts[1].strip():
+        return parts[0].strip(), parts[1].strip()
+
+    # 2. Agar qat'iy ajratuvchi bo'lmasa, ehtiyotkorlik bilan vergul bo'yicha ajratamiz
+    fallback_parts = _FALLBACK_DELIM_PATTERN.split(line, maxsplit=1)
+    if len(fallback_parts) == 2 and fallback_parts[0].strip() and fallback_parts[1].strip():
+        return fallback_parts[0].strip(), fallback_parts[1].strip()
+
+    return None
 
 
 def parse_txt(path: str | Path) -> list[tuple]:

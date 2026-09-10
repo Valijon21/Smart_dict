@@ -456,9 +456,22 @@ class MatchGameWidget(QWidget):
                 w.deleteLater()
         self.tiles = []
 
-        all_words = db.get_words_with_progress()
+        all_words = [dict(w) for w in db.get_words_with_progress()]
         if len(all_words) < self.target_pair_count:
-            all_words = db.get_words(limit=100)
+            all_words = [dict(w) for w in db.get_words(limit=100)]
+
+        if len(all_words) < 2:
+            try:
+                from core.word_packs import WORD_PACKS
+                starter = []
+                for p in WORD_PACKS:
+                    starter.extend(p.get("words", []))
+                    if len(starter) >= self.target_pair_count:
+                        break
+                if starter:
+                    all_words = [{"id": -idx, "english": w["english"], "uzbek": w["uzbek"]} for idx, w in enumerate(starter, 1)]
+            except Exception:
+                pass
 
         if len(all_words) < 2:
             no_words_lbl = QLabel(

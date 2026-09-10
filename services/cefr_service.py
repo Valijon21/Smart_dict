@@ -11,16 +11,21 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-import database as db
-import global_dict_service
-from logger import get_logger, get_app_dir
+try:
+    from core import database as db
+    from services import global_dict_service
+    from utils.logger import get_logger, get_app_dir
+except ImportError:
+    import database as db
+    import global_dict_service
+    from logger import get_logger, get_app_dir
 
 logger = get_logger("cefr_service")
 
 # Dinamik va ko'chma (portable) baza yo'li
 DB_PATH = get_app_dir() / "db.sqlite3"
 if not DB_PATH.exists():
-    DB_PATH = Path(__file__).resolve().parent / "db.sqlite3"
+    DB_PATH = Path(__file__).resolve().parent.parent / "db.sqlite3"
 
 # Har bir CEFR darajasining so'zlar to'plami xotirada keshlanadi (Tezkor hisoblash uchun)
 _LEVEL_WORDS_CACHE: dict[str, set[str]] = {}

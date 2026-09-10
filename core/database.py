@@ -96,6 +96,12 @@ def get_conn():
     try:
         yield conn
         conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
     finally:
         conn.close()
 
@@ -198,18 +204,21 @@ def init_db():
 
 def backfill_phonetics() -> int:
     """Mavjud bazadagi so'zlarga bo'sh bo'lgan fonetik va POS qiymatlarini avtomatik to'ldirish."""
-    updated = 0
     with get_conn() as conn:
         rows = conn.execute(
             "SELECT id, english FROM words WHERE phonetic IS NULL OR phonetic = ''"
         ).fetchall()
+        if not rows:
+            return 0
+        updates = []
         for r in rows:
             info = phonetics.get_word_info(r["english"])
-            conn.execute(
-                "UPDATE words SET phonetic = ?, part_of_speech = ? WHERE id = ?",
-                (info["phonetic"], info["part_of_speech"], r["id"]),
-            )
-            updated += 1
+            updates.append((info["phonetic"], info["part_of_speech"], r["id"]))
+        conn.executemany(
+            "UPDATE words SET phonetic = ?, part_of_speech = ? WHERE id = ?",
+            updates,
+        )
+        updated = len(updates)
     if updated > 0:
         logger.info(f"{updated} ta so'zga IPA transkripsiya va so'z turkumlari muvaffaqiyatli kiritildi.")
     return updated
@@ -219,10 +228,14 @@ def backfill_phonetics() -> int:
 
 def _invalidate_cache():
     try:
-        import retention_analytics
+        from core import retention_analytics
         retention_analytics.invalidate_retention_cache()
     except Exception:
-        pass
+        try:
+            import retention_analytics
+            retention_analytics.invalidate_retention_cache()
+        except Exception:
+            pass
 
 
 def normalize(word: str) -> str:
@@ -439,6 +452,29 @@ def get_word_by_english(english: str) -> sqlite3.Row | None:
             """,
             (eng_n,),
         ).fetchone()
+
+
+def get_words_by_english_batch(english_words: list[str]) -> dict[str, sqlite3.Row]:
+    """Bir nechta inglizcha so'zlar bo'yicha shaxsiy bazadan 1 ta so'rov orqali ommaviy qidirish (0.5ms).
+    Qaytaradi: {lower_english: row}
+    """
+    if not english_words:
+        return {}
+    clean_words = list(dict.fromkeys(normalize(w) for w in english_words if normalize(w)))
+    if not clean_words:
+        return {}
+
+    placeholders = ",".join("?" for _ in clean_words)
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT w.*, p.box_level, p.next_review, p.correct_count, p.wrong_count
+            FROM words w LEFT JOIN progress p ON p.word_id = w.id
+            WHERE LOWER(w.english) IN ({placeholders})
+            """,
+            tuple(clean_words),
+        ).fetchall()
+        return {r["english"].lower(): r for r in rows}
 
 
 def search_words(query: str = "", status_filter: str = "all", hard_only: bool = False, limit: int | None = None) -> list[sqlite3.Row]:
