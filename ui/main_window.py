@@ -50,8 +50,16 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Vocab Master Pro — Lug'at va Intellektual Trenajyor")
-        self.resize(1180, 740)
+        self.resize(1220, 780)
         self.setStyleSheet("background-color: #0F0F17;")
+
+        # Ekranning markaziga joylashtirish
+        screen = QApplication.primaryScreen()
+        if screen:
+            geo = screen.availableGeometry()
+            x = (geo.width() - 1220) // 2
+            y = (geo.height() - 780) // 2
+            self.move(max(0, x), max(0, y))
 
         self.last_reminder_date = None
         self._tray_notified = False
@@ -71,24 +79,18 @@ class MainWindow(QMainWindow):
 
         # --- Sidebar ---
         self.sidebar = QWidget()
-        self.sidebar.setFixedWidth(240)
+        self.sidebar.setFixedWidth(260)
         self.side_layout = QVBoxLayout(self.sidebar)
-        self.side_layout.setContentsMargins(16, 24, 16, 24)
-        self.side_layout.setSpacing(8)
+        self.side_layout.setContentsMargins(16, 20, 16, 20)
+        self.side_layout.setSpacing(6)
 
         self.logo = QLabel("📚 Vocab Master Pro")
         self.side_layout.addWidget(self.logo)
 
-        # Spotlight tezkor universal qidiruv tugmasi
-        self.spotlight_btn = QPushButton("🔍 Qidiruv (Alt+Space)")
-        self.spotlight_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.spotlight_btn.setToolTip("Spotlight tezkor universal qidiruv (Alt + Space)")
-        self.spotlight_btn.clicked.connect(self.open_spotlight_search)
-        self.side_layout.addWidget(self.spotlight_btn)
-
         self.nav_buttons = {}
         for label, key in NAV_ITEMS:
             btn = QPushButton(label)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setCheckable(True)
             btn.clicked.connect(lambda checked, k=key: self.switch_page(k))
             self.side_layout.addWidget(btn)
@@ -214,11 +216,8 @@ class MainWindow(QMainWindow):
         self.tray_icon = QSystemTrayIcon(self.app_icon, self)
         self.update_tray_tooltip()
 
-        tray_menu = QMenu()
-        tray_menu.setStyleSheet(
-            "QMenu { background-color: #1E1E2E; color: white; border: 1px solid #2A2A3C; padding: 4px; }"
-            "QMenu::item:selected { background-color: #4F46E5; }"
-        )
+        self.tray_menu = QMenu(self)
+        tray_menu = self.tray_menu
 
         title_act = QAction("📚 Vocab Master Pro", self)
         title_act.setEnabled(False)
@@ -289,9 +288,14 @@ class MainWindow(QMainWindow):
         self.restore_window()
 
     def restore_window(self):
-        self.showNormal()
-        self.activateWindow()
+        if self.isMinimized():
+            self.showNormal()
+        elif not self.isVisible():
+            self.show()
+        else:
+            self.showNormal()
         self.raise_()
+        self.activateWindow()
 
     def toggle_mini_widget(self):
         """Mini suzib yuruvchi vidjetni ochish yoki yashirish."""
@@ -409,36 +413,36 @@ class MainWindow(QMainWindow):
         t = theme_manager.get_active_theme()
         if active:
             return (
-                f"QPushButton {{ background-color: {t.primary}; color: white; border: none;"
-                f"border-radius: 8px; padding: 10px 14px; text-align: left; font-size: 14px; font-weight: 600; }}"
+                f"QPushButton {{ background-color: {t.primary}; color: white; border: none; "
+                f"border-radius: 9px; padding: 9px 14px; text-align: left; font-size: 16px; font-weight: 600; }}"
             )
         return (
-            f"QPushButton {{ background-color: transparent; color: {t.text_muted}; border: none;"
-            f"border-radius: 8px; padding: 10px 14px; text-align: left; font-size: 14px; font-weight: 500; }}"
+            f"QPushButton {{ background-color: transparent; color: {t.text_muted}; border: none; "
+            f"border-radius: 9px; padding: 9px 14px; text-align: left; font-size: 16px; font-weight: 500; }}"
             f"QPushButton:hover {{ background-color: {t.bg_card}; color: {t.text_main}; }}"
         )
 
     def apply_theme(self, t: theme_manager.Theme):
         self.setStyleSheet(f"background-color: {t.bg_app};")
         self.sidebar.setStyleSheet(f"background-color: {t.bg_sidebar}; border-right: 1px solid {t.border};")
-        self.logo.setStyleSheet(f"color: {t.text_main}; font-size: 20px; font-weight: 800; padding-bottom: 16px;")
+        self.logo.setStyleSheet(f"color: {t.text_main}; font-size: 20px; font-weight: 800; padding-bottom: 12px;")
         self.theme_btn.setText(f"🎨 {t.name}")
         self.theme_btn.setStyleSheet(
-            f"QPushButton {{ background-color: {t.bg_card}; color: {t.primary_light}; border: 1px solid {t.border};"
-            f"border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; text-align: left; }}"
+            f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; "
+            f"border-radius: 9px; padding: 9px 14px; font-size: 15px; font-weight: 600; text-align: left; }} "
             f"QPushButton:hover {{ background-color: {t.primary}; color: white; border-color: {t.primary}; }}"
         )
         if hasattr(self, "theme_menu"):
             self.theme_menu.setStyleSheet(
                 f"QMenu {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; padding: 6px; }} "
-                f"QMenu::item {{ padding: 6px 14px; border-radius: 6px; font-size: 13px; color: {t.text_main}; }} "
+                f"QMenu::item {{ padding: 8px 16px; border-radius: 6px; font-size: 14px; color: {t.text_main}; }} "
                 f"QMenu::item:selected {{ background-color: {t.primary}; color: white; }}"
             )
-        if hasattr(self, "spotlight_btn"):
-            self.spotlight_btn.setStyleSheet(
-                f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_main}; "
-                f"border: 1.5px solid {t.primary}; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; text-align: left; }}"
-                f"QPushButton:hover {{ background-color: {t.primary}; color: white; }}"
+        if hasattr(self, "tray_menu"):
+            self.tray_menu.setStyleSheet(
+                f"QMenu {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; padding: 6px; }} "
+                f"QMenu::item {{ padding: 6px 14px; border-radius: 6px; font-size: 13px; color: {t.text_main}; }} "
+                f"QMenu::item:selected {{ background-color: {t.primary}; color: white; }}"
             )
         app = QApplication.instance()
         if app:

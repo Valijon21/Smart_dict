@@ -63,9 +63,9 @@ class PracticeWidget(QWidget):
         # --- 1. Header va Rejim tanlash ---
         top_header_row = QHBoxLayout()
         title = "Ingliz → O'zbek" if direction == "en_uz" else "O'zbek → Ingliz"
-        header = QLabel(f"⚡ Mashq trenajyori: {title}")
-        header.setStyleSheet("color: white; font-size: 20px; font-weight: 700;")
-        top_header_row.addWidget(header)
+        self.header_title = QLabel(f"⚡ Mashq trenajyori: {title}")
+        self.header_title.setStyleSheet("font-size: 20px; font-weight: 700;")
+        top_header_row.addWidget(self.header_title)
         top_header_row.addStretch()
 
         # Mashq usullari
@@ -536,11 +536,117 @@ class PracticeWidget(QWidget):
         self.load_batch()
 
     def apply_theme(self, t: theme_manager.Theme):
+        is_dark = t.is_dark
         self.setStyleSheet(f"background-color: {t.bg_app};")
+        if hasattr(self, "header_title"):
+            self.header_title.setStyleSheet(f"color: {t.text_main}; font-size: 20px; font-weight: 700;")
         if hasattr(self, "stat_frame"):
             self.stat_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
         if hasattr(self, "quiz_card"):
             self.quiz_card.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 16px; border: 1px solid {t.border};")
+        if hasattr(self, "word_label"):
+            self.word_label.setStyleSheet(f"color: {t.text_main}; font-size: 36px; font-weight: 700;")
+        if hasattr(self, "phonetic_label"):
+            self.phonetic_label.setStyleSheet(f"color: {t.primary_light if not is_dark else '#A5B4FC'}; font-size: 14px; font-weight: 500;")
+        if hasattr(self, "pos_badge"):
+            if is_dark:
+                self.pos_badge.setStyleSheet("background-color: #312E81; color: #C7D2FE; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 6px;")
+            else:
+                self.pos_badge.setStyleSheet("background-color: #E0E7FF; color: #3730A3; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 6px;")
+        if hasattr(self, "audio_btn"):
+            if is_dark:
+                self.audio_btn.setStyleSheet(
+                    "QPushButton { background-color: #24243A; color: #818CF8; border: 1px solid #3730A3; "
+                    "border-radius: 21px; font-size: 20px; } "
+                    "QPushButton:hover { background-color: #4F46E5; color: white; border-color: #818CF8; }"
+                )
+            else:
+                self.audio_btn.setStyleSheet(
+                    f"QPushButton {{ background-color: #EEF2FF; color: {t.primary}; border: 1px solid #C7D2FE; "
+                    f"border-radius: 21px; font-size: 20px; }} "
+                    f"QPushButton:hover {{ background-color: {t.primary}; color: white; border-color: {t.primary}; }}"
+                )
+        if hasattr(self, "mic_btn"):
+            if is_dark:
+                self.mic_btn.setStyleSheet(
+                    "QPushButton { background-color: #24243A; color: #F43F5E; border: 1px solid #881337; "
+                    "border-radius: 21px; font-size: 18px; } "
+                    "QPushButton:hover { background-color: #E11D48; color: white; border-color: #FB7185; }"
+                )
+            else:
+                self.mic_btn.setStyleSheet(
+                    "QPushButton { background-color: #FFF1F2; color: #E11D48; border: 1px solid #FECDD3; "
+                    "border-radius: 21px; font-size: 18px; } "
+                    "QPushButton:hover { background-color: #E11D48; color: white; border-color: #E11D48; }"
+                )
+
+        # Yuqori statistika chiplari
+        if hasattr(self, "badge_remaining"):
+            if is_dark:
+                self.badge_remaining.setStyleSheet("background-color: #0C2D48; color: #38BDF8; border: 1px solid #0284C7; border-radius: 9px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+                self.badge_goal.setStyleSheet("background-color: #251C48; color: #C4B5FD; border: 1px solid #6366F1; border-radius: 9px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+                self.badge_today.setStyleSheet("background-color: #1E1B4B; color: #A5B4FC; border: 1px solid #4338CA; border-radius: 9px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+                self.badge_correct.setStyleSheet("background-color: #062E1F; color: #34D399; border: 1px solid #059669; border-radius: 9px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+                self.badge_wrong.setStyleSheet("background-color: #381A1A; color: #F87171; border: 1px solid #7F1D1D; border-radius: 9px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+            else:
+                self.badge_remaining.setStyleSheet("background-color: #F0F9FF; color: #0369A1; border: 1px solid #BAE6FD; border-radius: 9px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+                self.badge_goal.setStyleSheet("background-color: #F5F3FF; color: #6D28D9; border: 1px solid #DDD6FE; border-radius: 9px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+                self.badge_today.setStyleSheet("background-color: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; border-radius: 9px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+                self.badge_correct.setStyleSheet("background-color: #F0FDF4; color: #15803D; border: 1px solid #BBF7D0; border-radius: 9px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+                self.badge_wrong.setStyleSheet("background-color: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; border-radius: 9px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+
+        if hasattr(self, "mode_label"):
+            self.mode_label.setStyleSheet(f"color: {t.text_muted}; font-size: 12px; font-weight: 500;")
+
+        if hasattr(self, "filter_latest_btn"):
+            if is_dark:
+                self.filter_latest_btn.setStyleSheet(
+                    "QPushButton { background-color: #312E81; color: #C7D2FE; border: 1px solid #4338CA;"
+                    "border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #4338CA; color: white; }"
+                )
+            else:
+                self.filter_latest_btn.setStyleSheet(
+                    "QPushButton { background-color: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE;"
+                    "border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #4338CA; color: white; }"
+                )
+
+        if hasattr(self, "filter_weak_btn"):
+            if is_dark:
+                self.filter_weak_btn.setStyleSheet(
+                    "QPushButton { background-color: #4C1D1D; color: #FCA5A5; border: 1px solid #7F1D1D;"
+                    "border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #7F1D1D; color: white; }"
+                )
+            else:
+                self.filter_weak_btn.setStyleSheet(
+                    "QPushButton { background-color: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA;"
+                    "border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #B91C1C; color: white; }"
+                )
+
+        if hasattr(self, "progress_bar"):
+            txt_color = "white" if is_dark else t.text_main
+            self.progress_bar.setStyleSheet(
+                f"""
+                QProgressBar {{
+                    background-color: {t.bg_card_secondary};
+                    border: 1px solid {t.border};
+                    border-radius: 7px;
+                    height: 16px;
+                    text-align: center;
+                    color: {txt_color};
+                    font-size: 11px;
+                    font-weight: 600;
+                }}
+                QProgressBar::chunk {{
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {t.primary}, stop:1 #10B981);
+                    border-radius: 6px;
+                }}
+                """
+            )
+
         if hasattr(self, "answer_input"):
             self.answer_input.setStyleSheet(
                 f"QLineEdit {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 2px solid {t.border}; "
@@ -549,11 +655,29 @@ class PracticeWidget(QWidget):
             )
         if hasattr(self, "answer_reveal_box"):
             self.answer_reveal_box.setStyleSheet(f"background-color: {t.bg_card_secondary}; border-radius: 12px; border: 1px solid {t.border};")
+        if hasattr(self, "rate_hard_btn"):
+            if is_dark:
+                self.rate_hard_btn.setStyleSheet("QPushButton { background-color: #7F1D1D; color: white; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; } QPushButton:hover { background-color: #991B1B; }")
+                self.rate_good_btn.setStyleSheet("QPushButton { background-color: #92400E; color: white; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; } QPushButton:hover { background-color: #B45309; }")
+                self.rate_easy_btn.setStyleSheet("QPushButton { background-color: #065F46; color: white; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; } QPushButton:hover { background-color: #047857; }")
+            else:
+                self.rate_hard_btn.setStyleSheet("QPushButton { background-color: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; } QPushButton:hover { background-color: #FECACA; }")
+                self.rate_good_btn.setStyleSheet("QPushButton { background-color: #FEF3C7; color: #B45309; border: 1px solid #FCD34D; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; } QPushButton:hover { background-color: #FDE68A; }")
+                self.rate_easy_btn.setStyleSheet("QPushButton { background-color: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; } QPushButton:hover { background-color: #BBF7D0; }")
+
         if hasattr(self, "scramble_answer_display"):
             self.scramble_answer_display.setStyleSheet(
                 f"background-color: {t.bg_card_secondary}; color: #10B981; font-size: 26px; font-weight: 800; "
                 f"letter-spacing: 4px; border: 2px dashed {t.primary}; border-radius: 12px; padding: 14px;"
             )
+        if hasattr(self, "scramble_back_btn"):
+            if is_dark:
+                btn_scram_css = "QPushButton { background-color: #2E2E3E; color: #E5E7EB; border: 1px solid #4B5563; border-radius: 6px; padding: 8px 16px; font-size: 12px; font-weight: 600; } QPushButton:hover { background-color: #374151; }"
+            else:
+                btn_scram_css = "QPushButton { background-color: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; border-radius: 6px; padding: 8px 16px; font-size: 12px; font-weight: 600; } QPushButton:hover { background-color: #E2E8F0; }"
+            self.scramble_back_btn.setStyleSheet(btn_scram_css)
+            self.scramble_clear_btn.setStyleSheet(btn_scram_css)
+
         if hasattr(self, "example_card"):
             self.example_card.setStyleSheet(f"background-color: {t.bg_card_secondary}; border: 1px solid {t.border}; border-radius: 10px;")
         if hasattr(self, "quiz_mode"):
@@ -595,16 +719,29 @@ class PracticeWidget(QWidget):
 
     def _choice_btn_style(self, state: str = "normal") -> str:
         t = theme_manager.get_active_theme()
+        is_dark = t.is_dark
         if state == "correct":
-            return (
-                "QPushButton { background-color: #064E3B; color: #34D399; border: 2px solid #10B981;"
-                "border-radius: 10px; padding: 16px 20px; font-size: 16px; font-weight: 600; text-align: left; }"
-            )
+            if is_dark:
+                return (
+                    "QPushButton { background-color: #064E3B; color: #34D399; border: 2px solid #10B981;"
+                    "border-radius: 10px; padding: 16px 20px; font-size: 16px; font-weight: 600; text-align: left; }"
+                )
+            else:
+                return (
+                    "QPushButton { background-color: #DCFCE7; color: #15803D; border: 2px solid #22C55E;"
+                    "border-radius: 10px; padding: 16px 20px; font-size: 16px; font-weight: 600; text-align: left; }"
+                )
         elif state == "wrong":
-            return (
-                "QPushButton { background-color: #7F1D1D; color: #FCA5A5; border: 2px solid #EF4444;"
-                "border-radius: 10px; padding: 16px 20px; font-size: 16px; font-weight: 600; text-align: left; }"
-            )
+            if is_dark:
+                return (
+                    "QPushButton { background-color: #7F1D1D; color: #FCA5A5; border: 2px solid #EF4444;"
+                    "border-radius: 10px; padding: 16px 20px; font-size: 16px; font-weight: 600; text-align: left; }"
+                )
+            else:
+                return (
+                    "QPushButton { background-color: #FEE2E2; color: #B91C1C; border: 2px solid #EF4444;"
+                    "border-radius: 10px; padding: 16px 20px; font-size: 16px; font-weight: 600; text-align: left; }"
+                )
         return (
             f"QPushButton {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 1px solid {t.border}; "
             f"border-radius: 10px; padding: 16px 20px; font-size: 16px; font-weight: 500; text-align: left; }} "
@@ -1064,9 +1201,11 @@ class PracticeWidget(QWidget):
         self.pos_badge.setText(f"[{pos_val}]")
         self.phonetic_row_widget.setVisible(self.direction == "en_uz" or self.quiz_mode == "flashcard")
 
+        t = theme_manager.get_active_theme()
+
         if self.quiz_mode == "listening":
             self.word_label.setText("🎧 Tinglang va yozing")
-            self.word_label.setStyleSheet("color: #A5B4FC; font-size: 30px; font-weight: 700;")
+            self.word_label.setStyleSheet(f"color: {t.primary_light if not t.is_dark else '#A5B4FC'}; font-size: 30px; font-weight: 700;")
             uz = self.current["uzbek"]
             eng_len = len(self.current["english"].strip())
             self.word_info_badge.setText(f"💡 Yordam: \"{uz}\"  •  {eng_len} ta harf  •  Box {box} ({st_label})")
@@ -1079,7 +1218,7 @@ class PracticeWidget(QWidget):
 
         elif self.quiz_mode == "scramble":
             self.word_label.setText(self.current["uzbek"])
-            self.word_label.setStyleSheet("color: white; font-size: 32px; font-weight: 700;")
+            self.word_label.setStyleSheet(f"color: {t.text_main}; font-size: 32px; font-weight: 700;")
             eng_len = len([c for c in self.current["english"].strip() if not c.isspace()])
             self.word_info_badge.setText(f"🔤 Harflarni to'g'ri tering ({eng_len} ta harf)  •  Box {box} ({st_label})")
             self._setup_scramble()
@@ -1088,20 +1227,20 @@ class PracticeWidget(QWidget):
         elif self.quiz_mode == "choice":
             shown = self.current["english"] if self.direction == "en_uz" else self.current["uzbek"]
             self.word_label.setText(shown)
-            self.word_label.setStyleSheet("color: white; font-size: 36px; font-weight: 700;")
+            self.word_label.setStyleSheet(f"color: {t.text_main}; font-size: 36px; font-weight: 700;")
             self.word_info_badge.setText(f"⭐ Leitner Box {box}  •  {st_label}")
             self._setup_choices()
 
         elif self.quiz_mode == "flashcard":
             shown = self.current["english"] if self.direction == "en_uz" else self.current["uzbek"]
             self.word_label.setText(shown)
-            self.word_label.setStyleSheet("color: white; font-size: 36px; font-weight: 700;")
+            self.word_label.setStyleSheet(f"color: {t.text_main}; font-size: 36px; font-weight: 700;")
             self.word_info_badge.setText(f"⭐ Leitner Box {box}  •  {st_label}")
             self._setup_flashcard()
 
         elif self.quiz_mode == "cloze":
             self.word_label.setText("🧩 Gap ichidagi bo'sh joy")
-            self.word_label.setStyleSheet("color: #38BDF8; font-size: 30px; font-weight: 700;")
+            self.word_label.setStyleSheet(f"color: {t.primary_light if not t.is_dark else '#38BDF8'}; font-size: 30px; font-weight: 700;")
             self.word_info_badge.setText(f"⭐ Leitner Box {box}  •  {st_label}")
             self._setup_cloze()
             self.submit_btn.setEnabled(True)
@@ -1109,7 +1248,7 @@ class PracticeWidget(QWidget):
         else: # typing
             shown = self.current["english"] if self.direction == "en_uz" else self.current["uzbek"]
             self.word_label.setText(shown)
-            self.word_label.setStyleSheet("color: white; font-size: 36px; font-weight: 700;")
+            self.word_label.setStyleSheet(f"color: {t.text_main}; font-size: 36px; font-weight: 700;")
             self.word_info_badge.setText(f"⭐ Leitner Box {box}  •  {st_label}")
             self.answer_input.setPlaceholderText("Tarjimasini yozing va Enter bosing...")
             self.answer_input.clear()

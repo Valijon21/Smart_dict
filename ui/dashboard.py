@@ -54,7 +54,7 @@ class WeeklyChartWidget(QFrame):
         # 1. Sarlavha
         painter.setPen(self.title_color)
         font_title = QFont()
-        font_title.setPointSize(11)
+        font_title.setPixelSize(16)
         font_title.setBold(True)
         painter.setFont(font_title)
         painter.drawText(20, 28, "So'nggi 7 kunlik mashqlar")
@@ -66,7 +66,7 @@ class WeeklyChartWidget(QFrame):
         painter.drawEllipse(int(legend_x), 18, 10, 10)
         painter.setPen(self.text_color)
         font_sm = QFont()
-        font_sm.setPointSize(9)
+        font_sm.setPixelSize(12)
         painter.setFont(font_sm)
         painter.drawText(int(legend_x + 16), 27, "To'g'ri")
 
@@ -183,7 +183,7 @@ class BoxChartWidget(QFrame):
         # 1. Sarlavha
         painter.setPen(self.title_color)
         font_title = QFont()
-        font_title.setPointSize(11)
+        font_title.setPixelSize(16)
         font_title.setBold(True)
         painter.setFont(font_title)
         painter.drawText(20, 28, "Leitner Darajalari taqsimoti")
@@ -232,7 +232,7 @@ class BoxChartWidget(QFrame):
                 painter.fillPath(path, QBrush(color))
 
                 # Son yorlig'i
-                painter.setPen(QColor("white"))
+                painter.setPen(self.title_color)
                 painter.setFont(font_num)
                 painter.drawText(QRectF(cx - 20, by - 16, 40, 16), Qt.AlignmentFlag.AlignCenter, str(cnt))
             else:
@@ -240,14 +240,15 @@ class BoxChartWidget(QFrame):
                 painter.drawLine(int(bx), int(chart_bottom), int(bx + bar_width), int(chart_bottom))
 
             # Box yorlig'i
-            painter.setPen(QColor("#9CA3AF"))
+            painter.setPen(self.text_color)
             painter.setFont(font_sm)
             painter.drawText(QRectF(cx - 30, chart_bottom + 6, 60, 20), Qt.AlignmentFlag.AlignCenter, f"Box {i}")
 
 
 class ActivityHeatmapWidget(QFrame):
     """GitHub uslubidagi 365 kunlik (52 hafta) mashqlar faollik xaritasi (Heatmap)."""
-    HEAT_COLORS = ["#1F2937", "#065F46", "#059669", "#10B981", "#34D399"]
+    HEAT_COLORS_DARK = ["#1F2937", "#065F46", "#059669", "#10B981", "#34D399"]
+    HEAT_COLORS_LIGHT = ["#EBEDF0", "#9BE9A8", "#40C463", "#30A14E", "#216E39"]
     DAYS = ["Dush", "Chor", "Juma"]
     MONTHS = ["Yan", "Fev", "Mar", "Apr", "May", "Iyun", "Iyul", "Avg", "Sen", "Okt", "Noy", "Dek"]
 
@@ -256,6 +257,7 @@ class ActivityHeatmapWidget(QFrame):
         self.heatmap_data: dict[str, int] = {}
         self.cell_rects = []
         self.hover_info = ""
+        self.heat_colors = self.HEAT_COLORS_DARK
         self.setMinimumHeight(175)
         self.setMouseTracking(True)
         self.title_color = QColor("white")
@@ -267,6 +269,7 @@ class ActivityHeatmapWidget(QFrame):
         self.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
         self.title_color = QColor(t.text_main)
         self.text_color = QColor(t.text_muted)
+        self.heat_colors = self.HEAT_COLORS_DARK if getattr(t, "is_dark", True) else self.HEAT_COLORS_LIGHT
         self.update()
 
     def set_data(self, data: dict[str, int]):
@@ -284,7 +287,7 @@ class ActivityHeatmapWidget(QFrame):
         # Sarlavha
         painter.setPen(self.title_color)
         font_title = QFont()
-        font_title.setPointSize(11)
+        font_title.setPixelSize(16)
         font_title.setBold(True)
         painter.setFont(font_title)
         painter.drawText(20, 26, "Yillik Mashqlar Faolligi (Activity Heatmap)")
@@ -329,15 +332,15 @@ class ActivityHeatmapWidget(QFrame):
                 count = self.heatmap_data.get(date_str, 0)
 
                 if count == 0:
-                    color = QColor(self.HEAT_COLORS[0])
+                    color = QColor(self.heat_colors[0])
                 elif count <= 4:
-                    color = QColor(self.HEAT_COLORS[1])
+                    color = QColor(self.heat_colors[1])
                 elif count <= 10:
-                    color = QColor(self.HEAT_COLORS[2])
+                    color = QColor(self.heat_colors[2])
                 elif count <= 20:
-                    color = QColor(self.HEAT_COLORS[3])
+                    color = QColor(self.heat_colors[3])
                 else:
-                    color = QColor(self.HEAT_COLORS[4])
+                    color = QColor(self.heat_colors[4])
 
                 x = start_x + c * (tile_size + gap)
                 y = start_y + r * (tile_size + gap)
@@ -355,7 +358,7 @@ class ActivityHeatmapWidget(QFrame):
         leg_y = h - 22
         painter.setPen(self.text_color)
         painter.drawText(int(leg_x - 32), int(leg_y + 9), "Kam")
-        for i, col_hex in enumerate(self.HEAT_COLORS):
+        for i, col_hex in enumerate(self.heat_colors):
             bx = leg_x + i * 14
             path = QPainterPath()
             path.addRoundedRect(QRectF(bx, leg_y, 10, 10), 2.0, 2.0)
@@ -395,10 +398,10 @@ def _stat_card(title: str, val_label: QLabel, color: str = "#4F46E5", t: theme_m
         """
     )
     layout = QVBoxLayout(frame)
-    layout.setContentsMargins(14, 12, 14, 12)
-    val_label.setStyleSheet(f"color: {t.text_main}; font-size: 26px; font-weight: 700;")
+    layout.setContentsMargins(16, 14, 16, 14)
+    val_label.setStyleSheet(f"color: {t.text_main}; font-size: 28px; font-weight: 800;")
     title_label = QLabel(title)
-    title_label.setStyleSheet(f"color: {t.text_muted}; font-size: 13px; font-weight: 600;")
+    title_label.setStyleSheet(f"color: {t.text_muted}; font-size: 15px; font-weight: 600;")
     frame._val_label = val_label
     frame._title_label = title_label
     layout.addWidget(val_label)
@@ -430,23 +433,27 @@ class EbbinghausRetentionWidget(QFrame):
         head_row = QHBoxLayout()
         head_row.setSpacing(10)
 
-        title = QLabel("🧠 Ebbinghaus Xotirada Saqlanish Tahlili (Memory Retention)")
-        title.setStyleSheet(f"font-size: 16px; font-weight: 800; color: {t.text_main};")
-        head_row.addWidget(title)
+        self.title = QLabel("🧠 Ebbinghaus Xotirada Saqlanish Tahlili (Memory Retention)")
+        self.title.setStyleSheet(f"font-size: 17px; font-weight: 800; color: {t.text_main};")
+        head_row.addWidget(self.title)
 
-        formula_badge = QLabel("📐 R = e^(-Δt/S)")
-        formula_badge.setStyleSheet(
-            "background-color: #1E1B4B; color: #A5B4FC; border: 1px solid #3730A3; "
-            "border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700;"
+        is_dark = getattr(t, "is_dark", True)
+        f_bg = "#1E1B4B" if is_dark else "#EEF2FF"
+        f_fg = "#A5B4FC" if is_dark else "#4338CA"
+        f_bd = "#3730A3" if is_dark else "#C7D2FE"
+        self.formula_badge = QLabel("📐 R = e^(-Δt/S)")
+        self.formula_badge.setStyleSheet(
+            f"background-color: {f_bg}; color: {f_fg}; border: 1px solid {f_bd}; "
+            f"border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700;"
         )
-        head_row.addWidget(formula_badge)
+        head_row.addWidget(self.formula_badge)
         head_row.addStretch()
 
         self.btn_rescue = QPushButton("⚡ Zaif so'zlarni qutqarish")
         self.btn_rescue.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_rescue.setStyleSheet(
             "QPushButton { background-color: #DC2626; color: white; border-radius: 8px; "
-            "padding: 6px 16px; font-size: 12px; font-weight: 700; border: none; }"
+            "padding: 7px 16px; font-size: 14px; font-weight: 700; border: none; }"
             "QPushButton:hover { background-color: #B91C1C; }"
         )
         self.btn_rescue.clicked.connect(self._on_rescue_clicked)
@@ -465,18 +472,18 @@ class EbbinghausRetentionWidget(QFrame):
         score_row.setSpacing(12)
 
         self.lbl_score = QLabel("0%")
-        self.lbl_score.setStyleSheet("font-size: 38px; font-weight: 900; color: #10B981;")
+        self.lbl_score.setStyleSheet("font-size: 40px; font-weight: 900; color: #10B981;")
         score_row.addWidget(self.lbl_score)
 
         score_desc_col = QVBoxLayout()
         score_desc_col.setSpacing(2)
-        score_title = QLabel("Umumiy Saqlanish Ko'rsatkichi")
-        score_title.setStyleSheet(f"font-size: 14px; font-weight: 700; color: {t.text_main};")
-        score_desc_col.addWidget(score_title)
+        self.score_title = QLabel("Umumiy Saqlanish Ko'rsatkichi")
+        self.score_title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {t.text_main};")
+        score_desc_col.addWidget(self.score_title)
 
         self.lbl_recommendation = QLabel("Tahlil qilinmoqda...")
         self.lbl_recommendation.setWordWrap(True)
-        self.lbl_recommendation.setStyleSheet(f"font-size: 12px; color: {t.text_muted};")
+        self.lbl_recommendation.setStyleSheet(f"font-size: 14px; color: {t.text_muted};")
         score_desc_col.addWidget(self.lbl_recommendation)
         score_row.addLayout(score_desc_col, 1)
 
@@ -489,21 +496,21 @@ class EbbinghausRetentionWidget(QFrame):
         self.chip_stable = QLabel("🟢 Mustahkam: 0")
         self.chip_stable.setStyleSheet(
             "background-color: #064E3B; color: #6EE7B7; border: 1px solid #059669; "
-            "border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700;"
+            "border-radius: 6px; padding: 5px 12px; font-size: 13px; font-weight: 700;"
         )
         chips_row.addWidget(self.chip_stable)
 
         self.chip_consolidating = QLabel("🟡 O'rtacha: 0")
         self.chip_consolidating.setStyleSheet(
             "background-color: #451A03; color: #FCD34D; border: 1px solid #D97706; "
-            "border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700;"
+            "border-radius: 6px; padding: 5px 12px; font-size: 13px; font-weight: 700;"
         )
         chips_row.addWidget(self.chip_consolidating)
 
         self.chip_vulnerable = QLabel("🔴 Zaif: 0")
         self.chip_vulnerable.setStyleSheet(
             "background-color: #4C1D1D; color: #FCA5A5; border: 1px solid #DC2626; "
-            "border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700;"
+            "border-radius: 6px; padding: 5px 12px; font-size: 13px; font-weight: 700;"
         )
         chips_row.addWidget(self.chip_vulnerable)
         chips_row.addStretch()
@@ -521,7 +528,7 @@ class EbbinghausRetentionWidget(QFrame):
         rf_layout.setSpacing(8)
 
         self.rf_title = QLabel("📉 Kelgusi 7 kunlik Unutish Prognozi (Mashqsiz)")
-        self.rf_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {t.text_main};")
+        self.rf_title.setStyleSheet(f"font-size: 14px; font-weight: 700; color: {t.text_main};")
         rf_layout.addWidget(self.rf_title)
 
         self.forecast_row = QHBoxLayout()
@@ -539,12 +546,12 @@ class EbbinghausRetentionWidget(QFrame):
             fb_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             lbl_day = QLabel("")
-            lbl_day.setStyleSheet("font-size: 11px; color: #9CA3AF; font-weight: 600;")
+            lbl_day.setStyleSheet("font-size: 13px; color: #9CA3AF; font-weight: 600;")
             lbl_day.setAlignment(Qt.AlignmentFlag.AlignCenter)
             fb_lay.addWidget(lbl_day)
 
             lbl_pct = QLabel("")
-            lbl_pct.setStyleSheet("font-size: 15px; font-weight: 800; color: #38BDF8;")
+            lbl_pct.setStyleSheet("font-size: 16px; font-weight: 800; color: #38BDF8;")
             lbl_pct.setAlignment(Qt.AlignmentFlag.AlignCenter)
             fb_lay.addWidget(lbl_pct)
 
@@ -565,11 +572,11 @@ class EbbinghausRetentionWidget(QFrame):
 
         self.lbl_score.setText(f"{pct}%")
         if pct >= 80:
-            self.lbl_score.setStyleSheet("font-size: 38px; font-weight: 900; color: #10B981;")
+            self.lbl_score.setStyleSheet("font-size: 40px; font-weight: 900; color: #10B981;")
         elif pct >= 65:
-            self.lbl_score.setStyleSheet("font-size: 38px; font-weight: 900; color: #F59E0B;")
+            self.lbl_score.setStyleSheet("font-size: 40px; font-weight: 900; color: #F59E0B;")
         else:
-            self.lbl_score.setStyleSheet("font-size: 38px; font-weight: 900; color: #EF4444;")
+            self.lbl_score.setStyleSheet("font-size: 40px; font-weight: 900; color: #EF4444;")
 
         self.chip_stable.setText(f"🟢 Mustahkam: {stable}")
         self.chip_consolidating.setText(f"🟡 O'rtacha: {consolidating}")
@@ -590,27 +597,69 @@ class EbbinghausRetentionWidget(QFrame):
                 f_pct = item.get("retention_pct", 0)
                 lbl_pct.setText(f"{f_pct}%")
                 if f_pct >= 75:
-                    lbl_pct.setStyleSheet("font-size: 15px; font-weight: 800; color: #10B981;")
+                    lbl_pct.setStyleSheet("font-size: 16px; font-weight: 800; color: #10B981;")
                 elif f_pct >= 60:
-                    lbl_pct.setStyleSheet("font-size: 15px; font-weight: 800; color: #F59E0B;")
+                    lbl_pct.setStyleSheet("font-size: 16px; font-weight: 800; color: #F59E0B;")
                 else:
-                    lbl_pct.setStyleSheet("font-size: 15px; font-weight: 800; color: #EF4444;")
+                    lbl_pct.setStyleSheet("font-size: 16px; font-weight: 800; color: #EF4444;")
 
     def apply_theme(self, t: theme_manager.Theme):
+        is_dark = getattr(t, "is_dark", True)
         self.setStyleSheet(
             f"QFrame {{ background-color: {t.bg_card}; border: 1.5px solid {t.primary}; border-radius: 14px; }}"
         )
+        if hasattr(self, "title"):
+            self.title.setStyleSheet(f"font-size: 17px; font-weight: 800; color: {t.text_main};")
+        if hasattr(self, "formula_badge"):
+            f_bg = "#1E1B4B" if is_dark else "#EEF2FF"
+            f_fg = "#A5B4FC" if is_dark else "#4338CA"
+            f_bd = "#3730A3" if is_dark else "#C7D2FE"
+            self.formula_badge.setStyleSheet(
+                f"background-color: {f_bg}; color: {f_fg}; border: 1px solid {f_bd}; "
+                f"border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700;"
+            )
+        if hasattr(self, "score_title"):
+            self.score_title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {t.text_main};")
+        if hasattr(self, "lbl_recommendation"):
+            self.lbl_recommendation.setStyleSheet(f"font-size: 14px; color: {t.text_muted};")
+
+        if hasattr(self, "chip_stable"):
+            c_bg = "#064E3B" if is_dark else "#ECFDF5"
+            c_fg = "#6EE7B7" if is_dark else "#065F46"
+            c_bd = "#059669" if is_dark else "#A7F3D0"
+            self.chip_stable.setStyleSheet(
+                f"background-color: {c_bg}; color: {c_fg}; border: 1px solid {c_bd}; "
+                f"border-radius: 6px; padding: 5px 12px; font-size: 13px; font-weight: 700;"
+            )
+        if hasattr(self, "chip_consolidating"):
+            c_bg = "#451A03" if is_dark else "#FFFBEB"
+            c_fg = "#FCD34D" if is_dark else "#92400E"
+            c_bd = "#D97706" if is_dark else "#FDE68A"
+            self.chip_consolidating.setStyleSheet(
+                f"background-color: {c_bg}; color: {c_fg}; border: 1px solid {c_bd}; "
+                f"border-radius: 6px; padding: 5px 12px; font-size: 13px; font-weight: 700;"
+            )
+        if hasattr(self, "chip_vulnerable"):
+            c_bg = "#4C1D1D" if is_dark else "#FEF2F2"
+            c_fg = "#FCA5A5" if is_dark else "#991B1B"
+            c_bd = "#DC2626" if is_dark else "#FECACA"
+            self.chip_vulnerable.setStyleSheet(
+                f"background-color: {c_bg}; color: {c_fg}; border: 1px solid {c_bd}; "
+                f"border-radius: 6px; padding: 5px 12px; font-size: 13px; font-weight: 700;"
+            )
+
         if hasattr(self, "right_frame"):
             self.right_frame.setStyleSheet(
                 f"background-color: {t.bg_card_secondary}; border-radius: 10px; border: 1px solid {t.border};"
             )
         if hasattr(self, "rf_title"):
-            self.rf_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {t.text_main};")
+            self.rf_title.setStyleSheet(f"font-size: 14px; font-weight: 700; color: {t.text_main};")
         if hasattr(self, "forecast_labels"):
-            for _, _, f_box in self.forecast_labels:
+            for lbl_day, _, f_box in self.forecast_labels:
                 f_box.setStyleSheet(
                     f"background-color: {t.bg_card}; border: 1px solid {t.border}; border-radius: 8px;"
                 )
+                lbl_day.setStyleSheet(f"font-size: 13px; color: {t.text_muted}; font-weight: 600;")
 
     def _on_rescue_clicked(self):
         if self.vulnerable_word_ids and self.on_start_rescue:
@@ -623,6 +672,7 @@ class DashboardWidget(QWidget):
         self.on_navigate = on_navigate
         self.on_goal_changed = on_goal_changed
         self.on_start_practice = on_start_practice
+        t = theme_manager.get_active_theme()
 
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
@@ -633,38 +683,47 @@ class DashboardWidget(QWidget):
 
         self.scroll_content = QWidget()
         self.layout_root = QVBoxLayout(self.scroll_content)
-        self.layout_root.setContentsMargins(24, 24, 24, 24)
+        self.layout_root.setContentsMargins(24, 20, 24, 24)
         self.layout_root.setSpacing(16)
         self.scroll.setWidget(self.scroll_content)
         outer_layout.addWidget(self.scroll)
 
         header_row = QHBoxLayout()
-        header = QLabel("Dashboard")
-        header.setStyleSheet("color: white; font-size: 22px; font-weight: 700;")
-        header_row.addWidget(header)
+        self.lbl_dashboard_header = QLabel("Dashboard")
+        self.lbl_dashboard_header.setStyleSheet(f"color: {t.text_main}; font-size: 24px; font-weight: 800;")
+        header_row.addWidget(self.lbl_dashboard_header)
         header_row.addStretch()
 
-        # Gamifikatsiya: Daraja, XP va Yutuqlar tugmasi
+        is_dark = getattr(t, "is_dark", True)
+        b_bg = "#1E1B4B" if is_dark else "#EEF2FF"
+        b_fg = "#A5B4FC" if is_dark else "#4338CA"
+        b_bd = "#4338CA" if is_dark else "#C7D2FE"
         self.level_badge = QLabel("🟢 1-Daraja: Boshlovchi")
         self.level_badge.setStyleSheet(
-            "background-color: #1E1B4B; color: #A5B4FC; border: 1px solid #4338CA; "
-            "border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700;"
+            f"background-color: {b_bg}; color: {b_fg}; border: 1px solid {b_bd}; "
+            f"border-radius: 8px; padding: 6px 14px; font-size: 13.5px; font-weight: 700;"
         )
         header_row.addWidget(self.level_badge)
 
+        xp_bg = "#2D2006" if is_dark else "#FEF3C7"
+        xp_fg = "#FBBF24" if is_dark else "#B45309"
+        xp_bd = "#B45309" if is_dark else "#FCD34D"
         self.xp_badge = QLabel("⭐ 0 XP")
         self.xp_badge.setStyleSheet(
-            "background-color: #2D2006; color: #FBBF24; border: 1px solid #B45309; "
-            "border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700;"
+            f"background-color: {xp_bg}; color: {xp_fg}; border: 1px solid {xp_bd}; "
+            f"border-radius: 8px; padding: 6px 14px; font-size: 13.5px; font-weight: 700;"
         )
         header_row.addWidget(self.xp_badge)
 
+        ach_bg = "#312E81" if is_dark else "#EEF2FF"
+        ach_fg = "#C7D2FE" if is_dark else "#4338CA"
+        ach_bd = "#4338CA" if is_dark else "#C7D2FE"
         self.achievements_btn = QPushButton("🏆 Yutuqlar (Badges)")
         self.achievements_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.achievements_btn.setStyleSheet(
-            "QPushButton { background-color: #312E81; color: #C7D2FE; border: 1px solid #4338CA; "
-            "border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 600; }"
-            "QPushButton:hover { background-color: #4338CA; color: white; }"
+            f"QPushButton {{ background-color: {ach_bg}; color: {ach_fg}; border: 1px solid {ach_bd}; "
+            f"border-radius: 8px; padding: 6px 14px; font-size: 14px; font-weight: 600; }} "
+            f"QPushButton:hover {{ background-color: {t.primary}; color: white; }}"
         )
         self.achievements_btn.clicked.connect(self._open_achievements)
         header_row.addWidget(self.achievements_btn)
@@ -689,12 +748,12 @@ class DashboardWidget(QWidget):
             f"QFrame:hover {{ border: 1.5px solid #6366F1; }}"
         )
         bar_layout = QHBoxLayout(self.search_bar_frame)
-        bar_layout.setContentsMargins(14, 8, 14, 8)
-        bar_layout.setSpacing(10)
+        bar_layout.setContentsMargins(16, 10, 16, 10)
+        bar_layout.setSpacing(12)
 
         # Qidiruv belgisi
         lbl_search_icon = QLabel("🔍")
-        lbl_search_icon.setStyleSheet("font-size: 16px; border: none; background: transparent;")
+        lbl_search_icon.setStyleSheet("font-size: 18px; border: none; background: transparent;")
         bar_layout.addWidget(lbl_search_icon)
 
         # Matn kiritish maydoni
@@ -704,7 +763,7 @@ class DashboardWidget(QWidget):
         )
         self.search_input.setStyleSheet(
             f"QLineEdit {{ background: transparent; border: none; color: {t.text_main}; "
-            f"font-size: 14px; font-weight: 500; selection-background-color: {t.primary}; }}"
+            f"font-size: 16px; font-weight: 500; selection-background-color: {t.primary}; }}"
         )
         self.search_input.setClearButtonEnabled(False)
         bar_layout.addWidget(self.search_input, 1)
@@ -712,8 +771,8 @@ class DashboardWidget(QWidget):
         # Status nishoni: "🌐 64k Oxford + 📚 Shaxsiy"
         self.badge_search_mode = QLabel("🌐 64k Oxford + 📚 Shaxsiy")
         self.badge_search_mode.setStyleSheet(
-            "background-color: #1E1B4B; color: #A5B4FC; font-size: 12px; font-weight: 700; "
-            "border: 1px solid #3730A3; border-radius: 6px; padding: 4px 10px;"
+            "background-color: #1E1B4B; color: #A5B4FC; font-size: 13px; font-weight: 700; "
+            "border: 1px solid #3730A3; border-radius: 6px; padding: 4px 12px;"
         )
         bar_layout.addWidget(self.badge_search_mode)
 
@@ -745,7 +804,7 @@ class DashboardWidget(QWidget):
         # Natijalar sarlavhasi qatori
         self.results_header_row = QHBoxLayout()
         self.lbl_results_status = QLabel("Natijalar")
-        self.lbl_results_status.setStyleSheet(f"color: {t.text_main}; font-size: 14px; font-weight: 700;")
+        self.lbl_results_status.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 700;")
         self.results_header_row.addWidget(self.lbl_results_status)
         self.results_header_row.addStretch()
 
@@ -753,7 +812,7 @@ class DashboardWidget(QWidget):
         btn_close_results.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_close_results.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {t.text_muted}; border: 1px solid {t.border}; "
-            f"border-radius: 6px; padding: 4px 12px; font-size: 12px; font-weight: 600; }} "
+            f"border-radius: 6px; padding: 5px 14px; font-size: 13.5px; font-weight: 600; }} "
             f"QPushButton:hover {{ background-color: {t.border}; color: {t.text_main}; }}"
         )
         btn_close_results.clicked.connect(self._clear_search)
@@ -780,7 +839,7 @@ class DashboardWidget(QWidget):
 
         # 5 ta statistika kartalari qatori
         self.cards_row = QHBoxLayout()
-        self.cards_row.setSpacing(12)
+        self.cards_row.setSpacing(14)
 
         self.val_total = QLabel("0")
         self.val_mastered = QLabel("0")
@@ -804,102 +863,116 @@ class DashboardWidget(QWidget):
         self.goal_frame = QFrame()
         self.goal_frame.setStyleSheet("background-color: #1E1E2E; border-radius: 12px;")
         goal_layout = QVBoxLayout(self.goal_frame)
-        goal_layout.setContentsMargins(18, 14, 18, 14)
-        goal_layout.setSpacing(8)
+        goal_layout.setContentsMargins(18, 16, 18, 16)
+        goal_layout.setSpacing(10)
 
         goal_top_row = QHBoxLayout()
         self.goal_title = QLabel("Kunlik reja")
-        self.goal_title.setStyleSheet("color: white; font-size: 14px; font-weight: 600;")
+        self.goal_title.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 700;")
         goal_top_row.addWidget(self.goal_title)
         goal_top_row.addStretch()
 
-        goal_top_row.addWidget(self._muted_label("Maqsad (kuniga so'z):"))
+        self.lbl_goal_muted = self._muted_label("Maqsad (kuniga so'z):")
+        goal_top_row.addWidget(self.lbl_goal_muted)
         self.goal_spin = QSpinBox()
         self.goal_spin.setRange(1, 500)
         self.goal_spin.setStyleSheet(
-            "background-color: #151521; color: white; border: 1px solid #2A2A3C;"
-            "border-radius: 6px; padding: 4px 8px;"
+            f"background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 1px solid {t.border}; "
+            f"border-radius: 6px; padding: 6px 12px; font-size: 15px; font-weight: 600;"
         )
         self.goal_spin.editingFinished.connect(self.save_goal)
         self.goal_spin.valueChanged.connect(self._on_goal_spin_changed)
         goal_top_row.addWidget(self.goal_spin)
-        save_btn = QPushButton("Saqlash")
-        save_btn.setStyleSheet(
-            "background-color: #4F46E5; color: white; border-radius: 6px; padding: 5px 12px; font-size: 13px;"
+        self.btn_goal_save = QPushButton("Saqlash")
+        self.btn_goal_save.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_goal_save.setStyleSheet(
+            f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 6px; padding: 6px 16px; font-size: 15px; font-weight: 600; border: none; }} "
+            f"QPushButton:hover {{ background-color: {t.primary_hover}; }}"
         )
-        save_btn.clicked.connect(self.save_goal)
-        goal_top_row.addWidget(save_btn)
+        self.btn_goal_save.clicked.connect(self.save_goal)
+        goal_top_row.addWidget(self.btn_goal_save)
         goal_layout.addLayout(goal_top_row)
 
         self.goal_bar = QProgressBar()
         self.goal_bar.setTextVisible(True)
         self.goal_bar.setStyleSheet(
             """
-            QProgressBar { background-color: #151521; border-radius: 8px; height: 24px;
-                color: white; text-align: center; font-size: 13px; }
+            QProgressBar { background-color: #151521; border-radius: 8px; height: 26px;
+                color: white; text-align: center; font-size: 14px; font-weight: 600; }
             QProgressBar::chunk { background-color: #10B981; border-radius: 8px; }
             """
         )
         goal_layout.addWidget(self.goal_bar)
 
         self.goal_status = QLabel("")
-        self.goal_status.setStyleSheet("color: #9CA3AF; font-size: 13px;")
+        self.goal_status.setStyleSheet("color: #9CA3AF; font-size: 15px;")
         goal_layout.addWidget(self.goal_status)
 
         self.layout_root.addWidget(self.goal_frame)
 
         # --- Tezkor amallar paneli (Quick Actions) ---
         self.actions_frame = QFrame()
-        self.actions_frame.setStyleSheet("background-color: #1E1E2E; border-radius: 12px;")
-        actions_layout = QHBoxLayout(self.actions_frame)
-        actions_layout.setContentsMargins(18, 10, 18, 10)
-        actions_layout.setSpacing(12)
+        self.actions_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
+        actions_vbox = QVBoxLayout(self.actions_frame)
+        actions_vbox.setContentsMargins(18, 14, 18, 14)
+        actions_vbox.setSpacing(10)
 
-        act_label = QLabel("⚡ Tezkor amallar:")
-        act_label.setStyleSheet("color: white; font-size: 15px; font-weight: 600;")
-        actions_layout.addWidget(act_label)
+        self.act_label = QLabel("⚡ Tezkor amallar:")
+        self.act_label.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 700;")
+        actions_vbox.addWidget(self.act_label)
 
-        btn_practice = QPushButton("🚀 Mashqni boshlash (EN→UZ)")
+        actions_grid = QGridLayout()
+        actions_grid.setSpacing(10)
+
+        btn_practice = QPushButton("🚀 Mashq (EN→UZ)")
+        btn_practice.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_practice.setStyleSheet(self._action_btn_style("#4F46E5"))
         btn_practice.clicked.connect(lambda: self._go("en_uz"))
-        actions_layout.addWidget(btn_practice)
+        actions_grid.addWidget(btn_practice, 0, 0)
 
-        btn_practice_uz = QPushButton("🚀 Mashqni boshlash (UZ→EN)")
+        btn_practice_uz = QPushButton("🚀 Mashq (UZ→EN)")
+        btn_practice_uz.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_practice_uz.setStyleSheet(self._action_btn_style("#6366F1"))
         btn_practice_uz.clicked.connect(lambda: self._go("uz_en"))
-        actions_layout.addWidget(btn_practice_uz)
+        actions_grid.addWidget(btn_practice_uz, 0, 1)
 
         btn_dict = QPushButton("📖 Lug'atni ochish")
+        btn_dict.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_dict.setStyleSheet(self._action_btn_style("#10B981"))
         btn_dict.clicked.connect(lambda: self._go("dictionary"))
-        actions_layout.addWidget(btn_dict)
+        actions_grid.addWidget(btn_dict, 0, 2)
 
         btn_import = QPushButton("📥 So'z qo'shish")
+        btn_import.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_import.setStyleSheet(self._action_btn_style("#3730A3"))
         btn_import.clicked.connect(lambda: self._go("import"))
-        actions_layout.addWidget(btn_import)
+        actions_grid.addWidget(btn_import, 0, 3)
 
         btn_match = QPushButton("🎮 So'zlarni juftlash")
+        btn_match.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_match.setStyleSheet(self._action_btn_style("#D946EF"))
         btn_match.clicked.connect(lambda: self._go("match"))
-        actions_layout.addWidget(btn_match)
+        actions_grid.addWidget(btn_match, 1, 0)
 
         btn_audio = QPushButton("🎧 Audio pleyer")
+        btn_audio.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_audio.setStyleSheet(self._action_btn_style("#0284C7"))
         btn_audio.clicked.connect(lambda: self._go("audio_player"))
-        actions_layout.addWidget(btn_audio)
+        actions_grid.addWidget(btn_audio, 1, 1)
 
         btn_blitz = QPushButton("⚡ Blitz marafon")
+        btn_blitz.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_blitz.setStyleSheet(self._action_btn_style("#D97706"))
         btn_blitz.clicked.connect(lambda: self._go("blitz"))
-        actions_layout.addWidget(btn_blitz)
+        actions_grid.addWidget(btn_blitz, 1, 2)
 
         btn_cefr = QPushButton("🎓 CEFR & IELTS")
+        btn_cefr.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_cefr.setStyleSheet(self._action_btn_style("#059669"))
         btn_cefr.clicked.connect(self._open_cefr_dialog)
-        actions_layout.addWidget(btn_cefr)
+        actions_grid.addWidget(btn_cefr, 1, 3)
 
-        actions_layout.addStretch()
+        actions_vbox.addLayout(actions_grid)
         self.layout_root.addWidget(self.actions_frame)
 
         # --- Anki SM-2 Spaced Repetition Bugungi Takrorlash Paneli ---
@@ -908,18 +981,18 @@ class DashboardWidget(QWidget):
             "QFrame { background-color: #1E1B4B; border: 1.5px solid #4338CA; border-radius: 12px; }"
         )
         df_layout = QHBoxLayout(self.due_frame)
-        df_layout.setContentsMargins(18, 12, 18, 12)
-        df_layout.setSpacing(12)
+        df_layout.setContentsMargins(18, 14, 18, 14)
+        df_layout.setSpacing(14)
 
         self.due_label = QLabel("🧠 Ebbinghaus/Anki takrorlash: Bugun takrorlash muddati kelgan so'zlar bor!")
-        self.due_label.setStyleSheet("color: #C7D2FE; font-size: 14px; font-weight: 600;")
+        self.due_label.setStyleSheet("color: #C7D2FE; font-size: 16px; font-weight: 600;")
         df_layout.addWidget(self.due_label, 1)
 
         self.btn_practice_due = QPushButton("🧠 Hozir takrorlash (SM-2)")
         self.btn_practice_due.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_practice_due.setStyleSheet(
             "QPushButton { background-color: #4F46E5; color: white; border: none; "
-            "border-radius: 6px; padding: 7px 16px; font-size: 13px; font-weight: 700; }"
+            "border-radius: 8px; padding: 8px 18px; font-size: 15px; font-weight: 700; }"
             "QPushButton:hover { background-color: #4338CA; }"
         )
         self.btn_practice_due.clicked.connect(self._practice_due_words)
@@ -934,18 +1007,18 @@ class DashboardWidget(QWidget):
             "QFrame { background-color: #2D1A1A; border: 1px solid #7F1D1D; border-radius: 12px; }"
         )
         wf_layout = QHBoxLayout(self.weak_frame)
-        wf_layout.setContentsMargins(18, 12, 18, 12)
-        wf_layout.setSpacing(12)
+        wf_layout.setContentsMargins(18, 14, 18, 14)
+        wf_layout.setSpacing(14)
 
         self.weak_label = QLabel("⚠️ Diqqat: Sizda tez-tez xato qilinayotgan zaif so'zlar bor!")
-        self.weak_label.setStyleSheet("color: #FCA5A5; font-size: 14px; font-weight: 600;")
+        self.weak_label.setStyleSheet("color: #FCA5A5; font-size: 16px; font-weight: 600;")
         wf_layout.addWidget(self.weak_label, 1)
 
         self.btn_practice_weak = QPushButton("⚠️ Zaif so'zlarni mashq qilish")
         self.btn_practice_weak.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_practice_weak.setStyleSheet(
             "QPushButton { background-color: #DC2626; color: white; border: none; "
-            "border-radius: 6px; padding: 7px 16px; font-size: 13px; font-weight: 700; }"
+            "border-radius: 8px; padding: 8px 18px; font-size: 15px; font-weight: 700; }"
             "QPushButton:hover { background-color: #B91C1C; }"
         )
         self.btn_practice_weak.clicked.connect(self._practice_weak_words)
@@ -978,8 +1051,8 @@ class DashboardWidget(QWidget):
         self.radar_frame = QFrame()
         self.radar_frame.setStyleSheet("background-color: #1E1E2E; border-radius: 12px;")
         r_layout = QVBoxLayout(self.radar_frame)
-        r_layout.setContentsMargins(18, 14, 18, 14)
-        r_layout.setSpacing(10)
+        r_layout.setContentsMargins(18, 16, 18, 16)
+        r_layout.setSpacing(12)
 
         r_top = QHBoxLayout()
         self.radar_title = QLabel("🎯 Zaif So'zlar Radari (Eng ko'p xato qilinganlar)")
@@ -997,7 +1070,6 @@ class DashboardWidget(QWidget):
         self.radar_list_layout = QVBoxLayout()
         self.radar_list_layout.setSpacing(6)
         r_layout.addLayout(self.radar_list_layout)
-
         self.layout_root.addWidget(self.radar_frame)
         self.layout_root.addStretch()
 
@@ -1007,7 +1079,37 @@ class DashboardWidget(QWidget):
         self.refresh()
 
     def apply_theme(self, t: theme_manager.Theme):
+        is_dark = getattr(t, "is_dark", True)
         self.setStyleSheet(f"background-color: {t.bg_app};")
+        if hasattr(self, "lbl_dashboard_header"):
+            self.lbl_dashboard_header.setStyleSheet(f"color: {t.text_main}; font-size: 24px; font-weight: 800;")
+
+        if hasattr(self, "level_badge"):
+            b_bg = "#1E1B4B" if is_dark else "#EEF2FF"
+            b_fg = "#A5B4FC" if is_dark else "#4338CA"
+            b_bd = "#4338CA" if is_dark else "#C7D2FE"
+            self.level_badge.setStyleSheet(
+                f"background-color: {b_bg}; color: {b_fg}; border: 1px solid {b_bd}; "
+                f"border-radius: 8px; padding: 6px 14px; font-size: 13.5px; font-weight: 700;"
+            )
+        if hasattr(self, "xp_badge"):
+            xp_bg = "#2D2006" if is_dark else "#FEF3C7"
+            xp_fg = "#FBBF24" if is_dark else "#B45309"
+            xp_bd = "#B45309" if is_dark else "#FCD34D"
+            self.xp_badge.setStyleSheet(
+                f"background-color: {xp_bg}; color: {xp_fg}; border: 1px solid {xp_bd}; "
+                f"border-radius: 8px; padding: 6px 14px; font-size: 13.5px; font-weight: 700;"
+            )
+        if hasattr(self, "achievements_btn"):
+            ach_bg = "#312E81" if is_dark else "#EEF2FF"
+            ach_fg = "#C7D2FE" if is_dark else "#4338CA"
+            ach_bd = "#4338CA" if is_dark else "#C7D2FE"
+            self.achievements_btn.setStyleSheet(
+                f"QPushButton {{ background-color: {ach_bg}; color: {ach_fg}; border: 1px solid {ach_bd}; "
+                f"border-radius: 8px; padding: 6px 14px; font-size: 14px; font-weight: 600; }} "
+                f"QPushButton:hover {{ background-color: {t.primary}; color: white; }}"
+            )
+
         for card in getattr(self, "stat_cards", []):
             acc = getattr(card, "_accent_color", "#4F46E5")
             card.setStyleSheet(
@@ -1015,29 +1117,70 @@ class DashboardWidget(QWidget):
                 f"border: 1px solid {t.border}; border-left: 4px solid {acc}; }}"
             )
             if hasattr(card, "_val_label"):
-                card._val_label.setStyleSheet(f"color: {t.text_main}; font-size: 28px; font-weight: 700;")
+                card._val_label.setStyleSheet(f"color: {t.text_main}; font-size: 28px; font-weight: 800;")
             if hasattr(card, "_title_label"):
-                card._title_label.setStyleSheet(f"color: {t.text_muted}; font-size: 13px; font-weight: 600;")
+                card._title_label.setStyleSheet(f"color: {t.text_muted}; font-size: 15px; font-weight: 600;")
 
         if hasattr(self, "goal_frame"):
             self.goal_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
+        if hasattr(self, "goal_title"):
+            self.goal_title.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 700;")
+        if hasattr(self, "lbl_goal_muted"):
+            self.lbl_goal_muted.setStyleSheet(f"color: {t.text_muted}; font-size: 14px;")
         if hasattr(self, "goal_spin"):
             self.goal_spin.setStyleSheet(
                 f"background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 1px solid {t.border}; "
-                f"border-radius: 6px; padding: 4px 8px;"
+                f"border-radius: 6px; padding: 6px 12px; font-size: 15px; font-weight: 600;"
+            )
+        if hasattr(self, "btn_goal_save"):
+            self.btn_goal_save.setStyleSheet(
+                f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 6px; padding: 6px 16px; font-size: 15px; font-weight: 600; border: none; }} "
+                f"QPushButton:hover {{ background-color: {t.primary_hover}; }}"
             )
         if hasattr(self, "goal_bar"):
             self.goal_bar.setStyleSheet(
                 f"""
-                QProgressBar {{ background-color: {t.bg_card_secondary}; border-radius: 8px; height: 22px;
-                    color: {t.text_main}; text-align: center; font-size: 12px; }}
+                QProgressBar {{ background-color: {t.bg_card_secondary}; border-radius: 8px; height: 26px;
+                    color: {t.text_main}; text-align: center; font-size: 14px; font-weight: 600; border: 1px solid {t.border}; }}
                 QProgressBar::chunk {{ background-color: {t.primary}; border-radius: 8px; }}
                 """
             )
+        if hasattr(self, "goal_status"):
+            self.goal_status.setStyleSheet(f"color: {t.text_muted}; font-size: 15px;")
+
         if hasattr(self, "actions_frame"):
             self.actions_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
+        if hasattr(self, "act_label"):
+            self.act_label.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 700;")
+
         if hasattr(self, "due_frame"):
-            self.due_frame.setStyleSheet(f"QFrame {{ background-color: {t.bg_card}; border: 1.5px solid {t.primary}; border-radius: 12px; }}")
+            d_bg = "#1E1B4B" if is_dark else "#EEF2FF"
+            d_fg = "#C7D2FE" if is_dark else "#312E81"
+            d_bd = t.primary if is_dark else "#818CF8"
+            self.due_frame.setStyleSheet(f"QFrame {{ background-color: {d_bg}; border: 1.5px solid {d_bd}; border-radius: 12px; }}")
+            if hasattr(self, "due_label"):
+                self.due_label.setStyleSheet(f"color: {d_fg}; font-size: 16px; font-weight: 600;")
+            if hasattr(self, "btn_practice_due"):
+                self.btn_practice_due.setStyleSheet(
+                    f"QPushButton {{ background-color: {t.primary}; color: white; border: none; "
+                    f"border-radius: 8px; padding: 8px 18px; font-size: 15px; font-weight: 700; }} "
+                    f"QPushButton:hover {{ background-color: {t.primary_hover}; }}"
+                )
+
+        if hasattr(self, "weak_frame"):
+            w_bg = "#2D1A1A" if is_dark else "#FEF2F2"
+            w_fg = "#FCA5A5" if is_dark else "#991B1B"
+            w_bd = "#7F1D1D" if is_dark else "#FCA5A5"
+            self.weak_frame.setStyleSheet(f"QFrame {{ background-color: {w_bg}; border: 1px solid {w_bd}; border-radius: 12px; }}")
+            if hasattr(self, "weak_label"):
+                self.weak_label.setStyleSheet(f"color: {w_fg}; font-size: 16px; font-weight: 600;")
+            if hasattr(self, "btn_practice_weak"):
+                self.btn_practice_weak.setStyleSheet(
+                    "QPushButton { background-color: #DC2626; color: white; border: none; "
+                    "border-radius: 8px; padding: 8px 18px; font-size: 15px; font-weight: 700; } "
+                    "QPushButton:hover { background-color: #B91C1C; }"
+                )
+
         if hasattr(self, "retention_widget"):
             self.retention_widget.apply_theme(t)
         if hasattr(self, "week_chart"):
@@ -1053,11 +1196,27 @@ class DashboardWidget(QWidget):
         if hasattr(self, "radar_frame"):
             self.radar_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
         if hasattr(self, "radar_title"):
-            self.radar_title.setStyleSheet(f"color: {t.text_main}; font-size: 14px; font-weight: 700;")
+            self.radar_title.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 700;")
         if hasattr(self, "search_bar_frame"):
             self.search_bar_frame.setStyleSheet(
-                f"QFrame {{ background-color: {t.bg_card}; border: 1.5px solid {t.primary}; border-radius: 12px; }} "
-                f"QFrame:hover {{ border: 1.5px solid {t.primary_light}; }}"
+                f"QFrame {{ background-color: {t.bg_card}; border: 1.5px solid {t.border}; border-radius: 12px; }} "
+                f"QFrame:hover {{ border: 1.5px solid {t.primary}; }}"
+            )
+        if hasattr(self, "badge_search_mode"):
+            s_mode_bg = "#1E1B4B" if is_dark else "#EEF2FF"
+            s_mode_fg = "#A5B4FC" if is_dark else "#4338CA"
+            s_mode_bd = "#3730A3" if is_dark else "#C7D2FE"
+            self.badge_search_mode.setStyleSheet(
+                f"background-color: {s_mode_bg}; color: {s_mode_fg}; font-size: 13px; font-weight: 700; "
+                f"border: 1px solid {s_mode_bd}; border-radius: 6px; padding: 4px 12px;"
+            )
+        if hasattr(self, "btn_search_clear"):
+            s_clr_bg = "#2A2A3C" if is_dark else "#E2E8F0"
+            s_clr_fg = "#9CA3AF" if is_dark else "#64748B"
+            self.btn_search_clear.setStyleSheet(
+                f"QPushButton {{ background-color: {s_clr_bg}; color: {s_clr_fg}; border: none; "
+                f"border-radius: 13px; font-size: 12px; font-weight: 700; }} "
+                f"QPushButton:hover {{ background-color: #EF4444; color: white; }}"
             )
         if hasattr(self, "search_results_frame"):
             self.search_results_frame.setStyleSheet(
@@ -1066,20 +1225,20 @@ class DashboardWidget(QWidget):
         if hasattr(self, "search_input"):
             self.search_input.setStyleSheet(
                 f"QLineEdit {{ background: transparent; border: none; color: {t.text_main}; "
-                f"font-size: 13px; font-weight: 500; selection-background-color: {t.primary}; }}"
+                f"font-size: 16px; font-weight: 500; selection-background-color: {t.primary}; }}"
             )
         if hasattr(self, "lbl_results_status"):
-            self.lbl_results_status.setStyleSheet(f"color: {t.text_main}; font-size: 13px; font-weight: 700;")
+            self.lbl_results_status.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 700;")
 
     def _muted_label(self, text: str) -> QLabel:
         lbl = QLabel(text)
-        lbl.setStyleSheet("color: #9CA3AF; font-size: 12px;")
+        lbl.setStyleSheet("color: #9CA3AF; font-size: 14px;")
         return lbl
 
     def _action_btn_style(self, color: str) -> str:
         return (
             f"QPushButton {{ background-color: {color}; color: white; border: none;"
-            f"border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; }}"
+            f"border-radius: 8px; padding: 10px 16px; font-size: 14.5px; font-weight: 600; }}"
             f"QPushButton:hover {{ opacity: 0.9; }}"
         )
 
@@ -1140,10 +1299,18 @@ class DashboardWidget(QWidget):
         # --- Gamifikatsiya holati ---
         lvl_info = gamification.get_level_info()
         self.level_badge.setText(f"{lvl_info['badge']} {lvl_info['level']}-Daraja: {lvl_info['title']}")
-        self.level_badge.setStyleSheet(
-            f"background-color: #1A1A2E; color: {lvl_info['color']}; border: 1px solid {lvl_info['color']}; "
-            f"border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700;"
-        )
+        t = theme_manager.get_active_theme()
+        is_dark = getattr(t, "is_dark", True)
+        if is_dark:
+            self.level_badge.setStyleSheet(
+                f"background-color: #1A1A2E; color: {lvl_info['color']}; border: 1px solid {lvl_info['color']}; "
+                f"border-radius: 8px; padding: 6px 14px; font-size: 13.5px; font-weight: 700;"
+            )
+        else:
+            self.level_badge.setStyleSheet(
+                f"background-color: #EEF2FF; color: {t.primary}; border: 1px solid #C7D2FE; "
+                f"border-radius: 8px; padding: 6px 14px; font-size: 13.5px; font-weight: 700;"
+            )
         self.xp_badge.setText(f"⭐ {lvl_info['total_xp']} XP")
 
         # --- Anki SM-2 Spaced Repetition Bugungi Takrorlash tekshiruvi ---
@@ -1221,34 +1388,39 @@ class DashboardWidget(QWidget):
                     rf_lay.setContentsMargins(12, 6, 12, 6)
 
                     lbl_eng = QLabel(w.get("english", ""))
-                    lbl_eng.setStyleSheet(f"color: {t.text_main}; font-weight: 700; font-size: 13px;")
+                    lbl_eng.setStyleSheet(f"color: {t.text_main}; font-weight: 700; font-size: 16px;")
                     rf_lay.addWidget(lbl_eng)
 
                     pho = w.get("phonetic", "")
                     if pho:
                         lbl_pho = QLabel(pho)
-                        lbl_pho.setStyleSheet(f"color: {t.primary_light}; font-size: 12px;")
+                        pho_color = t.primary if not is_dark else t.primary_light
+                        lbl_pho.setStyleSheet(f"color: {pho_color}; font-size: 14px;")
                         rf_lay.addWidget(lbl_pho)
 
                     rf_lay.addStretch()
 
                     lbl_uz = QLabel(w.get("uzbek", ""))
-                    lbl_uz.setStyleSheet("color: #10B981; font-weight: 600; font-size: 13px;")
+                    uz_col = "#059669" if not is_dark else "#10B981"
+                    lbl_uz.setStyleSheet(f"color: {uz_col}; font-weight: 600; font-size: 15px;")
                     rf_lay.addWidget(lbl_uz)
 
                     wr_cnt = w.get("wrong_count", 0)
                     lbl_wrong = QLabel(f"❌ {wr_cnt} ta xato")
+                    w_bg = "#7F1D1D" if is_dark else "#FEE2E2"
+                    w_fg = "#FCA5A5" if is_dark else "#DC2626"
+                    w_bd = "none" if is_dark else "1px solid #FCA5A5"
                     lbl_wrong.setStyleSheet(
-                        "background-color: #7F1D1D; color: #FCA5A5; border-radius: 4px; "
-                        "padding: 3px 8px; font-size: 12px; font-weight: 700;"
+                        f"background-color: {w_bg}; color: {w_fg}; border: {w_bd}; border-radius: 6px; "
+                        f"padding: 4px 10px; font-size: 13px; font-weight: 700;"
                     )
                     rf_lay.addWidget(lbl_wrong)
 
                     btn_p = QPushButton("Mashq")
                     btn_p.setCursor(Qt.CursorShape.PointingHandCursor)
                     btn_p.setStyleSheet(
-                        f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 4px; "
-                        f"padding: 4px 12px; font-size: 12px; font-weight: 700; }}"
+                        f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 6px; "
+                        f"padding: 6px 16px; font-size: 14px; font-weight: 700; }}"
                     )
                     btn_p.clicked.connect(lambda _, wid=w["id"]: self._practice_single_word(wid))
                     rf_lay.addWidget(btn_p)
@@ -1381,19 +1553,23 @@ class DashboardWidget(QWidget):
         top_row.setSpacing(8)
 
         lbl_eng = QLabel(item["english"])
-        lbl_eng.setStyleSheet(f"color: {t.text_main}; font-size: 16px; font-weight: 800;")
+        lbl_eng.setStyleSheet(f"color: {t.text_main}; font-size: 17px; font-weight: 800;")
         top_row.addWidget(lbl_eng)
 
+        is_dark = getattr(t, "is_dark", True)
         if item.get("phonetic"):
             lbl_ph = QLabel(item["phonetic"])
-            lbl_ph.setStyleSheet("color: #818CF8; font-size: 13px; font-weight: 600;")
+            ph_col = "#818CF8" if is_dark else t.primary
+            lbl_ph.setStyleSheet(f"color: {ph_col}; font-size: 14px; font-weight: 600;")
             top_row.addWidget(lbl_ph)
 
         if item.get("pos"):
             lbl_pos = QLabel(f"[{item['pos']}]")
+            pos_bg = "#312E81" if is_dark else "#EEF2FF"
+            pos_fg = "#C7D2FE" if is_dark else "#4338CA"
             lbl_pos.setStyleSheet(
-                "background-color: #312E81; color: #C7D2FE; font-size: 12px; font-weight: 700; "
-                "border-radius: 4px; padding: 2px 6px;"
+                f"background-color: {pos_bg}; color: {pos_fg}; font-size: 12px; font-weight: 700; "
+                f"border-radius: 4px; padding: 2px 6px;"
             )
             top_row.addWidget(lbl_pos)
 
@@ -1407,16 +1583,22 @@ class DashboardWidget(QWidget):
 
         # Status Badge (Shaxsiy vs Global)
         if item.get("is_in_study_list"):
+            st_bg = "#064E3B" if is_dark else "#ECFDF5"
+            st_fg = "#34D399" if is_dark else "#047857"
+            st_bd = "#059669" if is_dark else "#A7F3D0"
             lbl_badge = QLabel(f"✨ Shaxsiy: Box {item.get('box_level', 0)}")
             lbl_badge.setStyleSheet(
-                "background-color: #064E3B; color: #34D399; border: 1px solid #059669; "
-                "border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 700;"
+                f"background-color: {st_bg}; color: {st_fg}; border: 1px solid {st_bd}; "
+                f"border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 700;"
             )
         else:
+            gl_bg = "#1E1B4B" if is_dark else "#EEF2FF"
+            gl_fg = "#A5B4FC" if is_dark else "#4338CA"
+            gl_bd = "#4338CA" if is_dark else "#C7D2FE"
             lbl_badge = QLabel("🌐 64k Lug'at")
             lbl_badge.setStyleSheet(
-                "background-color: #1E1B4B; color: #A5B4FC; border: 1px solid #4338CA; "
-                "border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 700;"
+                f"background-color: {gl_bg}; color: {gl_fg}; border: 1px solid {gl_bd}; "
+                f"border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 700;"
             )
         top_row.addWidget(lbl_badge)
         info_col.addLayout(top_row)
@@ -1426,7 +1608,8 @@ class DashboardWidget(QWidget):
         bottom_row.setSpacing(8)
 
         lbl_uz = QLabel(item.get("uzbek", ""))
-        lbl_uz.setStyleSheet("color: #10B981; font-size: 14px; font-weight: 700;")
+        uz_color = "#059669" if not is_dark else "#10B981"
+        lbl_uz.setStyleSheet(f"color: {uz_color}; font-size: 16px; font-weight: 700;")
         lbl_uz.setWordWrap(True)
         bottom_row.addWidget(lbl_uz, 1)
 
@@ -1434,7 +1617,7 @@ class DashboardWidget(QWidget):
 
         if item.get("example"):
             lbl_ex = QLabel(f"“{item['example']}”")
-            lbl_ex.setStyleSheet("color: #94A3B8; font-size: 13px; font-style: italic;")
+            lbl_ex.setStyleSheet(f"color: {t.text_muted}; font-size: 14px; font-style: italic;")
             lbl_ex.setWordWrap(True)
             info_col.addWidget(lbl_ex)
 
@@ -1450,7 +1633,7 @@ class DashboardWidget(QWidget):
             btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
             btn_add.setStyleSheet(
                 "QPushButton { background-color: #10B981; color: white; border: none; "
-                "border-radius: 6px; padding: 6px 14px; font-size: 12.5px; font-weight: 700; } "
+                "border-radius: 6px; padding: 7px 16px; font-size: 14px; font-weight: 700; } "
                 "QPushButton:hover { background-color: #059669; }"
             )
             btn_add.clicked.connect(
@@ -1464,7 +1647,7 @@ class DashboardWidget(QWidget):
         btn_details.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_details.setStyleSheet(
             f"QPushButton {{ background-color: #4338CA; color: white; border: none; "
-            f"border-radius: 6px; padding: 6px 14px; font-size: 12.5px; font-weight: 700; }} "
+            f"border-radius: 6px; padding: 7px 16px; font-size: 14px; font-weight: 700; }} "
             f"QPushButton:hover {{ background-color: #6366F1; }}"
         )
         btn_details.clicked.connect(lambda _, w=eng_text: self._open_word_details(w))

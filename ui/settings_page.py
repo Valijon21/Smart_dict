@@ -34,9 +34,9 @@ class SettingsWidget(QWidget):
         layout.setSpacing(18)
 
         # Header
-        header = QLabel("⚙️ Dastur sozlamalari va Diagnostika")
-        header.setStyleSheet("color: white; font-size: 22px; font-weight: 700;")
-        layout.addWidget(header)
+        self.header_title = QLabel("⚙️ Dastur sozlamalari va Diagnostika")
+        self.header_title.setStyleSheet("font-size: 22px; font-weight: 700;")
+        layout.addWidget(self.header_title)
 
         # 1. Kunlik reja kartasi
         card_goal = self._create_card("🎯 Kunlik o'rganish maqsadi")
@@ -50,9 +50,9 @@ class SettingsWidget(QWidget):
 
         row_goal = QHBoxLayout()
         row_goal.setSpacing(10)
-        lbl_goal = QLabel("Kuniga yangi so'zlar mashq qilish maqsadi:")
-        lbl_goal.setStyleSheet("color: white; font-size: 13px; font-weight: 500;")
-        row_goal.addWidget(lbl_goal)
+        self.lbl_goal = QLabel("Kuniga yangi so'zlar mashq qilish maqsadi:")
+        self.lbl_goal.setStyleSheet("font-size: 13px; font-weight: 500;")
+        row_goal.addWidget(self.lbl_goal)
 
         self.spin_goal = QSpinBox()
         self.spin_goal.setRange(1, 500)
@@ -232,9 +232,9 @@ class SettingsWidget(QWidget):
         audio_layout.addLayout(row_rate)
 
         row_audio_int = QHBoxLayout()
-        lbl_ai_title = QLabel("Audio pleyer oraliq kutish vaqti:")
-        lbl_ai_title.setStyleSheet("font-size: 13px; color: white;")
-        row_audio_int.addWidget(lbl_ai_title)
+        self.lbl_ai_title = QLabel("Audio pleyer oraliq kutish vaqti:")
+        self.lbl_ai_title.setStyleSheet("font-size: 13px; color: white;")
+        row_audio_int.addWidget(self.lbl_ai_title)
 
         self.slider_audio_interval = QSlider(Qt.Orientation.Horizontal)
         self.slider_audio_interval.setRange(10, 80)
@@ -363,14 +363,14 @@ class SettingsWidget(QWidget):
 
         # Barcha sozlamalarni saqlash tugmasi
         save_row = QHBoxLayout()
-        save_btn = QPushButton("💾 Barcha sozlamalarni saqlash")
-        save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        save_btn.setStyleSheet(
+        self.save_btn = QPushButton("💾 Barcha sozlamalarni saqlash")
+        self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.save_btn.setStyleSheet(
             "QPushButton { background-color: #4F46E5; color: white; border-radius: 8px; padding: 12px 28px; font-size: 14px; font-weight: 700; }"
             "QPushButton:hover { background-color: #4338CA; }"
         )
-        save_btn.clicked.connect(self.save_settings)
-        save_row.addWidget(save_btn)
+        self.save_btn.clicked.connect(self.save_settings)
+        save_row.addWidget(self.save_btn)
 
         self.save_msg = QLabel("")
         self.save_msg.setStyleSheet("color: #10B981; font-size: 13px; font-weight: 600;")
@@ -408,6 +408,30 @@ class SettingsWidget(QWidget):
         card_qss = f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};"
         for card in getattr(self, "cards", []):
             card.setStyleSheet(card_qss)
+        if hasattr(self, "header_title"):
+            self.header_title.setStyleSheet(f"color: {t.text_main}; font-size: 22px; font-weight: 700;")
+        if hasattr(self, "lbl_goal"):
+            self.lbl_goal.setStyleSheet(f"color: {t.text_main}; font-size: 13px; font-weight: 500;")
+        if hasattr(self, "lbl_ai_title"):
+            self.lbl_ai_title.setStyleSheet(f"color: {t.text_main}; font-size: 13px;")
+        if hasattr(self, "save_btn"):
+            self.save_btn.setStyleSheet(
+                f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 8px; padding: 12px 28px; font-size: 14px; font-weight: 700; }} "
+                f"QPushButton:hover {{ background-color: {t.primary_hover}; }}"
+            )
+        for chk in [
+            getattr(self, "chk_reminder", None),
+            getattr(self, "chk_tray", None),
+            getattr(self, "chk_periodic_toast", None),
+            getattr(self, "chk_clipboard_lookup", None),
+            getattr(self, "chk_autoplay", None),
+            getattr(self, "chk_sound_fx", None),
+        ]:
+            if chk:
+                chk.setStyleSheet(f"color: {t.text_main}; font-size: 13px;")
+        for inp in [getattr(self, "spin_goal", None), getattr(self, "time_reminder", None)]:
+            if inp:
+                inp.setStyleSheet(self._input_style())
         if hasattr(self, "combo_toast_interval"):
             self.combo_toast_interval.setStyleSheet(
                 f"QComboBox {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; border: 1px solid {t.border}; "
@@ -529,9 +553,10 @@ class SettingsWidget(QWidget):
 
 
     def _input_style(self) -> str:
+        t = theme_manager.get_active_theme()
         return (
-            "background-color: #151521; color: white; border: 1px solid #2A2A3C;"
-            "border-radius: 6px; padding: 6px 10px; font-size: 13px;"
+            f"background-color: {t.bg_sidebar}; color: {t.text_main}; border: 1px solid {t.border}; "
+            f"border-radius: 6px; padding: 6px 10px; font-size: 13px;"
         )
 
     def _on_rate_change(self, val: int):

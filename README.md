@@ -13,7 +13,7 @@
 
 *A commercial-grade, fully offline desktop English-Uzbek vocabulary mastery suite powered by SuperMemo SM-2, Leitner 5-Box progression, and native speech synthesis.*
 
-[Imkoniyatlar](#-imkoniyatlar-key-features) • [O'rnatish](#-ornatish-va-ishga-tushirish-quickstart) • [Loyiha Strukturasi](#-loyiha-strukturasi-architecture) • [EXE Yaratish](#-standalone-exe-yaratish) • [Muallif](#-muallif-va-litsenziya)
+[Imkoniyatlar](#-imkoniyatlar-key-features) • [Yangilanishlar](#-songgi-yangilanishlar--ozgarishlar-latest-updates--changelog) • [O'rnatish](#-ornatish-va-ishga-tushirish-quickstart) • [Loyiha Strukturasi](#-loyiha-strukturasi-architecture) • [EXE Yaratish](#-standalone-exe-yaratish) • [Muallif](#-muallif-va-litsenziya)
 
 ---
 
@@ -106,6 +106,26 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 
 ### 15. 🛡️ Mahalliy Data Vault (Formatdan Himoyalangan Avto-Zaxira)
 - Windows tizimi qayta o'rnatilganda (format qilinganda) foydalanuvchining oylar davomida yig'gan lug'ati va statistikasi yo'qolib ketmasligi uchun dastur yonidagi `backups/` papkasida 100% lokal xavfsiz avtomatik zaxira nusxalari yuritiladi. Hech qanday tashqi serverlarga ma'lumot yuborilmaydi.
+
+---
+
+## 🆕 So'nggi Yangilanishlar & O'zgarishlar (Latest Updates & Changelog)
+
+### 🎧 Hands-Free Audio Pleyer Yaxshilanishlari:
+- **Mukammal Markazlashtirish:** Ekrandagi so'z, fonetik nishon, o'zbekcha tarjima va tagidagi misol gaplar barcha ekran kengliklarida 100% gorizontal markazda turishi ta'minlandi (`AlignCenter`).
+- **Matn Tozalash Algoritmi:** Misol gaplar boshidagi va oxiridagi bazaviy belgilar (`"•`, `•`, `*`, `-`, `"`) to'liq tozalanib, chiroyli kitobiy `“ ... ”` shakliga keltirildi.
+- **Aqlli 2 Qatorli Formatlash:** Uzun va ko'p sinonimli o'zbekcha tarjimalar ekranga sig'ishi va chiroyli o'qilishi uchun mantiqiy vergullar bo'yicha teng 2 qatorga ajratiladi.
+- **Yangi Nafis Audio Vizualizator:** 1000px li og'ir bloklar o'rniga zamonaviy `260x28px` ixcham, markazlashtirilgan, 24 ta yumaloqlangan to'lqinlar animatsiyasi o'rnatildi.
+- **🎙️ Oflayn Podcast (.wav) Eksport:** Pleyer boshqaruv paneli yuqori qismiga to'g'ridan-to'g'ri audio fayl eksport qilish modali tugmasi ulandi.
+
+### 📚 Tayyor So'z Paketlari (Word Packs & CEFR / IELTS):
+- **64,000+ So'zlik Baza:** A1, A2, B1, B2, C1, C2 va IELTS Academic (AWL) darajalaridagi ulkan so'zlar bazasi bilan boyitildi.
+- **Tartibli 2 Qatorli Namunalar:** Namuna so'zlar qatori endi kartochkadan tashqariga chiqib ketmaydi, qulay 2 qatorda aks etadi.
+- **Vizual Xatolar Tuzatildi:** Kartochkalardagi so'zlar soni nishonining (`52 ta so'z`) o'ng cheti kesilib qolish xatosi bartaraf etildi; QLabel larning ortiqcha ichki chegara ramkalari yo'qotildi.
+
+### ⚡ Tizim Barqarorligi va IPC:
+- **Yagona Instansiya Boshqaruvi (Single Instance):** QLocalServer / QLocalSocket IPC orqali bir vaqtning o'zida bir nechta nusxa ochilishi oldi olindi; mavjud oyna ekranga chiqariladi.
+- **Yuqori DPI va Shriftlar:** High DPI ekranlarda tiniq ko'rinish va shrift antialiasing sozlandi.
 
 ---
 

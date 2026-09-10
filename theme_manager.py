@@ -29,6 +29,7 @@ class Theme:
     text_muted: str         # Ikkinchi darajali matn
     accent: str             # Maxsus yorqin elementlar (streak, yutuqlar)
     swatch_colors: list[str] # Miniatyura uchun 3 ta rang
+    is_dark: bool = True    # Qorong'u yoki yorug' mavzu ekanligi
 
 
 THEMES = [
@@ -167,14 +168,15 @@ THEMES = [
         bg_sidebar="#F1F5F9",
         bg_card="#FFFFFF",
         bg_card_secondary="#F1F5F9",
-        border="#CBD5E1",
+        border="#E2E8F0",
         primary="#4F46E5",
         primary_hover="#4338CA",
-        primary_light="#818CF8",
+        primary_light="#4338CA",
         text_main="#0F172A",
         text_muted="#64748B",
         accent="#D97706",
         swatch_colors=["#F8FAFC", "#FFFFFF", "#4F46E5"],
+        is_dark=False,
     ),
 ]
 
@@ -336,6 +338,28 @@ def get_global_stylesheet(t: Theme) -> str:
         border-radius: 6px;
         padding: 6px 10px;
         font-size: {tip_px}px;
+    }}
+    QMenu {{
+        background-color: {t.bg_card};
+        color: {t.text_main};
+        border: 1px solid {t.border};
+        border-radius: 8px;
+        padding: 6px;
+    }}
+    QMenu::item {{
+        padding: 8px 16px;
+        border-radius: 6px;
+        color: {t.text_main};
+        font-size: {tip_px}px;
+    }}
+    QMenu::item:selected {{
+        background-color: {t.primary};
+        color: white;
+    }}
+    QMenu::separator {{
+        height: 1px;
+        background-color: {t.border};
+        margin: 4px 8px;
     }}
     """
 

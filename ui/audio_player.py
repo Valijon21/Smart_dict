@@ -12,7 +12,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QComboBox, QSlider, QCheckBox, QDialog, QFileDialog,
-    QProgressBar, QMessageBox, QLineEdit
+    QProgressBar, QMessageBox, QLineEdit, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QRectF
 from PyQt6.QtGui import QPainter, QColor, QBrush, QPainterPath
@@ -25,16 +25,53 @@ from logger import get_logger
 logger = get_logger("audio_player")
 
 
+def format_uzbek_translation(uz: str) -> str:
+    """
+    Agar o'zbekcha tarjima uzun bo'lsa yoki bir nechta sinonimlardan iborat bo'lsa,
+    uni ekranga qulay va chiroyli tarzda 2 qatorga (ikki qator) ajratadi.
+    """
+    if not uz:
+        return ""
+    uz = uz.strip()
+    if len(uz) <= 35 or "\n" in uz:
+        return uz
+
+    if "," in uz:
+        parts = [p.strip() for p in uz.split(",") if p.strip()]
+        if len(parts) >= 2:
+            total_len = len(uz)
+            cur_len = 0
+            best_idx = 1
+            min_diff = float("inf")
+            for i in range(len(parts) - 1):
+                cur_len += len(parts[i]) + 2
+                rem_len = total_len - cur_len
+                diff = abs(cur_len - rem_len)
+                if diff < min_diff:
+                    min_diff = diff
+                    best_idx = i + 1
+
+            line1 = ", ".join(parts[:best_idx])
+            line2 = ", ".join(parts[best_idx:])
+            return f"{line1},\n{line2}"
+
+    words = uz.split()
+    if len(words) >= 4:
+        mid = len(words) // 2
+        return " ".join(words[:mid]) + "\n" + " ".join(words[mid:])
+
+    return uz
+
+
 class VisualizerWidget(QWidget):
-    """Ovoz yangrayotganda ekvalayzer to'lqinlarini chizuvchi zamonaviy vidjet."""
+    """Ovoz yangrayotganda ekvalayzer to'lqinlarini chizuvchi nafis ixcham vidjet."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumHeight(48)
-        self.setMaximumHeight(64)
-        self.bars = 22
-        self.heights = [4.0] * self.bars
+        self.setFixedSize(260, 28)
+        self.bars = 24
+        self.heights = [3.0] * self.bars
         self.is_active = False
-        self.bar_color = QColor("#4F46E5")
+        self.bar_color = QColor("#6366F1")
         self._phase = 0.0
 
         self.timer = QTimer(self)
@@ -52,11 +89,14 @@ class VisualizerWidget(QWidget):
         self._phase += 0.2
         if self.is_active:
             for i in range(self.bars):
-                target = max(6.0, min(self.height() - 8.0, 10.0 + 35.0 * ((i * 7 + int(self._phase * 10)) % 11) / 10.0))
+                norm_pos = abs(i - (self.bars / 2.0)) / (self.bars / 2.0)
+                envelope = 1.0 - (norm_pos * 0.45)
+                wave = ((i * 7 + int(self._phase * 10)) % 11) / 10.0
+                target = max(3.0, min(self.height() - 4.0, (6.0 + 16.0 * wave) * envelope))
                 self.heights[i] += (target - self.heights[i]) * 0.35
         else:
             for i in range(self.bars):
-                self.heights[i] += (4.0 - self.heights[i]) * 0.25
+                self.heights[i] += (3.0 - self.heights[i]) * 0.25
         self.update()
 
     def paintEvent(self, event):
@@ -65,8 +105,8 @@ class VisualizerWidget(QWidget):
 
         w = self.width()
         h = self.height()
-        gap = 4
-        bar_w = max(3.0, (w - (self.bars - 1) * gap) / self.bars)
+        gap = 3.5
+        bar_w = max(2.5, (w - (self.bars - 1) * gap) / self.bars)
 
         painter.setBrush(QBrush(self.bar_color))
         painter.setPen(Qt.PenStyle.NoPen)
@@ -76,8 +116,9 @@ class VisualizerWidget(QWidget):
             bx = i * (bar_w + gap)
             by = (h - bh) / 2.0
             path = QPainterPath()
-            path.addRoundedRect(QRectF(bx, by, bar_w, bh), 2.0, 2.0)
+            path.addRoundedRect(QRectF(bx, by, bar_w, bh), 1.5, 1.5)
             painter.fillPath(path, QBrush(self.bar_color))
+
 
 
 class AudioWorkerThread(QThread):
@@ -596,13 +637,13 @@ class AudioPlayerWidget(QWidget):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(28, 24, 28, 24)
-        root.setSpacing(18)
+        root.setContentsMargins(24, 16, 24, 16)
+        root.setSpacing(12)
 
         # 1. Sarlavha qatori
         header_row = QHBoxLayout()
         self.title_lbl = QLabel("🎧 Hands-Free Audio Pleyer")
-        self.title_lbl.setStyleSheet("color: white; font-size: 22px; font-weight: 700;")
+        self.title_lbl.setStyleSheet("color: white; font-size: 20px; font-weight: 700;")
         header_row.addWidget(self.title_lbl)
         header_row.addStretch()
 
@@ -616,64 +657,76 @@ class AudioPlayerWidget(QWidget):
         self.mode_combo.setCursor(Qt.CursorShape.PointingHandCursor)
         self.mode_combo.currentIndexChanged.connect(self.load_words)
         header_row.addWidget(self.mode_combo)
+
+        self.btn_export = QPushButton("🎙️ Podcast (.wav) Eksport")
+        self.btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_export.setToolTip("Pleyerdagi yoki butun lug'atdagi so'zlarni oflayn audio podcast (.wav) qilib saqlash")
+        self.btn_export.clicked.connect(self._open_export_dialog)
+        header_row.addWidget(self.btn_export)
+
         root.addLayout(header_row)
 
         self.sub_lbl = QLabel(
             "Ekranga qaramasdan quloqchin orqali so'zlarni eshitib yodlang. "
             "Dastur ekrandagi so'zni aniq talaffuz qiladi, belgilangan pauza beradi va keyingi so'zga o'tadi."
         )
-        self.sub_lbl.setStyleSheet("color: #9CA3AF; font-size: 13px;")
+        self.sub_lbl.setStyleSheet("color: #9CA3AF; font-size: 12.5px;")
         root.addWidget(self.sub_lbl)
 
-        # 2. Markaziy Katta Pleyer Kartasi
+        # 2. Markaziy Pleyer Kartasi (Ixcham va professional dizayn)
         self.player_card = QFrame()
+        self.player_card.setObjectName("PlayerCard")
         card_layout = QVBoxLayout(self.player_card)
-        card_layout.setContentsMargins(32, 28, 32, 28)
-        card_layout.setSpacing(16)
+        card_layout.setContentsMargins(24, 16, 24, 16)
+        card_layout.setSpacing(8)
         card_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.track_idx_lbl = QLabel("So'z: 0 / 0")
-        self.track_idx_lbl.setStyleSheet("color: #9CA3AF; font-size: 14px; font-weight: 600;")
+        self.track_idx_lbl.setStyleSheet("color: #9CA3AF; font-size: 13px; font-weight: 600;")
         self.track_idx_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(self.track_idx_lbl)
 
-        # Visualizer
+        # Visualizer (Ixcham, markazlashtirilgan ovoz to'lqini)
         self.visualizer = VisualizerWidget()
-        card_layout.addWidget(self.visualizer)
+        card_layout.addWidget(self.visualizer, 0, Qt.AlignmentFlag.AlignCenter)
 
         self.word_lbl = QLabel("So'zlar yuklanmoqda...")
-        self.word_lbl.setStyleSheet("color: white; font-size: 38px; font-weight: 800; padding: 4px;")
+        self.word_lbl.setStyleSheet("color: white; font-size: 32px; font-weight: 800; padding: 2px;")
         self.word_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(self.word_lbl)
 
         phonetic_row = QHBoxLayout()
         phonetic_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        phonetic_row.setSpacing(10)
+        phonetic_row.setSpacing(8)
 
         self.phonetic_badge = QLabel("/transcription/")
         self.phonetic_badge.setStyleSheet(
-            "background-color: #1E1B4B; color: #A5B4FC; border-radius: 8px; "
-            "padding: 6px 14px; font-size: 15px; font-family: 'Segoe UI', sans-serif;"
+            "background-color: #1E1B4B; color: #A5B4FC; border-radius: 6px; "
+            "padding: 4px 10px; font-size: 13px; font-family: 'Segoe UI', sans-serif;"
         )
         phonetic_row.addWidget(self.phonetic_badge)
 
         self.pos_badge = QLabel("[word]")
         self.pos_badge.setStyleSheet(
-            "background-color: #064E3B; color: #6EE7B7; border-radius: 8px; "
-            "padding: 6px 12px; font-size: 13px; font-weight: 700;"
+            "background-color: #064E3B; color: #6EE7B7; border-radius: 6px; "
+            "padding: 4px 10px; font-size: 12px; font-weight: 700;"
         )
         phonetic_row.addWidget(self.pos_badge)
         card_layout.addLayout(phonetic_row)
 
+        # Tarjima (Uzun bo'lsa aniq 2 qatorga chiroyli sig'adigan qilib sozlangan)
         self.trans_lbl = QLabel("Tarjima")
-        self.trans_lbl.setStyleSheet("color: #34D399; font-size: 24px; font-weight: 700; padding: 6px;")
+        self.trans_lbl.setStyleSheet("color: #34D399; font-size: 18px; font-weight: 700; line-height: 1.35; padding: 2px 8px;")
         self.trans_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.trans_lbl.setWordWrap(True)
+        self.trans_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         card_layout.addWidget(self.trans_lbl)
 
         self.example_lbl = QLabel("")
-        self.example_lbl.setStyleSheet("color: #9CA3AF; font-size: 15px; font-style: italic;")
+        self.example_lbl.setStyleSheet("color: #9CA3AF; font-size: 14.5px; font-style: italic; line-height: 1.45; padding: 4px 16px;")
         self.example_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.example_lbl.setWordWrap(True)
+        self.example_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         card_layout.addWidget(self.example_lbl)
 
         root.addWidget(self.player_card, 1)
@@ -816,10 +869,23 @@ class AudioPlayerWidget(QWidget):
         ex = word.get("example", "") or ""
 
         self.word_lbl.setText(eng)
-        self.trans_lbl.setText(uz)
+        self.trans_lbl.setText(format_uzbek_translation(uz))
         self.phonetic_badge.setText(pho if pho else "/—/")
-        self.pos_badge.setText(f"[{pos}]")
-        self.example_lbl.setText(f"“{ex}”" if ex else "")
+        if ex:
+            clean_ex = ex.strip()
+            while clean_ex and clean_ex[0] in ('"', "'", '•', '*', '-', '–', '—', ' ', '\t', '“', '”', '`'):
+                clean_ex = clean_ex[1:].strip()
+            while clean_ex and clean_ex[-1] in ('"', "'", ' ', '\t', '“', '”', '`'):
+                clean_ex = clean_ex[:-1].strip()
+            self.example_lbl.setText(f"“{clean_ex}”" if clean_ex else "")
+        else:
+            self.example_lbl.setText("")
+
+    def _open_export_dialog(self):
+        """Pleyerdagi so'zlar ro'yxatini oflayn audio (.wav) qilib yuklab olish oynasini ochadi."""
+        playlist = list(self.worker.playlist) if self.worker and self.worker.playlist else []
+        dlg = AudioExportDialog(playlist, self)
+        dlg.exec()
 
     def _toggle_play(self):
         if not self.worker.isRunning() or not self.worker.is_running:
@@ -911,22 +977,33 @@ class AudioPlayerWidget(QWidget):
 
     def apply_theme(self, t: theme_manager.Theme):
         self.setStyleSheet(f"background-color: {t.bg_app};")
-        self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 22px; font-weight: 700;")
-        self.sub_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
+        self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 20px; font-weight: 700;")
+        self.sub_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 12.5px;")
 
         self.player_card.setStyleSheet(
-            f"QFrame {{ background-color: {t.bg_card}; border-radius: 16px; border: 1.5px solid {t.border}; }}"
+            f"QFrame#PlayerCard {{ background-color: {t.bg_card}; border-radius: 14px; border: 1px solid {t.border}; }} "
+            f"QLabel {{ border: none; background: transparent; }}"
         )
         self.visualizer.set_color(t.primary)
 
+        self.track_idx_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 13px; font-weight: 600;")
+        self.word_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 32px; font-weight: 800; padding: 2px;")
+        self.trans_lbl.setStyleSheet(f"color: {t.primary_light if t.primary_light else '#34D399'}; font-size: 19px; font-weight: 700; line-height: 1.35; padding: 2px 8px;")
+        self.example_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 14.5px; font-style: italic; line-height: 1.45; padding: 4px 16px;")
+
         self.mode_combo.setStyleSheet(
             f"QComboBox {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; "
-            f"border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; }}"
+            f"border-radius: 7px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; }}"
+        )
+        self.btn_export.setStyleSheet(
+            f"QPushButton {{ background-color: {t.bg_card}; color: {t.primary_light if t.primary_light else t.primary}; "
+            f"border: 1px solid {t.border}; border-radius: 7px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; }}"
+            f"QPushButton:hover {{ background-color: {t.bg_card_secondary}; border-color: {t.primary}; }}"
         )
 
         btn_style = (
             f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; "
-            f"border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; }}"
+            f"border-radius: 7px; padding: 7px 14px; font-size: 12.5px; font-weight: 600; }}"
             f"QPushButton:hover {{ background-color: {t.bg_card_secondary}; border-color: {t.primary}; }}"
             f"QPushButton:checked {{ background-color: {t.primary}; color: white; border-color: {t.primary}; }}"
         )
@@ -936,14 +1013,14 @@ class AudioPlayerWidget(QWidget):
         self.btn_loop.setStyleSheet(btn_style)
         self.btn_stop.setStyleSheet(
             f"QPushButton {{ background-color: {t.bg_card}; color: #EF4444; border: 1px solid #7F1D1D; "
-            f"border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; }}"
+            f"border-radius: 7px; padding: 7px 14px; font-size: 12.5px; font-weight: 600; }}"
             f"QPushButton:hover {{ background-color: #7F1D1D; color: white; }}"
         )
 
         if not self.worker.isRunning() or not self.worker.is_running or self.worker.is_paused:
             self.btn_play.setStyleSheet(
-                f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 8px; "
-                f"font-size: 14px; font-weight: 700; padding: 10px 24px; }}"
+                f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 7px; "
+                f"font-size: 13px; font-weight: 700; padding: 8px 20px; }}"
                 f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
             )
 

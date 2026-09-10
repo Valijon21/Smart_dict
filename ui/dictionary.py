@@ -44,17 +44,25 @@ class EnglishCellDelegate(QStyledItemDelegate):
         pos = data.get("pos", "")
 
         rect = option.rect
+        t = theme_manager.get_active_theme()
+        is_dark = t.is_dark
 
         # 1. Karnay tugmasi (Audio icon container)
         btn_rect = self._get_audio_rect(rect)
-        painter.setPen(QPen(QColor("#3730A3"), 1))
-        painter.setBrush(QBrush(QColor("#202038")))
+        if is_dark:
+            painter.setPen(QPen(QColor("#3730A3"), 1))
+            painter.setBrush(QBrush(QColor("#202038")))
+            icon_color = QColor("#818CF8")
+        else:
+            painter.setPen(QPen(QColor("#C7D2FE"), 1))
+            painter.setBrush(QBrush(QColor("#EEF2FF")))
+            icon_color = QColor("#4338CA")
         painter.drawRoundedRect(btn_rect, 6, 6)
 
         f_icon = QFont(option.font)
         f_icon.setPointSize(12)
         painter.setFont(f_icon)
-        painter.setPen(QColor("#818CF8"))
+        painter.setPen(icon_color)
         painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter, "🔊")
 
         # 2. Inglizcha so'z
@@ -62,7 +70,7 @@ class EnglishCellDelegate(QStyledItemDelegate):
         f_word.setPointSize(11)
         f_word.setBold(True)
         painter.setFont(f_word)
-        painter.setPen(QColor("#FFFFFF"))
+        painter.setPen(QColor(t.text_main))
         word_rect = QRect(rect.x() + 54, rect.y() + 6, max(10, rect.width() - 60), 20)
         painter.drawText(word_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, word)
 
@@ -74,7 +82,7 @@ class EnglishCellDelegate(QStyledItemDelegate):
         sub_x = rect.x() + 54
         sub_y = rect.y() + 27
         if ph:
-            painter.setPen(QColor("#A5B4FC"))
+            painter.setPen(QColor("#A5B4FC" if is_dark else "#4338CA"))
             painter.drawText(sub_x, sub_y + 14, ph)
             fm = painter.fontMetrics()
             sub_x += fm.horizontalAdvance(ph) + 8
@@ -84,9 +92,14 @@ class EnglishCellDelegate(QStyledItemDelegate):
             pw = fm.horizontalAdvance(pos_text) + 8
             pill = QRect(sub_x, sub_y + 1, pw, 18)
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QBrush(QColor("#312E81")))
-            painter.drawRoundedRect(pill, 4, 4)
-            painter.setPen(QColor("#C7D2FE"))
+            if is_dark:
+                painter.setBrush(QBrush(QColor("#312E81")))
+                painter.drawRoundedRect(pill, 4, 4)
+                painter.setPen(QColor("#C7D2FE"))
+            else:
+                painter.setBrush(QBrush(QColor("#E0E7FF")))
+                painter.drawRoundedRect(pill, 4, 4)
+                painter.setPen(QColor("#3730A3"))
             painter.drawText(pill, Qt.AlignmentFlag.AlignCenter, pos_text)
 
         painter.restore()
@@ -118,6 +131,9 @@ class UzbekCellDelegate(QStyledItemDelegate):
         uz_text = data.get("uzbek", "")
         ex_text = data.get("example", "")
 
+        t = theme_manager.get_active_theme()
+        is_dark = t.is_dark
+
         rect = option.rect.adjusted(12, 4, -12, -4)
 
         if ex_text:
@@ -125,7 +141,7 @@ class UzbekCellDelegate(QStyledItemDelegate):
             f1.setPointSize(10)
             f1.setBold(True)
             painter.setFont(f1)
-            painter.setPen(QColor("#E5E7EB"))
+            painter.setPen(QColor(t.text_main))
             top_rect = QRect(rect.x(), rect.y() + 2, rect.width(), 20)
             painter.drawText(top_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, uz_text)
 
@@ -133,7 +149,7 @@ class UzbekCellDelegate(QStyledItemDelegate):
             f2.setPointSize(9)
             f2.setItalic(True)
             painter.setFont(f2)
-            painter.setPen(QColor("#818CF8"))
+            painter.setPen(QColor("#818CF8" if is_dark else "#4338CA"))
             bot_rect = QRect(rect.x(), rect.y() + 24, rect.width(), 18)
             elided_ex = painter.fontMetrics().elidedText(f"💡 {ex_text}", Qt.TextElideMode.ElideRight, rect.width())
             painter.drawText(bot_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, elided_ex)
@@ -142,7 +158,7 @@ class UzbekCellDelegate(QStyledItemDelegate):
             f.setPointSize(10)
             f.setBold(True)
             painter.setFont(f)
-            painter.setPen(QColor("#E5E7EB"))
+            painter.setPen(QColor(t.text_main))
             painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, uz_text)
 
         painter.restore()
@@ -217,20 +233,34 @@ class ActionsCellDelegate(QStyledItemDelegate):
             painter.fillRect(option.rect, option.palette.highlight())
 
         r_info, r_edit, r_del = self._get_button_rects(option.rect)
+        t = theme_manager.get_active_theme()
+        is_dark = t.is_dark
 
         # 1. Info btn (💡)
-        painter.setPen(QPen(QColor("#4D3D70"), 1))
-        painter.setBrush(QBrush(QColor("#262040")))
+        if is_dark:
+            painter.setPen(QPen(QColor("#4D3D70"), 1))
+            painter.setBrush(QBrush(QColor("#262040")))
+        else:
+            painter.setPen(QPen(QColor("#DDD6FE"), 1))
+            painter.setBrush(QBrush(QColor("#F5F3FF")))
         painter.drawRoundedRect(r_info, 6, 6)
 
         # 2. Edit btn (✏️)
-        painter.setPen(QPen(QColor("#3F377A"), 1))
-        painter.setBrush(QBrush(QColor("#242044")))
+        if is_dark:
+            painter.setPen(QPen(QColor("#3F377A"), 1))
+            painter.setBrush(QBrush(QColor("#242044")))
+        else:
+            painter.setPen(QPen(QColor("#C7D2FE"), 1))
+            painter.setBrush(QBrush(QColor("#EEF2FF")))
         painter.drawRoundedRect(r_edit, 6, 6)
 
         # 3. Del btn (🗑️)
-        painter.setPen(QPen(QColor("#6B1D1D"), 1))
-        painter.setBrush(QBrush(QColor("#381A1A")))
+        if is_dark:
+            painter.setPen(QPen(QColor("#6B1D1D"), 1))
+            painter.setBrush(QBrush(QColor("#381A1A")))
+        else:
+            painter.setPen(QPen(QColor("#FECACA"), 1))
+            painter.setBrush(QBrush(QColor("#FEF2F2")))
         painter.drawRoundedRect(r_del, 6, 6)
 
         f = QFont(option.font)
@@ -656,50 +686,30 @@ class DictionaryWidget(QWidget):
 
         # --- 1. Header va Eksport tugmalari ---
         top_row = QHBoxLayout()
-        header = QLabel("📖 Lug'at va so'zlar bazasi")
-        header.setStyleSheet("color: white; font-size: 22px; font-weight: 700;")
-        top_row.addWidget(header)
+        self.header_title = QLabel("📖 Lug'at va so'zlar bazasi")
+        self.header_title.setStyleSheet("font-size: 22px; font-weight: 700;")
+        top_row.addWidget(self.header_title)
         top_row.addStretch()
 
-        export_csv_btn = QPushButton("📥 CSV Eksport")
-        export_csv_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        export_csv_btn.setStyleSheet(
-            "QPushButton { background-color: #1E1E2E; color: #10B981; border: 1px solid #10B981;"
-            "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
-            "QPushButton:hover { background-color: #064E3B; color: white; }"
-        )
-        export_csv_btn.clicked.connect(self.export_csv)
-        top_row.addWidget(export_csv_btn)
+        self.export_csv_btn = QPushButton("📥 CSV Eksport")
+        self.export_csv_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.export_csv_btn.clicked.connect(self.export_csv)
+        top_row.addWidget(self.export_csv_btn)
 
-        export_json_btn = QPushButton("📥 JSON Eksport")
-        export_json_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        export_json_btn.setStyleSheet(
-            "QPushButton { background-color: #1E1E2E; color: #818CF8; border: 1px solid #6366F1;"
-            "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
-            "QPushButton:hover { background-color: #312E81; color: white; }"
-        )
-        export_json_btn.clicked.connect(self.export_json)
-        top_row.addWidget(export_json_btn)
+        self.export_json_btn = QPushButton("📥 JSON Eksport")
+        self.export_json_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.export_json_btn.clicked.connect(self.export_json)
+        top_row.addWidget(self.export_json_btn)
 
-        packs_btn = QPushButton("📚 Tayyor to'plamlar (Word Packs)")
-        packs_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        packs_btn.setStyleSheet(
-            "QPushButton { background-color: #4338CA; color: white; border: 1px solid #6366F1;"
-            "border-radius: 8px; padding: 7px 16px; font-size: 12px; font-weight: 700; }"
-            "QPushButton:hover { background-color: #4F46E5; border-color: #A5B4FC; }"
-        )
-        packs_btn.clicked.connect(self.open_word_packs)
-        top_row.addWidget(packs_btn)
+        self.packs_btn = QPushButton("📚 Tayyor to'plamlar (Word Packs)")
+        self.packs_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.packs_btn.clicked.connect(self.open_word_packs)
+        top_row.addWidget(self.packs_btn)
 
-        print_btn = QPushButton("🖨️ Chop etish / PDF")
-        print_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        print_btn.setStyleSheet(
-            "QPushButton { background-color: #1E1E2E; color: #F59E0B; border: 1px solid #F59E0B;"
-            "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
-            "QPushButton:hover { background-color: #78350F; color: white; }"
-        )
-        print_btn.clicked.connect(self.open_worksheet_generator)
-        top_row.addWidget(print_btn)
+        self.print_btn = QPushButton("🖨️ Chop etish / PDF")
+        self.print_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.print_btn.clicked.connect(self.open_worksheet_generator)
+        top_row.addWidget(self.print_btn)
 
         layout.addLayout(top_row)
 
@@ -841,9 +851,9 @@ class DictionaryWidget(QWidget):
         footer.addWidget(self.count_label)
         footer.addStretch()
 
-        hint_label = QLabel("💡 Maslahat: Har bir so'z oldidagi 🔊 karnay tugmasini bosib, darhol talaffuzini eshiting!")
-        hint_label.setStyleSheet("color: #818CF8; font-size: 12px;")
-        footer.addWidget(hint_label)
+        self.hint_label = QLabel("💡 Maslahat: Har bir so'z oldidagi 🔊 karnay tugmasini bosib, darhol talaffuzini eshiting!")
+        self.hint_label.setStyleSheet("color: #818CF8; font-size: 12px;")
+        footer.addWidget(self.hint_label)
 
         layout.addLayout(footer)
 
@@ -866,6 +876,66 @@ class DictionaryWidget(QWidget):
         )
 
     def apply_theme(self, t: theme_manager.Theme):
+        if hasattr(self, "header_title"):
+            self.header_title.setStyleSheet(f"color: {t.text_main}; font-size: 22px; font-weight: 700;")
+        if hasattr(self, "export_csv_btn"):
+            if t.is_dark:
+                self.export_csv_btn.setStyleSheet(
+                    "QPushButton { background-color: #1E1E2E; color: #10B981; border: 1px solid #10B981;"
+                    "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #064E3B; color: white; }"
+                )
+            else:
+                self.export_csv_btn.setStyleSheet(
+                    "QPushButton { background-color: #ECFDF5; color: #059669; border: 1px solid #10B981;"
+                    "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #D1FAE5; }"
+                )
+        if hasattr(self, "export_json_btn"):
+            if t.is_dark:
+                self.export_json_btn.setStyleSheet(
+                    "QPushButton { background-color: #1E1E2E; color: #818CF8; border: 1px solid #6366F1;"
+                    "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #312E81; color: white; }"
+                )
+            else:
+                self.export_json_btn.setStyleSheet(
+                    "QPushButton { background-color: #EEF2FF; color: #4F46E5; border: 1px solid #6366F1;"
+                    "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #E0E7FF; }"
+                )
+        if hasattr(self, "packs_btn"):
+            self.packs_btn.setStyleSheet(
+                f"QPushButton {{ background-color: {t.primary}; color: white; border: 1px solid {t.primary};"
+                f"border-radius: 8px; padding: 7px 16px; font-size: 12px; font-weight: 700; }}"
+                f"QPushButton:hover {{ background-color: {t.primary_hover}; }}"
+            )
+        if hasattr(self, "print_btn"):
+            if t.is_dark:
+                self.print_btn.setStyleSheet(
+                    "QPushButton { background-color: #1E1E2E; color: #F59E0B; border: 1px solid #F59E0B;"
+                    "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #78350F; color: white; }"
+                )
+            else:
+                self.print_btn.setStyleSheet(
+                    "QPushButton { background-color: #FFFBEB; color: #D97706; border: 1px solid #F59E0B;"
+                    "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #FEF3C7; }"
+                )
+        if hasattr(self, "global_banner"):
+            if t.is_dark:
+                self.global_banner.setStyleSheet(
+                    "background-color: #1E1B4B; border: 1.5px solid #6366F1; border-radius: 12px; padding: 10px 14px;"
+                )
+            else:
+                self.global_banner.setStyleSheet(
+                    "background-color: #EEF2FF; border: 1.5px solid #818CF8; border-radius: 12px; padding: 10px 14px;"
+                )
+        if hasattr(self, "count_label"):
+            self.count_label.setStyleSheet(f"color: {t.text_muted}; font-size: 13px; font-weight: 500;")
+        if hasattr(self, "hint_label"):
+            self.hint_label.setStyleSheet(f"color: {t.primary_light if not t.is_dark else '#818CF8'}; font-size: 12px;")
         if hasattr(self, "filter_frame"):
             self.filter_frame.setStyleSheet(
                 f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};"
@@ -886,8 +956,8 @@ class DictionaryWidget(QWidget):
                     border: 1px solid {t.border};
                     border-radius: 12px;
                     font-size: 14px;
-                    selection-background-color: {t.bg_card_secondary};
-                    selection-color: {t.text_main};
+                    selection-background-color: {t.primary};
+                    selection-color: #FFFFFF;
                     outline: none;
                 }}
                 QTableWidget::item {{
@@ -896,7 +966,7 @@ class DictionaryWidget(QWidget):
                     border: none;
                 }}
                 QTableWidget::item:selected {{
-                    background-color: {t.bg_card};
+                    background-color: {t.primary};
                     color: #FFFFFF;
                 }}
                 QHeaderView::section {{
@@ -910,6 +980,7 @@ class DictionaryWidget(QWidget):
                 }}
                 """
             )
+            self.table.viewport().update()
         for k, btn in getattr(self, "filter_buttons", {}).items():
             btn.setStyleSheet(self._filter_btn_style(k == getattr(self, "current_filter", "all")))
 
@@ -942,29 +1013,47 @@ class DictionaryWidget(QWidget):
         else:
             self.global_banner.setVisible(False)
 
-        # Leitner Box ranglari (zamonaviy chip palitrasi)
-        box_badges = {
-            0: ("Box 0", "#1F2937", "#9CA3AF", "#374151"),
-            1: ("Box 1", "#1E2A4A", "#60A5FA", "#2563EB"),
-            2: ("Box 2", "#281D4A", "#A78BFA", "#7C3AED"),
-            3: ("Box 3", "#33220A", "#FBBF24", "#D97706"),
-            4: ("Box 4", "#0D3322", "#34D399", "#059669"),
-            5: ("Box 5", "#083328", "#2DD4BF", "#0D9488"),
-        }
+        # Leitner Box va Status ranglari (Mavzuga mos zamonaviy chip palitrasi)
+        t = theme_manager.get_active_theme()
+        is_dark = t.is_dark
 
-        # Status chiplari
-        status_badges = {
-            "new": ("Yangi", "#1E293B", "#38BDF8", "#0284C7"),
-            "learning": ("O'rganilmoqda", "#2E1A0F", "#FB923C", "#C2410C"),
-            "mastered": ("O'zlashtirilgan", "#062E1F", "#34D399", "#059669"),
-        }
+        if is_dark:
+            box_badges = {
+                0: ("Box 0", "#1F2937", "#9CA3AF", "#374151"),
+                1: ("Box 1", "#1E2A4A", "#60A5FA", "#2563EB"),
+                2: ("Box 2", "#281D4A", "#A78BFA", "#7C3AED"),
+                3: ("Box 3", "#33220A", "#FBBF24", "#D97706"),
+                4: ("Box 4", "#0D3322", "#34D399", "#059669"),
+                5: ("Box 5", "#083328", "#2DD4BF", "#0D9488"),
+            }
+            status_badges = {
+                "new": ("Yangi", "#1E293B", "#38BDF8", "#0284C7"),
+                "learning": ("O'rganilmoqda", "#2E1A0F", "#FB923C", "#C2410C"),
+                "mastered": ("O'zlashtirilgan", "#062E1F", "#34D399", "#059669"),
+            }
+            id_color = QColor("#6B7280")
+        else:
+            box_badges = {
+                0: ("Box 0", "#F1F5F9", "#475569", "#CBD5E1"),
+                1: ("Box 1", "#EFF6FF", "#1D4ED8", "#BFDBFE"),
+                2: ("Box 2", "#F5F3FF", "#6D28D9", "#DDD6FE"),
+                3: ("Box 3", "#FFFBEB", "#B45309", "#FDE68A"),
+                4: ("Box 4", "#ECFDF5", "#047857", "#A7F3D0"),
+                5: ("Box 5", "#F0FDFA", "#0F766E", "#99F6E4"),
+            }
+            status_badges = {
+                "new": ("Yangi", "#F0F9FF", "#0369A1", "#BAE6FD"),
+                "learning": ("O'rganilmoqda", "#FFF7ED", "#C2410C", "#FFEDD5"),
+                "mastered": ("O'zlashtirilgan", "#F0FDF4", "#15803D", "#BBF7D0"),
+            }
+            id_color = QColor("#64748B")
 
         self.table.setUpdatesEnabled(False)
         for i, row in enumerate(rows):
             # 0: ID
             id_item = QTableWidgetItem(str(row["id"]))
             id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            id_item.setForeground(QColor("#6B7280"))
+            id_item.setForeground(id_color)
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(i, 0, id_item)
 

@@ -87,9 +87,9 @@ class ReaderWidget(QWidget):
         # 1. Sarlavha paneli
         header_row = QHBoxLayout()
         v_head = QVBoxLayout()
-        title = QLabel("📖 Aqlli O'qish (Smart Reader)")
-        title.setStyleSheet("color: white; font-size: 20px; font-weight: 700;")
-        v_head.addWidget(title)
+        self.title_lbl = QLabel("📖 Aqlli O'qish (Smart Reader)")
+        self.title_lbl.setStyleSheet("font-size: 20px; font-weight: 700;")
+        v_head.addWidget(self.title_lbl)
 
         subtitle = QLabel("Matndagi so'zlarni bosing: tarjimasi chiqadi yoki 1-bosish bilan lug'atga qo'shiladi.")
         subtitle.setStyleSheet("color: #9CA3AF; font-size: 12px;")
@@ -247,6 +247,28 @@ class ReaderWidget(QWidget):
             self.known_container.setStyleSheet(f"background-color: {t.bg_card_secondary}; border-radius: 8px; padding: 8px;")
         if hasattr(self, "new_container"):
             self.new_container.setStyleSheet(f"background-color: {t.bg_card_secondary}; border-radius: 8px; padding: 8px;")
+        if hasattr(self, "title_lbl"):
+            self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 20px; font-weight: 700;")
+        if hasattr(self, "insp_word_lbl"):
+            self.insp_word_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 22px; font-weight: 700;")
+        if hasattr(self, "insp_tts_btn"):
+            if t.is_dark:
+                self.insp_tts_btn.setStyleSheet(
+                    "QPushButton { background-color: #2A2A3C; border-radius: 8px; font-size: 16px; border: 1px solid #374151; color: white; }"
+                    "QPushButton:hover { background-color: #4F46E5; border-color: #6366F1; }"
+                )
+            else:
+                self.insp_tts_btn.setStyleSheet(
+                    f"QPushButton {{ background-color: #EEF2FF; border-radius: 8px; font-size: 16px; border: 1px solid #C7D2FE; color: {t.primary}; }}"
+                    f"QPushButton:hover {{ background-color: {t.primary}; color: white; border-color: {t.primary}; }}"
+                )
+        if hasattr(self, "insp_pos_badge"):
+            if t.is_dark:
+                self.insp_pos_badge.setStyleSheet("background-color: #312E81; color: #C7D2FE; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 6px;")
+            else:
+                self.insp_pos_badge.setStyleSheet("background-color: #E0E7FF; color: #3730A3; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 6px;")
+        if hasattr(self, "insp_phonetic_lbl"):
+            self.insp_phonetic_lbl.setStyleSheet(f"color: {t.primary_light if not t.is_dark else '#A5B4FC'}; font-size: 13px; font-weight: 500;")
         if hasattr(self, "new_uz_input"):
             self.new_uz_input.setStyleSheet(
                 f"background-color: {t.bg_app}; color: {t.text_main}; border: 1px solid {t.border}; "
