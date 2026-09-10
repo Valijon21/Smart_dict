@@ -409,6 +409,11 @@ class WordFallGameWidget(QWidget):
             earned_xp = max(1, self.score // 10)
             new_total_xp, level_up, level_title = gamification.award_xp(earned_xp)
             sound_effects.play_victory()
+            try:
+                import daily_quests_service
+                daily_quests_service.record_quest_progress("game_score", self.score)
+            except Exception:
+                pass
             msg = (
                 f"🌧️ <b>O'yin yakunlandi!</b><br><br>"
                 f"🏷️ To'plam: <b>{source_title}</b><br>"

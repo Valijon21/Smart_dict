@@ -581,6 +581,12 @@ class BlitzGameWidget(QWidget):
             awarded_xp = max(5, self.score // 5)
             gamification.award_xp(awarded_xp)
             sound_effects.play_victory()
+            try:
+                import daily_quests_service
+                daily_quests_service.record_quest_progress("game_score", self.score)
+                daily_quests_service.record_quest_progress("blitz_words", self.correct_count)
+            except Exception as e:
+                logger.debug(f"Quest progress error: {e}")
         else:
             awarded_xp = 0
 

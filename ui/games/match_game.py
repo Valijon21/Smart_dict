@@ -660,6 +660,13 @@ class MatchGameWidget(QWidget):
         xp_to_award = self.matched_pairs * 5
         new_xp, level_up, new_level = gamification.award_xp(xp_to_award)
         sound_effects.play_victory()
+        try:
+            import daily_quests_service
+            daily_quests_service.record_quest_progress("game_score", xp_to_award)
+            if self.matched_pairs >= 3:
+                daily_quests_service.record_quest_progress("match_game", 1)
+        except Exception:
+            pass
 
         source_title = self.source_selector.get_current_source_title() if hasattr(self, "source_selector") else "Lug'at"
 
@@ -696,6 +703,12 @@ class MatchGameWidget(QWidget):
             # Gamifikatsiya: har bir juftlik uchun 5 XP + 10 XP bonus
             earned_xp = self.total_pairs * 5 + 10
             new_xp, level_up, new_level = gamification.award_xp(earned_xp)
+            try:
+                import daily_quests_service
+                daily_quests_service.record_quest_progress("game_score", earned_xp)
+                daily_quests_service.record_quest_progress("match_game", 1)
+            except Exception:
+                pass
 
             # Rekordni tekshirish
             prev_best_str = db.get_setting("match_best_time", "")

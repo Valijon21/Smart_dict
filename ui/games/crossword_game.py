@@ -711,6 +711,11 @@ class CrosswordGameWidget(QWidget):
             earned_xp = max(1, self.solved_words * 5 - self.hints_used * 2)
             new_total_xp, level_up, level_title = gamification.award_xp(earned_xp)
             sound_effects.play_victory()
+            try:
+                import daily_quests_service
+                daily_quests_service.record_quest_progress("game_score", earned_xp)
+            except Exception:
+                pass
             msg = (
                 f"🧩 <b>Krossvord yakunlandi!</b><br><br>"
                 f"🏷️ To'plam: <b>{source_title}</b><br>"

@@ -910,6 +910,12 @@ class DashboardWidget(QWidget):
 
         self.layout_root.addWidget(self.goal_frame)
 
+        # --- 🎯 Kunlik Missiyalar (Daily Quests & Battle Pass) ---
+        from ui.components.daily_quests_widget import DailyQuestsWidget
+        self.daily_quests_widget = DailyQuestsWidget(self)
+        self.daily_quests_widget.data_changed.connect(self.refresh)
+        self.layout_root.addWidget(self.daily_quests_widget)
+
         # --- Tezkor amallar paneli (Quick Actions) ---
         self.actions_frame = QFrame()
         self.actions_frame.setStyleSheet(f"background-color: {t.bg_card}; border-radius: 12px; border: 1px solid {t.border};")
@@ -1370,6 +1376,10 @@ class DashboardWidget(QWidget):
         if hasattr(self, "retention_widget"):
             ret_data = retention_analytics.get_memory_retention_overview()
             self.retention_widget.set_data(ret_data)
+
+        # --- 5-Vidjet: Kunlik Missiyalar (Daily Quests & Battle Pass) ---
+        if hasattr(self, "daily_quests_widget"):
+            self.daily_quests_widget.refresh()
 
         # --- Zaif so'zlar radari yangilanishi ---
         if hasattr(self, "radar_list_layout"):

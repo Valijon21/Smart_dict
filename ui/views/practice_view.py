@@ -969,8 +969,32 @@ class PracticeWidget(QWidget):
         """Hozirgi so'z uchun Windows Native talaffuzni sinash dialogini ochish."""
         if not self.current:
             return
-        import speech_recognizer
-        speech_recognizer.open_pronunciation_dialog(self.current, parent=self)
+
+        self.mic_btn.setStyleSheet(
+            "QPushButton { background-color: #E11D48; color: white; border: 2px solid #FB7185; "
+            "border-radius: 21px; font-size: 18px; }"
+        )
+        try:
+            from services.speech_service import PronunciationDialog
+            dlg = PronunciationDialog(self.current, parent=self)
+            dlg.exec()
+            if getattr(dlg, "speech_tested", False):
+                try:
+                    import daily_quests_service
+                    res = daily_quests_service.record_quest_progress("pronunciation", 1)
+                    if res.get("completed_quests"):
+                        self.mode_label.setText("🎯 Kunlik missiya: Talaffuz vazifasi bajarildi!")
+                        self.mode_label.setStyleSheet("color: #10B981; font-size: 13px; font-weight: 700;")
+                except Exception as e:
+                    logger.debug(f"Quest update error: {e}")
+        except Exception as e:
+            logger.error(f"Talaffuz dialogida xatolik: {e}", exc_info=True)
+        finally:
+            self.mic_btn.setStyleSheet(
+                "QPushButton { background-color: #24243A; color: #F43F5E; border: 1px solid #881337; "
+                "border-radius: 21px; font-size: 18px; }"
+                "QPushButton:hover { background-color: #E11D48; color: white; border-color: #FB7185; }"
+            )
 
     def play_audio(self):
         if not self.isVisible():
@@ -1303,6 +1327,17 @@ class PracticeWidget(QWidget):
         if is_correct:
             self.consecutive_correct += 1
             sound_effects.play_correct()
+            try:
+                import daily_quests_service
+                daily_quests_service.record_quest_progress("practice_words", 1)
+                if self.consecutive_correct >= 5:
+                    daily_quests_service.record_quest_progress("practice_streak", 1)
+                if self.quiz_mode == "listening":
+                    daily_quests_service.record_quest_progress("listening_words", 1)
+                elif self.quiz_mode == "flashcard":
+                    daily_quests_service.record_quest_progress("flashcard_words", 1)
+            except Exception as e:
+                logger.debug(f"Daily quest progress error: {e}")
         else:
             self.consecutive_correct = 0
             sound_effects.play_wrong()

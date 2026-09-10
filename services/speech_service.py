@@ -223,6 +223,8 @@ class PronunciationDialog(QDialog):
         self.word_phonetic = str(w_dict.get("phonetic", "") or "").strip()
         self.recorded_file = ""
         self.is_recording = False
+        self.speech_tested = False
+        self.last_score = 0
         self.worker: WindowsSpeechWorker | None = None
 
         # 16kHz 16-bit Mono PCM format (SAPI va WAV standarti)
@@ -519,9 +521,14 @@ class PronunciationDialog(QDialog):
             )
         else:
             self.lbl_score_badge.setText("ℹ️ Ovoz yozildi")
-            self.lbl_feedback.setText(f"O'z ovozingizni namunadagi talaffuz bilan solishtiring.")
-
         self.lbl_status.setText("Tahlil yakunlandi.")
+        self.speech_tested = True
+        self.last_score = score
+        try:
+            import daily_quests_service
+            daily_quests_service.record_quest_progress("pronunciation", 1)
+        except Exception as e:
+            logger.debug(f"Quest progress error: {e}")
 
     def closeEvent(self, event):
         self._stop_recording()
