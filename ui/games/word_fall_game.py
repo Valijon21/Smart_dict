@@ -18,6 +18,8 @@ import gamification
 import sound_effects
 import theme_manager
 from logger import get_logger
+from ui.components.game_source_selector import GameSourceSelector
+from services import game_word_provider as gwp
 
 logger = get_logger("word_fall_game")
 
@@ -163,6 +165,8 @@ class WordFallGameWidget(QWidget):
         self.spawn_timer.timeout.connect(self._spawn_word)
 
         self._build_ui()
+        theme_manager.register_listener(self.apply_theme)
+        self.apply_theme(theme_manager.get_active_theme())
 
     def _build_ui(self):
         t = theme_manager.get_active_theme()
@@ -201,6 +205,10 @@ class WordFallGameWidget(QWidget):
         desc = QLabel("Tepadan tushayotgan so'zni (inglizcha yoki o'zbekcha tarjimasini) yozing va Enter bosing.")
         desc.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
         root.addWidget(desc)
+
+        # To'plam tanlash paneli (Mavzular, To'plamlar, CEFR, Shaxsiy)
+        self.source_selector = GameSourceSelector("word_fall", self)
+        root.addWidget(self.source_selector)
 
         # 2. O'yin maydoni (Canvas)
         self.canvas = WordFallCanvas(self)
@@ -246,9 +254,22 @@ class WordFallGameWidget(QWidget):
 
     def start_game(self):
         """O'yinni yangidan boshlash."""
-        words = db.get_all_words()
+        if hasattr(self, "source_selector"):
+            self.source_selector.set_enabled(False)
+            words = self.source_selector.get_words(limit=100)
+        else:
+            words = [dict(w) for w in db.get_all_words()]
+
         if len(words) < 5:
-            QMessageBox.warning(self, "So'zlar kam", "Word Fall o'ynash uchun bazada kamida 5 ta so'z bo'lishi kerak!")
+            words = [dict(w) for w in db.get_all_words()]
+
+        if len(words) < 5:
+            words = gwp.get_words_for_game(gwp.CAT_PACKS, "essential", limit=100)
+
+        if len(words) < 5:
+            if hasattr(self, "source_selector"):
+                self.source_selector.set_enabled(True)
+            QMessageBox.warning(self, "So'zlar kam", "Word Fall o'ynash uchun kamida 5 ta so'z bo'lishi kerak!")
             return
 
         self.words_pool = words
@@ -377,6 +398,12 @@ class WordFallGameWidget(QWidget):
         self.btn_stop.setEnabled(False)
         self.answer_input.setEnabled(False)
 
+        if hasattr(self, "source_selector"):
+            self.source_selector.set_enabled(True)
+            source_title = self.source_selector.get_current_source_title()
+        else:
+            source_title = "Lug'at"
+
         # GAMIFIKATSIYA QAT'IY QOIDASI: 0 ball bilan XP berilmaydi!
         if self.score > 0:
             earned_xp = max(1, self.score // 10)
@@ -384,6 +411,7 @@ class WordFallGameWidget(QWidget):
             sound_effects.play_victory()
             msg = (
                 f"🌧️ <b>O'yin yakunlandi!</b><br><br>"
+                f"🏷️ To'plam: <b>{source_title}</b><br>"
                 f"🏆 To'plangan ball: <b>{self.score}</b><br>"
                 f"✅ Yo'q qilingan so'zlar: <b>{self.words_cleared} ta</b><br>"
                 f"⚡ Maksimal combo: <b>{self.max_combo}x</b><br>"
@@ -393,6 +421,7 @@ class WordFallGameWidget(QWidget):
             # 0 ball = 0 XP, ovozsiz
             msg = (
                 f"🌧️ <b>O'yin yakunlandi!</b><br><br>"
+                f"🏷️ To'plam: <b>{source_title}</b><br>"
                 f"Ball: <b>0</b><br>"
                 f"Siz hech qanday so'zni yo'q qila olmadingiz.<br>"
                 f"<i>Qat'iy qoida: 0 ball bilan XP berilmaydi.</i>"
@@ -407,3 +436,16 @@ class WordFallGameWidget(QWidget):
         if not self.is_playing:
             return
         self._on_game_over()
+
+    def apply_theme(self, t: theme_manager.Theme):
+        self.setStyleSheet(f"background-color: {t.bg_app};")
+        if hasattr(self, "title_lbl"):
+            self.title_lbl.setStyleSheet(f"font-size: 22px; font-weight: 700; color: {t.text_main};")
+        if hasattr(self, "source_selector"):
+            self.source_selector.apply_theme(t)
+        if hasattr(self, "answer_input"):
+            self.answer_input.setStyleSheet(
+                f"QLineEdit {{ background-color: {t.bg_card}; color: {t.text_main}; border: 2px solid {t.border}; "
+                f"border-radius: 10px; padding: 12px 16px; font-size: 15px; font-weight: 600; }} "
+                f"QLineEdit:focus {{ border-color: {t.primary}; }}"
+            )

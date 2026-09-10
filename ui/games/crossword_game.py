@@ -16,6 +16,8 @@ import gamification
 import sound_effects
 import theme_manager
 from logger import get_logger
+from ui.components.game_source_selector import GameSourceSelector
+from services import game_word_provider as gwp
 
 logger = get_logger("crossword_game")
 
@@ -264,6 +266,8 @@ class CrosswordGameWidget(QWidget):
         self.is_active = False
 
         self._build_ui()
+        theme_manager.register_listener(self.apply_theme)
+        self.apply_theme(theme_manager.get_active_theme())
         self.generate_new_puzzle()
 
     def _build_ui(self):
@@ -290,6 +294,11 @@ class CrosswordGameWidget(QWidget):
         desc = QLabel("Krossvord kataklariga yoki o'ngdagi ta'riflarga bosib so'zlarni yozing. Harflar avtomatik keyingisiga o'tadi.")
         desc.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
         root.addWidget(desc)
+
+        # To'plam tanlash paneli (Mavzular, To'plamlar, CEFR, Shaxsiy)
+        self.source_selector = GameSourceSelector("crossword", self)
+        self.source_selector.source_changed.connect(lambda _c, _s: self.generate_new_puzzle())
+        root.addWidget(self.source_selector)
 
         # 2. Asosiy bo'linma (Chap: Panjara, O'ng: Ta'riflar)
         content_layout = QHBoxLayout()
@@ -380,13 +389,30 @@ class CrosswordGameWidget(QWidget):
         root.addLayout(btn_bar)
 
     def generate_new_puzzle(self):
-        """Baza so'zlaridan yangi krossvord yasash."""
-        words = db.get_all_words()
-        if len(words) < 5:
-            QMessageBox.warning(self, "So'zlar kam", "Krossvord yaratish uchun bazada kamida 5 ta so'z bo'lishi kerak!")
+        """Tanlangan to'plam so'zlaridan yangi krossvord yasash."""
+        if hasattr(self, "source_selector"):
+            words = self.source_selector.get_words(limit=80, min_len=3, max_len=8, alpha_only=True)
+        else:
+            words = db.get_all_words()
+
+        if len(words) < 4:
+            if hasattr(self, "source_selector"):
+                words = self.source_selector.get_words(limit=80)
+            if len(words) < 4:
+                words = db.get_all_words()
+
+        if len(words) < 4:
+            words = gwp.get_words_for_game(gwp.CAT_PACKS, "essential", limit=80, min_len=3, max_len=8, alpha_only=True)
+
+        if len(words) < 3:
+            QMessageBox.warning(self, "So'zlar kam", "Krossvord yaratish uchun kamida 3 ta mos so'z bo'lishi kerak!")
             return
 
         grid, placed = CrosswordGenerator.generate(words, max_words=6)
+        if not placed:
+            fallback_words = gwp.get_words_for_game(gwp.CAT_PACKS, "essential", limit=80, min_len=3, max_len=8, alpha_only=True)
+            grid, placed = CrosswordGenerator.generate(fallback_words, max_words=6)
+
         if not placed:
             QMessageBox.warning(self, "Krossvord", "Krossvord uchun mos keluvchi kesishuvchi so'zlar topilmadi.")
             return
@@ -678,6 +704,8 @@ class CrosswordGameWidget(QWidget):
             return
         self.is_active = False
 
+        source_title = self.source_selector.get_current_source_title() if hasattr(self, "source_selector") else "Lug'at"
+
         # GAMIFIKATSIYA QAT'IY QOIDASI: 0 ta so'z yechilsa 0 XP!
         if self.solved_words > 0:
             earned_xp = max(1, self.solved_words * 5 - self.hints_used * 2)
@@ -685,6 +713,7 @@ class CrosswordGameWidget(QWidget):
             sound_effects.play_victory()
             msg = (
                 f"🧩 <b>Krossvord yakunlandi!</b><br><br>"
+                f"🏷️ To'plam: <b>{source_title}</b><br>"
                 f"✅ Yechilgan so'zlar: <b>{self.solved_words} / {len(self.words)} ta</b><br>"
                 f"💡 Ishlatilgan maslahatlar: <b>{self.hints_used} ta</b><br>"
                 f"⭐ Berilgan mukofot: <b>+{earned_xp} XP</b> (Jami: {new_total_xp} XP)"
@@ -692,9 +721,21 @@ class CrosswordGameWidget(QWidget):
         else:
             msg = (
                 f"🧩 <b>Krossvord yakunlandi!</b><br><br>"
+                f"🏷️ To'plam: <b>{source_title}</b><br>"
                 f"Yechilgan so'zlar: <b>0 ta</b><br>"
                 f"<i>Qat'iy qoida: 0 ta so'z bilan XP berilmaydi.</i>"
             )
 
         QMessageBox.information(self, "Krossvord Yakuni", msg)
         self.game_finished.emit(self.solved_words)
+
+    def apply_theme(self, t: theme_manager.Theme):
+        self.setStyleSheet(f"background-color: {t.bg_app};")
+        if hasattr(self, "title_lbl"):
+            self.title_lbl.setStyleSheet(f"font-size: 22px; font-weight: 700; color: {t.text_main};")
+        if hasattr(self, "source_selector"):
+            self.source_selector.apply_theme(t)
+        if hasattr(self, "grid_container"):
+            self.grid_container.setStyleSheet(
+                f"QFrame {{ background-color: {t.bg_card}; border: 1.5px solid {t.border}; border-radius: 14px; }}"
+            )

@@ -20,6 +20,8 @@ import theme_manager
 import sound_effects
 import gamification
 from logger import get_logger
+from ui.components.game_source_selector import GameSourceSelector
+from services import game_word_provider as gwp
 
 logger = get_logger("match_game")
 
@@ -273,6 +275,11 @@ class MatchGameWidget(QWidget):
 
         self.layout_root.addLayout(header_row)
 
+        # To'plam tanlash paneli (Mavzular, To'plamlar, CEFR, Shaxsiy)
+        self.source_selector = GameSourceSelector("match", self)
+        self.source_selector.source_changed.connect(self._on_source_changed)
+        self.layout_root.addWidget(self.source_selector)
+
         # 2. Statistika paneli (Taymer, Juftliklar, Rekord)
         self.stats_frame = QFrame()
         self.stats_frame.setStyleSheet("background-color: #1E1E2E; border-radius: 12px; border: 1px solid #2A2A3C;")
@@ -392,9 +399,17 @@ class MatchGameWidget(QWidget):
                 f"QPushButton:hover:enabled {{ background-color: #7F1D1D; color: white; }}"
             )
 
+        if hasattr(self, "source_selector"):
+            self.source_selector.apply_theme(t)
+
         for tile in self.tiles:
             if not tile.is_matched and not tile.is_selected:
                 tile.set_state("default", t)
+
+    def _on_source_changed(self, cat: str, src: str):
+        """Mavzu yoki to'plam o'zgarganda o'yin maydonini yangilash."""
+        if not self.is_game_active:
+            self.prepare_board()
 
     def _on_pair_count_changed(self, index: int):
         val = self.combo_pair_count.currentData()
@@ -418,6 +433,8 @@ class MatchGameWidget(QWidget):
         self.btn_start_game.setText("▶️ O'yinni Boshlash")
         self.btn_start_game.setEnabled(True)
         self.combo_pair_count.setEnabled(True)
+        if hasattr(self, "source_selector"):
+            self.source_selector.set_enabled(True)
         self.btn_finish_game.setEnabled(False)
 
         self._render_cards()
@@ -431,6 +448,9 @@ class MatchGameWidget(QWidget):
         self.timer_display.setText("00:00.0")
         self.pairs_display.setText(f"0 / {self.target_pair_count}")
         self.victory_banner.setVisible(False)
+
+        if hasattr(self, "source_selector"):
+            self.source_selector.set_enabled(False)
 
         if recreate_cards or not self.tiles:
             self._render_cards()
@@ -456,22 +476,20 @@ class MatchGameWidget(QWidget):
                 w.deleteLater()
         self.tiles = []
 
-        all_words = [dict(w) for w in db.get_words_with_progress()]
+        all_words = []
+        if hasattr(self, "source_selector"):
+            all_words = self.source_selector.get_words(limit=100)
+
+        if len(all_words) < self.target_pair_count:
+            all_words = [dict(w) for w in db.get_words_with_progress()]
+
         if len(all_words) < self.target_pair_count:
             all_words = [dict(w) for w in db.get_words(limit=100)]
 
-        if len(all_words) < 2:
-            try:
-                from core.word_packs import WORD_PACKS
-                starter = []
-                for p in WORD_PACKS:
-                    starter.extend(p.get("words", []))
-                    if len(starter) >= self.target_pair_count:
-                        break
-                if starter:
-                    all_words = [{"id": -idx, "english": w["english"], "uzbek": w["uzbek"]} for idx, w in enumerate(starter, 1)]
-            except Exception:
-                pass
+        if len(all_words) < self.target_pair_count:
+            fallback = gwp.get_words_for_game(gwp.CAT_PACKS, "essential", limit=100)
+            if fallback:
+                all_words = fallback
 
         if len(all_words) < 2:
             no_words_lbl = QLabel(
@@ -643,9 +661,11 @@ class MatchGameWidget(QWidget):
         new_xp, level_up, new_level = gamification.award_xp(xp_to_award)
         sound_effects.play_victory()
 
+        source_title = self.source_selector.get_current_source_title() if hasattr(self, "source_selector") else "Lug'at"
+
         self.victory_banner.setVisible(True)
         self.victory_banner_lbl.setText(
-            f"🏁 O'yin yakunlandi: {self.matched_pairs} / {self.total_pairs} juftlik topildi! Vaqt: {final_time:.1f}s  •  +{xp_to_award} XP"
+            f"🏁 O'yin yakunlandi [{source_title}]: {self.matched_pairs} / {self.total_pairs} juftlik topildi! Vaqt: {final_time:.1f}s  •  +{xp_to_award} XP"
         )
 
         dlg = VictoryDialog(
@@ -656,7 +676,7 @@ class MatchGameWidget(QWidget):
             total_xp=new_xp,
             level_up=level_up,
             new_level=new_level,
-            custom_title=f"O'yin Yakunlandi ({self.matched_pairs}/{self.total_pairs} juftlik)"
+            custom_title=f"O'yin Yakunlandi — {source_title} ({self.matched_pairs}/{self.total_pairs})"
         )
 
         if dlg.exec():
@@ -694,11 +714,13 @@ class MatchGameWidget(QWidget):
                 is_new_record = True
                 self.best_display.setText(f"{final_time:.1f} soniya 👑")
 
+            source_title = self.source_selector.get_current_source_title() if hasattr(self, "source_selector") else "Lug'at"
+
             # Vidjetdagi g'alaba bannerini yoqish
             self.victory_banner.setVisible(True)
             rec_txt = " (👑 Yangi shaxsiy rekord!)" if is_new_record else ""
             self.victory_banner_lbl.setText(
-                f"🎉 Barcha {self.total_pairs} ta juftlik topildi! Vaqt: {final_time:.1f} soniya{rec_txt}  •  +{earned_xp} XP"
+                f"🎉 Barcha {self.total_pairs} ta juftlik topildi! [{source_title}] • Vaqt: {final_time:.1f} soniya{rec_txt}  •  +{earned_xp} XP"
             )
 
             # Maxsus modal g'alaba oynasini ko'rsatish
@@ -710,7 +732,8 @@ class MatchGameWidget(QWidget):
                 xp_gained=earned_xp,
                 total_xp=new_xp,
                 level_up=level_up,
-                new_level=new_level
+                new_level=new_level,
+                custom_title=f"Qoyilmaqom G'alaba! — {source_title}"
             )
             if dlg.exec():
                 self.start_game(recreate_cards=True)

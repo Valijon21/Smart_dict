@@ -16,6 +16,8 @@ import sound_effects
 import gamification
 import theme_manager
 from logger import get_logger
+from ui.components.game_source_selector import GameSourceSelector
+from services import game_word_provider as gwp
 
 logger = get_logger("blitz_game")
 
@@ -113,11 +115,21 @@ class BlitzSummaryDialog(QDialog):
         xp_str = f"⭐ +{xp_val} XP" if xp_val > 0 else "0 XP (Ball to'planmadi)"
         xp_color = "#60A5FA" if xp_val > 0 else "#9CA3AF"
 
-        add_stat_row(0, "To'g'ri javoblar:", f"✅ {self.stats.get('correct', 0)} ta", "#10B981")
-        add_stat_row(1, "Xato javoblar:", f"❌ {self.stats.get('wrong', 0)} ta", "#EF4444")
-        add_stat_row(2, "Maksimal Combo:", f"🔥 x{self.stats.get('max_combo', 1)}", "#F59E0B")
-        add_stat_row(3, "Qo'lga kiritilgan XP:", xp_str, xp_color)
-        add_stat_row(4, "Eng yuqori rekord:", f"👑 {self.stats.get('best_score', 0)} ball", "#FBBF24")
+        source_title = self.stats.get("source_title", "")
+        row_idx = 0
+        if source_title:
+            add_stat_row(row_idx, "Tanlangan to'plam:", source_title, "#38BDF8")
+            row_idx += 1
+
+        add_stat_row(row_idx, "To'g'ri javoblar:", f"✅ {self.stats.get('correct', 0)} ta", "#10B981")
+        row_idx += 1
+        add_stat_row(row_idx, "Xato javoblar:", f"❌ {self.stats.get('wrong', 0)} ta", "#EF4444")
+        row_idx += 1
+        add_stat_row(row_idx, "Maksimal Combo:", f"🔥 x{self.stats.get('max_combo', 1)}", "#F59E0B")
+        row_idx += 1
+        add_stat_row(row_idx, "Qo'lga kiritilgan XP:", xp_str, xp_color)
+        row_idx += 1
+        add_stat_row(row_idx, "Eng yuqori rekord:", f"👑 {self.stats.get('best_score', 0)} ball", "#FBBF24")
 
         c_layout.addWidget(info_frame)
         c_layout.addSpacing(10)
@@ -212,6 +224,10 @@ class BlitzGameWidget(QWidget):
         )
         self.sub_lbl.setStyleSheet("color: #9CA3AF; font-size: 13px;")
         root.addWidget(self.sub_lbl)
+
+        # To'plam tanlash paneli (Mavzular, To'plamlar, CEFR, Shaxsiy)
+        self.source_selector = GameSourceSelector("blitz", self)
+        root.addWidget(self.source_selector)
 
         # 2. Hisoblagichlar paneli (Vaqt, Ball, Combo)
         stats_frame = QFrame()
@@ -337,21 +353,21 @@ class BlitzGameWidget(QWidget):
         self.record_lbl.setText(f"👑 Rekord: {best} ball")
 
     def start_game(self):
-        self.words = [dict(w) for w in db.get_all_words()]
-        if len(self.words) < 4:
-            try:
-                from core.word_packs import WORD_PACKS
-                starter = []
-                for p in WORD_PACKS:
-                    starter.extend(p.get("words", []))
-                    if len(starter) >= 40:
-                        break
-                if starter:
-                    self.words = [{"id": -idx, "english": w["english"], "uzbek": w["uzbek"]} for idx, w in enumerate(starter, 1)]
-            except Exception:
-                pass
+        if hasattr(self, "source_selector"):
+            self.source_selector.set_enabled(False)
+            self.words = self.source_selector.get_words(limit=150)
+        else:
+            self.words = [dict(w) for w in db.get_all_words()]
 
         if len(self.words) < 4:
+            self.words = [dict(w) for w in db.get_all_words()]
+
+        if len(self.words) < 4:
+            self.words = gwp.get_words_for_game(gwp.CAT_PACKS, "essential", limit=100)
+
+        if len(self.words) < 4:
+            if hasattr(self, "source_selector"):
+                self.source_selector.set_enabled(True)
             self.word_display.setText("Kamida 4 ta so'z kerak!")
             return
 
@@ -568,7 +584,14 @@ class BlitzGameWidget(QWidget):
         else:
             awarded_xp = 0
 
+        if hasattr(self, "source_selector"):
+            self.source_selector.set_enabled(True)
+            source_title = self.source_selector.get_current_source_title()
+        else:
+            source_title = "Lug'at"
+
         stats = {
+            "source_title": source_title,
             "score": self.score,
             "correct": self.correct_count,
             "wrong": self.wrong_count,
@@ -593,6 +616,9 @@ class BlitzGameWidget(QWidget):
         self.setStyleSheet(f"background-color: {t.bg_app};")
         self.title_lbl.setStyleSheet(f"color: {t.text_main}; font-size: 22px; font-weight: 700;")
         self.sub_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
+
+        if hasattr(self, "source_selector"):
+            self.source_selector.apply_theme(t)
 
         self.stats_frame.setStyleSheet(
             f"QFrame {{ background-color: {t.bg_card}; border-radius: 14px; border: 1px solid {t.border}; }}"
