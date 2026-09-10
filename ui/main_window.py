@@ -559,7 +559,8 @@ class MainWindow(QMainWindow):
         elif key == "blitz":
             page.load_best_score()
         elif key == "audio_player":
-            page.load_words()
+            if not getattr(page.worker, "playlist", None):
+                page.load_words()
         elif key == "settings":
             page.load_settings()
         elif key in ("en_uz", "uz_en"):

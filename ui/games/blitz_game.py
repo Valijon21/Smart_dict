@@ -649,3 +649,15 @@ class BlitzGameWidget(QWidget):
             f"QPushButton:disabled {{ background-color: transparent; color: {t.text_muted}; border-color: transparent; }}"
         )
         self.load_best_score()
+
+    def hideEvent(self, event):
+        """Boshqa bo'limga o'tilganda Blitz o'yin taymerini to'xtatish."""
+        if getattr(self, "is_running", False):
+            self.is_running = False
+            if hasattr(self, "game_timer") and self.game_timer.isActive():
+                self.game_timer.stop()
+            if hasattr(self, "btn_start"):
+                self.btn_start.setEnabled(True)
+            if hasattr(self, "btn_finish"):
+                self.btn_finish.setEnabled(False)
+        super().hideEvent(event)

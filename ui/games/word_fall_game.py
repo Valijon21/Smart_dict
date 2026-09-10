@@ -442,6 +442,22 @@ class WordFallGameWidget(QWidget):
             return
         self._on_game_over()
 
+    def hideEvent(self, event):
+        """Boshqa bo'limga o'tilganda Word Fall o'yinini xavfsiz to'xtatish."""
+        if getattr(self, "is_playing", False):
+            self.is_playing = False
+            if hasattr(self, "game_timer") and self.game_timer.isActive():
+                self.game_timer.stop()
+            if hasattr(self, "spawn_timer") and self.spawn_timer.isActive():
+                self.spawn_timer.stop()
+            if hasattr(self, "canvas"):
+                self.canvas.set_words([])
+            if hasattr(self, "btn_start"):
+                self.btn_start.setEnabled(True)
+            if hasattr(self, "btn_finish"):
+                self.btn_finish.setEnabled(False)
+        super().hideEvent(event)
+
     def apply_theme(self, t: theme_manager.Theme):
         self.setStyleSheet(f"background-color: {t.bg_app};")
         if hasattr(self, "title_lbl"):

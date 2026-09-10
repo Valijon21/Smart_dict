@@ -761,3 +761,10 @@ class MatchGameWidget(QWidget):
         # Sahifaga o'tilganda taymer boshlanmaydi! Faqat maydon tayyorlanadi.
         if not self.is_game_active and self.matched_pairs == 0:
             self.prepare_board()
+
+    def hideEvent(self, event):
+        """Boshqa sahifaga o'tilganda Match o'yini taymerini to'xtatish."""
+        if getattr(self, "is_game_active", False):
+            if hasattr(self, "timer") and self.timer.isActive():
+                self.timer.stop()
+        super().hideEvent(event)

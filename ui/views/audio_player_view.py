@@ -825,11 +825,18 @@ class AudioPlayerWidget(QWidget):
         self.load_words()
 
     def load_words(self):
-        was_running = self.worker.is_running
-        if was_running:
+        # 1. Agar pleyer ishlab turgan bo'lsa, uni xavfsiz to'xtatamiz
+        if hasattr(self, "worker") and (self.worker.isRunning() or self.worker.is_running):
             self.worker.stop_playback()
             self.worker.wait(400)
 
+        # 2. UI holatini to'xtatilgan (kutish) holatiga keltiramiz
+        if hasattr(self, "visualizer"):
+            self.visualizer.set_active(False)
+        if hasattr(self, "btn_play"):
+            self._on_state_changed(False)
+
+        # 3. Tanlangan to'plam yoki bazadan so'zlarni yuklaymiz
         if hasattr(self, "source_selector"):
             cat, src = self.source_selector.get_current_source()
             words = gwp.get_words_for_source(cat, src)
@@ -852,8 +859,8 @@ class AudioPlayerWidget(QWidget):
         first = words[0]
         self._display_word(first)
 
-        if was_running:
-            self.worker.start()
+        # QAT'IY QOIDA: Hech qachon avtomatik ravishda audio o'qish boshlanmasin!
+        # Foydalanuvchi faqat '▶️ Tinglashni Boshlash' tugmasini bosgandagina ijro boshlanadi.
 
     def _display_word(self, word: dict):
         eng = word.get("english", "")
@@ -883,6 +890,9 @@ class AudioPlayerWidget(QWidget):
         dlg.exec()
 
     def _toggle_play(self):
+        if not self.worker.playlist:
+            return
+
         if not self.worker.isRunning() or not self.worker.is_running:
             self.worker.start()
         elif self.worker.is_paused:
@@ -891,17 +901,14 @@ class AudioPlayerWidget(QWidget):
             self.worker.pause_playback()
 
     def _on_stop_clicked(self):
-        self.worker.stop_playback()
-        self.btn_play.setText("▶️ Tinglashni Boshlash")
-        t = theme_manager.get_active_theme()
-        self.btn_play.setStyleSheet(
-            f"QPushButton {{ background-color: {t.primary}; color: white; border-radius: 8px; "
-            f"font-size: 14px; font-weight: 700; padding: 10px 24px; }}"
-            f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
-        )
+        if self.worker.isRunning() or self.worker.is_running:
+            self.worker.stop_playback()
+            self.worker.wait(300)
+        self.visualizer.set_active(False)
+        self._on_state_changed(False)
 
     def _on_next_clicked(self):
-        """Keyingi so'z tugmasi bosilganda ekranni va audioni bir zumda yangilash."""
+        """Keyingi so'z tugmasi bosilganda ekranni va audioni yangilash."""
         if not self.worker.playlist:
             return
 
@@ -917,11 +924,11 @@ class AudioPlayerWidget(QWidget):
         self.track_idx_lbl.setText(f"So'z: {next_idx + 1} / {len(self.worker.playlist)}")
         self._display_word(word)
 
-        if self.worker.is_running:
+        if self.worker.is_running and not self.worker.is_paused:
             self.worker.skip_current()
 
     def _on_prev_clicked(self):
-        """Oldingi so'z tugmasi bosilganda ekranni va audioni bir zumda yangilash."""
+        """Oldingi so'z tugmasi bosilganda ekranni va audioni yangilash."""
         if not self.worker.playlist:
             return
 
@@ -931,7 +938,7 @@ class AudioPlayerWidget(QWidget):
         self.track_idx_lbl.setText(f"So'z: {prev_idx + 1} / {len(self.worker.playlist)}")
         self._display_word(word)
 
-        if self.worker.is_running:
+        if self.worker.is_running and not self.worker.is_paused:
             self.worker.skip_current()
 
     def _toggle_shuffle(self, checked: bool):
@@ -1016,6 +1023,17 @@ class AudioPlayerWidget(QWidget):
                 f"font-size: 13px; font-weight: 700; padding: 8px 20px; }}"
                 f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
             )
+
+    def hideEvent(self, event):
+        """Boshqa bo'limga o'tilganda audioni darhol to'xtatish va interfeysni tiklash."""
+        if hasattr(self, "worker") and (self.worker.isRunning() or self.worker.is_running):
+            self.worker.stop_playback()
+            self.worker.wait(400)
+        if hasattr(self, "visualizer"):
+            self.visualizer.set_active(False)
+        if hasattr(self, "btn_play"):
+            self._on_state_changed(False)
+        super().hideEvent(event)
 
     def closeEvent(self, event):
         self.worker.stop_playback()
