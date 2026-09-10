@@ -1344,13 +1344,14 @@ class DashboardWidget(QWidget):
         self.val_accuracy.setText(f"{acc['percent']}%")
 
         # --- Kunlik reja progress ---
-        self.goal_bar.setMaximum(goal_progress["goal"])
-        self.goal_bar.setValue(min(goal_progress["practiced"], goal_progress["goal"]))
+        safe_goal = max(1, goal_progress["goal"])
+        self.goal_bar.setMaximum(safe_goal)
+        self.goal_bar.setValue(min(goal_progress["practiced"], safe_goal))
         self.goal_bar.setFormat(f"{goal_progress['practiced']} / {goal_progress['goal']}")
         if goal_progress["done"]:
             self.goal_status.setText("🎉 Bugungi reja bajarildi! Zo'r ketyapsiz.")
         else:
-            remaining = goal_progress["goal"] - goal_progress["practiced"]
+            remaining = max(0, goal_progress["goal"] - goal_progress["practiced"])
             self.goal_status.setText(f"Rejaga yetish uchun yana {remaining} ta so'z mashq qiling.")
 
         # --- 1-Grafik: 7 kunlik bar chart ---

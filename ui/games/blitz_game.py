@@ -339,6 +339,19 @@ class BlitzGameWidget(QWidget):
     def start_game(self):
         self.words = [dict(w) for w in db.get_all_words()]
         if len(self.words) < 4:
+            try:
+                from core.word_packs import WORD_PACKS
+                starter = []
+                for p in WORD_PACKS:
+                    starter.extend(p.get("words", []))
+                    if len(starter) >= 40:
+                        break
+                if starter:
+                    self.words = [{"id": -idx, "english": w["english"], "uzbek": w["uzbek"]} for idx, w in enumerate(starter, 1)]
+            except Exception:
+                pass
+
+        if len(self.words) < 4:
             self.word_display.setText("Kamida 4 ta so'z kerak!")
             return
 
