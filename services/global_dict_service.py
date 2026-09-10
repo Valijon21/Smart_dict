@@ -8,6 +8,7 @@ Imkoniyatlari:
 - Barcha o'zbekcha tarjimalar, misollar, kollokatsiyalar, farqlar va sinonimlarni olish
 - 1-bosishda foydalanuvchining shaxsiy o'rganish rejasiga (vocab.db) import qilish
 """
+import sys
 import re
 import html
 import sqlite3

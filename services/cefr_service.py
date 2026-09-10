@@ -7,6 +7,7 @@ Vocab Master Pro — CEFR (A1-C2) & IELTS Academic Word Service.
 - IELTS 7.0+ / Academic Word List (AWL 570 ta ilmiy o'zak so'z)
 bo'yicha saralash, taqdim etish va 1-bosishda o'rganish rejasiga yuklash xizmati.
 """
+import sys
 import sqlite3
 from pathlib import Path
 from typing import Any

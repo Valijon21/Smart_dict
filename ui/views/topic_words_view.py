@@ -3,6 +3,7 @@ Vocab Master Pro — Topic Based Words Page.
 36 ta tematik to'plamni 4 ustunlik kartalarda ko'rsatish, mavzular bo'yicha
 so'zlarni o'rganish, qidirish, talaffuz qilish va trenajyorda mashq qilish interfeysi.
 """
+import sys
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
