@@ -304,28 +304,42 @@ class SpotlightSearchDialog(QDialog):
 
         if not query:
             # Eng so'nggi qo'shilgan 15 ta so'zni ko'rsatish
-            rows = db.get_latest_added_words(limit=15)
+            raw_rows = db.get_latest_added_words(limit=15)
+            rows = [dict(r) for r in raw_rows]
+            for r in rows:
+                r["source"] = "personal"
             local_count = len(rows)
             global_count = 0
         else:
-            local_rows = db.search_words(query, limit=20)
+            raw_local = db.search_words(query, limit=20)
+            local_rows = [dict(r) for r in raw_local]
+            for r in local_rows:
+                r["source"] = "personal"
             global_rows = global_dict_service.search_global_words(query, limit=25)
 
             # Shaxsiy va global bazani dublikatsiz birlashtirish
             local_engs = {r["english"].strip().lower() for r in local_rows}
             clean_global = [g for g in global_rows if g["english"].strip().lower() not in local_engs]
 
-            rows = list(local_rows) + clean_global
+            rows = local_rows + clean_global
 
             # Aniq moslik (Rank 0) har doim eng yuqorida turishi uchun professional saralash
             def _spotlight_sort_key(item):
-                eng = item.get("english", "")
-                uz = item.get("uzbek", "")
-                r_rank = item.get("match_rank")
+                if isinstance(item, dict):
+                    eng = item.get("english", "")
+                    uz = item.get("uzbek", "")
+                    r_rank = item.get("match_rank")
+                    is_personal = 0 if item.get("source") != "global" else 1
+                    star_val = item.get("star", "0")
+                else:
+                    eng = item["english"]
+                    uz = item["uzbek"]
+                    r_rank = item["match_rank"] if "match_rank" in item.keys() else None
+                    is_personal = 0
+                    star_val = "0"
+
                 if r_rank is None:
                     r_rank = text_search_utils.calculate_match_rank(query, eng, uz)
-                is_personal = 0 if item.get("source") != "global" else 1
-                star_val = item.get("star", "0")
                 star_num = int(star_val) if str(star_val).isdigit() else 0
                 return (r_rank, is_personal, -star_num, len(eng))
 
