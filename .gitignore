@@ -47,6 +47,7 @@ backups/
 build/
 dist/
 *.spec
+!VocabMaster.spec
 *.manifest
 *.dist
 *.egg-info/
