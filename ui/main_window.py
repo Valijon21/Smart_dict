@@ -68,7 +68,10 @@ class MainWindow(QMainWindow):
         self._tray_notified = False
 
         # Ilova ikonkasini o'rnatish
-        icon_path = Path(__file__).resolve().parent.parent / "app_icon.png"
+        if hasattr(sys, "_MEIPASS"):
+            icon_path = Path(sys._MEIPASS) / "app_icon.png"
+        else:
+            icon_path = Path(__file__).resolve().parent.parent / "app_icon.png"
         if icon_path.exists():
             self.app_icon = QIcon(str(icon_path))
             self.setWindowIcon(self.app_icon)

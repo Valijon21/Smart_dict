@@ -25,9 +25,21 @@ except ImportError:
 
 logger = get_logger("global_dict_service")
 
-DB_PATH = get_app_dir() / "db.sqlite3"
-if not DB_PATH.exists():
-    DB_PATH = Path(__file__).resolve().parent.parent / "db.sqlite3"
+def _find_global_db_path() -> Path:
+    app_db = get_app_dir() / "db.sqlite3"
+    if app_db.exists():
+        return app_db
+    import sys
+    if hasattr(sys, "_MEIPASS"):
+        mei_db = Path(sys._MEIPASS) / "db.sqlite3"
+        if mei_db.exists():
+            return mei_db
+    root_db = Path(__file__).resolve().parent.parent / "db.sqlite3"
+    if root_db.exists():
+        return root_db
+    return app_db
+
+DB_PATH = _find_global_db_path()
 
 
 def get_db_connection() -> sqlite3.Connection | None:

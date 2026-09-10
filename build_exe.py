@@ -38,13 +38,21 @@ def build():
     if res.returncode == 0:
         exe_path = root_dir / "dist" / "VocabMaster.exe"
         if exe_path.exists():
+            import shutil
+            global_db = root_dir / "db.sqlite3"
+            dist_db = root_dir / "dist" / "db.sqlite3"
+            if global_db.exists() and (not dist_db.exists() or dist_db.stat().st_size != global_db.stat().st_size):
+                print("📦 64,000 global akademik lug'at bazasi (db.sqlite3) dist/ ga nusxalanmoqda...")
+                shutil.copy2(global_db, dist_db)
+
             size_mb = round(exe_path.stat().st_size / (1024 * 1024), 2)
             print("===========================================")
             print("🎉 MUVAFFAQIYATLI YAKUNLANDI!")
-            print(f"📁 Tayyor fayl: {exe_path}")
-            print(f"⚖️ Hajmi: {size_mb} MB")
-            print("Bu faylni boshqa istalgan Windows kompyuterga nusxalab,")
-            print("Python'siz to'g'ridan-to'g'ri ishga tushirish mumkin!")
+            print(f"📁 Tayyor Standalone EXE: {exe_path}")
+            print(f"⚖️ EXE Hajmi: {size_mb} MB")
+            print(f"📚 Baza: {dist_db} ({round(dist_db.stat().st_size / (1024*1024), 1) if dist_db.exists() else 0} MB)")
+            print("Bu 'dist' papkasini istalgan Windows kompyuterga ko'chirib,")
+            print("Python yoki boshqa dasturlarsiz to'g'ridan-to'g'ri ishlatish mumkin!")
             print("===========================================")
             return True
 
