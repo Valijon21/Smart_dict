@@ -39,6 +39,7 @@ hiddenimports = [
     'utils.importer',
     'utils.reader_data',
     'utils.single_instance',
+    'utils.text_search_utils',
     'ui',
     'ui.theme_manager',
     'ui.main_window',
@@ -83,6 +84,7 @@ hiddenimports = [
     'clipboard_monitor',
     'reader_data',
     'importer',
+    'text_search_utils',
 ]
 
 excludes = [

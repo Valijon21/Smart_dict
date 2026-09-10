@@ -15,6 +15,10 @@ import database as db
 import tts
 import theme_manager
 import global_dict_service
+try:
+    from utils import text_search_utils
+except ImportError:
+    import text_search_utils
 from logger import get_logger
 
 logger = get_logger("spotlight_search")
@@ -304,14 +308,28 @@ class SpotlightSearchDialog(QDialog):
             local_count = len(rows)
             global_count = 0
         else:
-            local_rows = db.search_words(query, limit=15)
-            global_rows = global_dict_service.search_global_words(query, limit=20)
+            local_rows = db.search_words(query, limit=20)
+            global_rows = global_dict_service.search_global_words(query, limit=25)
 
             # Shaxsiy va global bazani dublikatsiz birlashtirish
             local_engs = {r["english"].strip().lower() for r in local_rows}
             clean_global = [g for g in global_rows if g["english"].strip().lower() not in local_engs]
 
             rows = list(local_rows) + clean_global
+
+            # Aniq moslik (Rank 0) har doim eng yuqorida turishi uchun professional saralash
+            def _spotlight_sort_key(item):
+                eng = item.get("english", "")
+                uz = item.get("uzbek", "")
+                r_rank = item.get("match_rank")
+                if r_rank is None:
+                    r_rank = text_search_utils.calculate_match_rank(query, eng, uz)
+                is_personal = 0 if item.get("source") != "global" else 1
+                star_val = item.get("star", "0")
+                star_num = int(star_val) if str(star_val).isdigit() else 0
+                return (r_rank, is_personal, -star_num, len(eng))
+
+            rows.sort(key=_spotlight_sort_key)
             local_count = len(local_rows)
             global_count = len(clean_global)
 

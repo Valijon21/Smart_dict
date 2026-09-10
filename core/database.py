@@ -17,8 +17,10 @@ except ImportError:
 
 try:
     from utils.logger import get_logger, get_app_dir
+    from utils import text_search_utils
 except ImportError:
     from logger import get_logger, get_app_dir
+    import text_search_utils
 
 logger = get_logger("database")
 
@@ -478,18 +480,71 @@ def get_words_by_english_batch(english_words: list[str]) -> dict[str, sqlite3.Ro
 
 
 def search_words(query: str = "", status_filter: str = "all", hard_only: bool = False, limit: int | None = None) -> list[sqlite3.Row]:
-    """So'zlarni qidirish va filtrlash."""
+    """So'zlarni qidirish va filtrlash (Inglizcha ↔ O'zbekcha universal qidiruv)."""
     clauses = []
-    params = []
+    where_params = []
+    order_params = []
+    order_sql = "ORDER BY w.created_at DESC, w.id DESC"
 
-    if query.strip():
-        q = f"%{query.strip().lower()}%"
-        clauses.append("(LOWER(w.english) LIKE ? OR LOWER(w.uzbek) LIKE ?)")
-        params.extend([q, q])
+    clean_q = query.strip()
+    if clean_q:
+        sp = text_search_utils.get_search_patterns(clean_q)
+        q_norm = sp["clean"]
+        exact_vars = sp["exact_variants"]
+        prefix_vars = sp["prefix_patterns"]
+
+        sub_clauses = [
+            "LOWER(w.english) = ?",
+            "LOWER(w.english) LIKE ? || '%'",
+            "LOWER(w.english) LIKE '%' || ? || '%'"
+        ]
+        where_params.extend([q_norm, q_norm, q_norm])
+
+        for v in exact_vars:
+            sub_clauses.append("LOWER(w.uzbek) = ?")
+            where_params.append(v)
+            sub_clauses.append("LOWER(w.uzbek) LIKE ? || '%'")
+            where_params.append(v)
+            sub_clauses.append("LOWER(w.uzbek) LIKE '%, ' || ? || '%'")
+            where_params.append(v)
+            sub_clauses.append("LOWER(w.uzbek) LIKE '% ' || ? || '%'")
+            where_params.append(v)
+            if len(v) >= 3:
+                sub_clauses.append("LOWER(w.uzbek) LIKE '%' || ? || '%'")
+                where_params.append(v)
+
+        clauses.append(f"({' OR '.join(sub_clauses)})")
+
+        # Ko'p bosqichli professional ranking:
+        # 0: Aniq moslik (Exact English yoki Exact Uzbek)
+        case_parts = ["WHEN LOWER(w.english) = ? THEN 0"]
+        order_params.append(q_norm)
+        for v in exact_vars:
+            case_parts.append("WHEN LOWER(w.uzbek) = ? THEN 0")
+            order_params.append(v)
+
+        # 1: Tarjima bo'laklarida aniq moslik (masalan: "kitob, darslik" -> "kitob")
+        for v in exact_vars:
+            case_parts.append("WHEN LOWER(w.uzbek) LIKE ? || ', %' OR LOWER(w.uzbek) LIKE '%, ' || ? || ', %' OR LOWER(w.uzbek) LIKE '%, ' || ? THEN 1")
+            order_params.extend([v, v, v])
+
+        # 2: Boshlanish mosligi (Prefix)
+        case_parts.append("WHEN LOWER(w.english) LIKE ? || '%' THEN 2")
+        order_params.append(q_norm)
+        for p in prefix_vars:
+            case_parts.append("WHEN LOWER(w.uzbek) LIKE ? || '%' THEN 2")
+            order_params.append(p)
+
+        order_sql = f"""
+            ORDER BY 
+                CASE {" ".join(case_parts)} ELSE 3 END ASC,
+                w.created_at DESC, 
+                w.id DESC
+        """
 
     if status_filter and status_filter != "all":
         clauses.append("w.status = ?")
-        params.append(status_filter)
+        where_params.append(status_filter)
 
     if hard_only:
         clauses.append("(p.wrong_count > p.correct_count OR p.wrong_count >= 2)")
@@ -501,11 +556,12 @@ def search_words(query: str = "", status_filter: str = "all", hard_only: bool = 
         FROM words w
         JOIN progress p ON p.word_id = w.id
         {where_sql}
-        ORDER BY w.created_at DESC, w.id DESC
+        {order_sql}
         {limit_sql}
     """
+    all_params = where_params + order_params
     with get_conn() as conn:
-        return conn.execute(sql, params).fetchall()
+        return conn.execute(sql, all_params).fetchall()
 
 
 def get_words_by_status(status: str = "learning") -> list[sqlite3.Row]:

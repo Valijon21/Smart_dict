@@ -19,10 +19,12 @@ try:
     from core import database as db
     from core import phonetics
     from utils.logger import get_logger, get_app_dir
+    from utils import text_search_utils
 except ImportError:
     import database as db
     import phonetics
     from logger import get_logger, get_app_dir
+    import text_search_utils
 
 logger = get_logger("global_dict_service")
 
@@ -85,11 +87,12 @@ def clean_examples(raw_text: str | None) -> list[str]:
 
 def search_global_words(query: str, limit: int = 25) -> list[dict]:
     """
-    64,000 so'zlik lug'atdan tezkor qidiruv.
-    Avval so'z boshidan moslik (prefix), so'ngra substring qidiriladi.
+    64,000 so'zlik akademik lug'atdan tezkor va aqlli ikki tomonlama qidiruv (Inglizcha ↔ O'zbekcha).
+    Aniq moslik (Rank 0), so'z birikmalari (Rank 1), so'z boshi (Rank 2) va qism mosliklarini
+    mukammal tartibda saralaydi.
     """
-    q = query.strip().lower()
-    if not q:
+    clean_q = query.strip()
+    if not clean_q:
         return []
 
     conn = get_db_connection()
@@ -97,79 +100,89 @@ def search_global_words(query: str, limit: int = 25) -> list[dict]:
         return []
 
     results: list[dict] = []
-    seen_ids = set()
 
     try:
         cursor = conn.cursor()
+        sp = text_search_utils.get_search_patterns(clean_q)
+        q_norm = sp["clean"]
+        exact_vars = sp["exact_variants"]
+        prefix_vars = sp["prefix_patterns"]
 
-        # 1. Boshlanish mosligi (Prefix match - eng yuqori prioritet va indeksli)
-        cursor.execute(
-            """
+        where_clauses = ["we.word LIKE ? || '%'"]
+        where_params = [q_norm]
+
+        for p in prefix_vars:
+            where_clauses.append("wz.word LIKE ? || '%'")
+            where_params.append(p)
+            where_clauses.append("wz.word LIKE '%, ' || ? || '%'")
+            where_params.append(p)
+
+        if len(q_norm) >= 3:
+            where_clauses.append("we.word LIKE '%' || ? || '%'")
+            where_params.append(q_norm)
+            for p in prefix_vars:
+                where_clauses.append("wz.word LIKE '%' || ? || '%'")
+                where_params.append(p)
+
+        # Ko'p bosqichli professional ranking:
+        # Rank 0: Aniq moslik (Exact English yoki Exact Uzbek)
+        case_parts = ["WHEN LOWER(we.word) = ? THEN 0"]
+        case_params = [q_norm]
+        for v in exact_vars:
+            case_parts.append("WHEN LOWER(wz.word) = ? THEN 0")
+            case_params.append(v)
+
+        # Rank 1: Tarjima bo'laklarida aniq moslik (masalan: "kitob, darslik" -> "kitob")
+        for v in exact_vars:
+            case_parts.append("WHEN wz.word LIKE ? || ', %' OR wz.word LIKE '%, ' || ? || ', %' OR wz.word LIKE '%, ' || ? THEN 1")
+            case_params.extend([v, v, v])
+
+        # Rank 2: Boshlanish mosligi (Prefix)
+        case_parts.append("WHEN we.word LIKE ? || '%' THEN 2")
+        case_params.append(q_norm)
+        for p in prefix_vars:
+            case_parts.append("WHEN wz.word LIKE ? || '%' THEN 2")
+            case_params.append(p)
+
+        # Rank 3: So'z chegarasi mosligi
+        for p in prefix_vars:
+            case_parts.append("WHEN wz.word LIKE '%, ' || ? || '%' OR wz.word LIKE '% ' || ? || '%' THEN 3")
+            case_params.extend([p, p])
+
+        sql = f"""
             SELECT 
                 we.id, 
                 we.word, 
                 we.word_classword_class AS pos,
                 we.star,
                 we.example,
-                GROUP_CONCAT(wz.word, ', ') AS uzbek
+                GROUP_CONCAT(wz.word, ', ') AS uzbek,
+                CASE {" ".join(case_parts)} ELSE 4 END as match_rank,
+                LENGTH(we.word) as word_len
             FROM word_entity we
             LEFT JOIN words_uz wz ON we.id = wz.word_id
-            WHERE we.word LIKE ? || '%'
+            WHERE {" OR ".join(where_clauses)}
             GROUP BY we.id
             ORDER BY 
-                CASE WHEN LOWER(we.word) = ? THEN 0 ELSE 1 END,
-                LENGTH(we.word) ASC,
-                we.star DESC
+                match_rank ASC,
+                we.star DESC,
+                word_len ASC
             LIMIT ?
-            """,
-            (q, q, limit)
-        )
+        """
+        all_params = case_params + where_params + [limit]
+        cursor.execute(sql, tuple(all_params))
 
         for row in cursor.fetchall():
-            w_id = row["id"]
-            seen_ids.add(w_id)
             results.append({
-                "id": w_id,
+                "id": row["id"],
                 "english": row["word"],
                 "pos": row["pos"] or "",
-                "star": row["star"] or "0",
+                "star": str(row["star"] or "0"),
                 "uzbek": row["uzbek"] or "",
                 "example": clean_html(row["example"]),
                 "source": "global",
+                "match_rank": row["match_rank"],
             })
-
-        # 2. Agar limit to'lmagan bo'lsa va so'z kamida 3 harfli bo'lsa, qidiruvni kengaytirish
-        remaining = limit - len(results)
-        if remaining > 0 and len(q) >= 3:
-            cursor.execute(
-                """
-                SELECT 
-                    we.id, 
-                    we.word, 
-                    we.word_classword_class AS pos,
-                    we.star,
-                    we.example,
-                    GROUP_CONCAT(wz.word, ', ') AS uzbek
-                FROM word_entity we
-                LEFT JOIN words_uz wz ON we.id = wz.word_id
-                WHERE we.word LIKE '%' || ? || '%' AND we.id NOT IN ({})
-                GROUP BY we.id
-                ORDER BY LENGTH(we.word) ASC
-                LIMIT ?
-                """.format(",".join(str(i) for i in seen_ids) if seen_ids else "0"),
-                (q, remaining)
-            )
-
-            for row in cursor.fetchall():
-                results.append({
-                    "id": row["id"],
-                    "english": row["word"],
-                    "pos": row["pos"] or "",
-                    "star": row["star"] or "0",
-                    "uzbek": row["uzbek"] or "",
-                    "example": clean_html(row["example"]),
-                    "source": "global",
-                })
 
     except Exception as e:
         logger.error(f"Global qidiruvda xatolik: {e}")
@@ -339,31 +352,10 @@ def add_to_study_list(english: str, uzbek: str = None, example: str = None) -> t
 def get_uzbek_search_patterns(q: str) -> list[str]:
     """
     O'zbekcha so'zlar uchun tutuq belgili va belgilisiz barcha variantlarni hosil qilish.
-    (masalan: o'rganmoq / organmoq / o‘rganmoq / zo'r / zor / tog' / tog).
+    (Backward-compatible wrapper for text_search_utils).
     """
-    patterns = set()
-    patterns.add(q)
-
-    # 1. Barcha turdagi apostroflarni SQL '_' wildcard belgisiga aylantirish
-    q_wild = q
-    for ch in ["'", "‘", "’", "ʻ", "ʼ", "`", "´"]:
-        q_wild = q_wild.replace(ch, "_")
-    patterns.add(q_wild)
-
-    # 2. Agar foydalanuvchi apostrofsiz yozgan bo'lsa (organmoq, ogil, zor, tog)
-    # o va g harflaridan keyin '_' qo'yib variantlar hosil qilish
-    if "_" not in q_wild:
-        p1 = re.sub(r"o(?=[^aeiou\s]|$)", "o_", q, count=1)
-        if p1 != q:
-            patterns.add(p1)
-        p2 = re.sub(r"g(?=[^aeiou\s]|$)", "g_", q, count=1)
-        if p2 != q:
-            patterns.add(p2)
-        p3 = re.sub(r"o(?=[^aeiou\s]|$)", "o_", p2, count=1)
-        if p3 != q and p3 != p1 and p3 != p2:
-            patterns.add(p3)
-
-    return list(patterns)
+    sp = text_search_utils.get_search_patterns(q)
+    return sp["exact_variants"] + sp["prefix_patterns"]
 
 
 def search_universal_words(query: str, limit: int = 20) -> list[dict]:
@@ -372,168 +364,75 @@ def search_universal_words(query: str, limit: int = 20) -> list[dict]:
     Ham shaxsiy bazadan (vocab.db), ham 64,000 so'zlik akademik lug'atdan (db.sqlite3)
     eng mos natijalarni mukammal saralab qaytaradi.
     """
-    q = query.strip().lower()
-    if not q:
+    clean_q = query.strip()
+    if not clean_q:
         return []
 
-    uz_patterns = get_uzbek_search_patterns(q)
+    local_rows = db.search_words(query=clean_q, limit=limit)
+    global_rows = search_global_words(query=clean_q, limit=limit)
+
     results_map: dict[str, dict] = {}
 
-    # 1. Shaxsiy baza (vocab.db) qidiruvi
-    try:
-        with db.get_conn() as conn:
-            pers_clauses = ["LOWER(w.english) = ?", "LOWER(w.english) LIKE ? || '%'"]
-            pers_params = [q, q]
-            for p in uz_patterns:
-                pers_clauses.extend(["LOWER(w.uzbek) = ?", "LOWER(w.uzbek) LIKE ? || '%'", "LOWER(w.uzbek) LIKE '%' || ? || '%'"])
-                pers_params.extend([p, p, p])
-            pers_clauses.append("LOWER(w.english) LIKE '%' || ? || '%'")
-            pers_params.append(q)
+    for r in local_rows:
+        eng = r["english"]
+        eng_lower = eng.lower().strip()
+        uz = r["uzbek"] or ""
+        ph_info = phonetics.get_word_info(eng)
+        m_rank = text_search_utils.calculate_match_rank(clean_q, eng, uz)
+        results_map[eng_lower] = {
+            "id": r["id"],
+            "english": eng,
+            "pos": r["part_of_speech"] or ph_info["part_of_speech"],
+            "star": "0",
+            "uzbek": uz,
+            "example": r["example"] or "",
+            "phonetic": r["phonetic"] or ph_info["phonetic"],
+            "source": "personal",
+            "is_in_study_list": True,
+            "local_id": r["id"],
+            "box_level": r["box_level"] if r["box_level"] is not None else 0,
+            "status": r["status"] or "learning",
+            "match_rank": m_rank,
+        }
 
-            sql_pers = f"""
-                SELECT w.*, p.box_level, p.next_review, p.correct_count, p.wrong_count
-                FROM words w
-                LEFT JOIN progress p ON p.word_id = w.id
-                WHERE {" OR ".join(pers_clauses)}
-                LIMIT ?
-            """
-            pers_params.append(limit)
+    for g in global_rows:
+        eng = g["english"]
+        eng_lower = eng.lower().strip()
+        if eng_lower in results_map:
+            existing = results_map[eng_lower]
+            if not existing["example"] and g.get("example"):
+                existing["example"] = g["example"]
+            if not existing["pos"] and g.get("pos"):
+                existing["pos"] = g["pos"]
+            existing["star"] = g.get("star", "0")
+            existing["source"] = "both"
+            g_rank = g.get("match_rank", text_search_utils.calculate_match_rank(clean_q, eng, g.get("uzbek", "")))
+            if g_rank < existing["match_rank"]:
+                existing["match_rank"] = g_rank
+        else:
+            info = phonetics.get_word_info(eng)
+            results_map[eng_lower] = {
+                "id": g["id"],
+                "english": eng,
+                "pos": g.get("pos") or info["part_of_speech"],
+                "star": g.get("star", "0"),
+                "uzbek": g.get("uzbek", ""),
+                "example": g.get("example", ""),
+                "phonetic": info["phonetic"],
+                "source": "global",
+                "is_in_study_list": g.get("is_in_study_list", False),
+                "local_id": g.get("local_id"),
+                "box_level": 0,
+                "status": "new",
+                "match_rank": g.get("match_rank", text_search_utils.calculate_match_rank(clean_q, eng, g.get("uzbek", ""))),
+            }
 
-            local_rows = conn.execute(sql_pers, tuple(pers_params)).fetchall()
-
-            for r in local_rows:
-                eng = r["english"]
-                eng_lower = eng.lower()
-                uz = r["uzbek"] or ""
-
-                if eng_lower == q or any(uz.lower() == p for p in uz_patterns):
-                    rank = 0
-                elif eng_lower.startswith(q) or any(uz.lower().startswith(p) for p in uz_patterns):
-                    rank = 1
-                else:
-                    rank = 2
-
-                ph_info = phonetics.get_word_info(eng)
-                results_map[eng_lower] = {
-                    "id": r["id"],
-                    "english": eng,
-                    "pos": r["part_of_speech"] or ph_info["part_of_speech"],
-                    "star": "0",
-                    "uzbek": uz,
-                    "example": r["example"] or "",
-                    "phonetic": r["phonetic"] or ph_info["phonetic"],
-                    "source": "personal",
-                    "is_in_study_list": True,
-                    "local_id": r["id"],
-                    "box_level": r["box_level"] if r["box_level"] is not None else 0,
-                    "status": r["status"] or "learning",
-                    "match_rank": rank,
-                }
-    except Exception as e:
-        logger.error(f"Shaxsiy bazadan universal qidiruvda xatolik: {e}")
-
-    # 2. 64,000 so'zlik global lug'at (db.sqlite3) qidiruvi
-    conn_g = get_db_connection()
-    if conn_g:
-        try:
-            cur = conn_g.cursor()
-
-            where_conds = ["we.word LIKE ? || '%'"]
-            params = [q]
-            for p in uz_patterns:
-                where_conds.append("wz.word LIKE ? || '%'")
-                params.append(p)
-            where_conds.append("we.word LIKE '%' || ? || '%'")
-            params.append(q)
-            for p in uz_patterns:
-                where_conds.append("wz.word LIKE '%' || ? || '%'")
-                params.append(p)
-
-            case_parts = ["WHEN LOWER(we.word) = ? THEN 0"]
-            case_params = [q]
-            for p in uz_patterns:
-                case_parts.append("WHEN LOWER(wz.word) = ? THEN 0")
-                case_params.append(p)
-            case_parts.append("WHEN we.word LIKE ? || '%' THEN 1")
-            case_params.append(q)
-            for p in uz_patterns:
-                case_parts.append("WHEN wz.word LIKE ? || '%' THEN 1")
-                case_params.append(p)
-
-            full_sql = f"""
-                SELECT 
-                    we.id, 
-                    we.word, 
-                    we.word_classword_class AS pos,
-                    we.star,
-                    we.example,
-                    GROUP_CONCAT(wz.word, ', ') AS uzbek,
-                    CASE {" ".join(case_parts)} ELSE 2 END as match_rank,
-                    LENGTH(we.word) as word_len
-                FROM word_entity we
-                LEFT JOIN words_uz wz ON we.id = wz.word_id
-                WHERE {" OR ".join(where_conds)}
-                GROUP BY we.id
-                ORDER BY 
-                    match_rank ASC,
-                    we.star DESC,
-                    word_len ASC
-                LIMIT ?
-            """
-            all_params = case_params + params + [limit]
-            cur.execute(full_sql, tuple(all_params))
-
-            for row in cur.fetchall():
-                eng = row["word"]
-                eng_lower = eng.lower()
-                star_val = str(row["star"] or "0")
-                uz_val = row["uzbek"] or ""
-                ex_val = clean_html(row["example"]) if row["example"] else ""
-                rank = row["match_rank"]
-
-                if eng_lower in results_map:
-                    existing = results_map[eng_lower]
-                    if not existing["example"] and ex_val:
-                        existing["example"] = ex_val
-                    if not existing["pos"] and row["pos"]:
-                        existing["pos"] = row["pos"]
-                    existing["star"] = star_val
-                    existing["source"] = "both"
-                    if rank < existing["match_rank"]:
-                        existing["match_rank"] = rank
-                else:
-                    info = phonetics.get_word_info(eng)
-                    ph = info["phonetic"]
-                    pos_val = row["pos"] or info["part_of_speech"]
-                    results_map[eng_lower] = {
-                        "id": row["id"],
-                        "english": eng,
-                        "pos": pos_val,
-                        "star": star_val,
-                        "uzbek": uz_val,
-                        "example": ex_val,
-                        "phonetic": ph,
-                        "source": "global",
-                        "is_in_study_list": False,
-                        "local_id": None,
-                        "box_level": 0,
-                        "status": "new",
-                        "match_rank": rank,
-                    }
-        except Exception as e:
-            logger.error(f"Global bazadan universal qidiruvda xatolik: {e}")
-        finally:
-            conn_g.close()
-
-    # 3. Yagona mukammal saralash:
-    # 0 - Aniq moslik, 1 - Boshlanish, 2 - Qism mosligi
-    # Shaxsiy o'rganish ro'yxatidagilar birinchi, yuqori Oxford yulduzlari, qisqaroq so'zlar
     sorted_items = sorted(
         results_map.values(),
         key=lambda x: (
             x["match_rank"],
             0 if x["is_in_study_list"] else 1,
-            -int(x["star"]) if x["star"].isdigit() else 0,
+            -int(x["star"]) if str(x.get("star", "0")).isdigit() else 0,
             len(x["english"]),
         ),
     )
