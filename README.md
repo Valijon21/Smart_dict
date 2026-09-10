@@ -170,41 +170,64 @@ python main.py
 
 ---
 
-## 📁 Loyiha Strukturasi (Architecture)
+## 📁 Loyiha Strukturasi (Layered Architecture)
 
 ```text
 Smart_dict/
-├── main.py                     # Dastur kirish nuqtasi va Single-Instance Guard
-├── database.py                 # SQLite WAL moduli, SM-2, Leitner va qidiruv indekslari
-├── tts.py                      # Oflayn TTS dvigateli (Thread-safe SAPI5 + pyttsx3)
-├── importer.py                 # .txt, .csv, .docx formatdagi fayllarni aqlli import qilish
-├── gamification.py             # XP ballari, daraja unvonlari va nishonlar mexanikasi
-├── sound_effects.py            # Oflayn sintetik audio effektlar (Wave SFX)
-├── theme_manager.py            # 6 ta zamonaviy rang mavzulari boshqaruvi
-├── word_packs.py               # Saralangan so'z to'plamlari (Top 100, IELTS, IT)
-├── phonetics.py                # IPA transkripsiyalar va fonetik tahlil
-├── reader_data.py              # Smart Reader uchun hikoyalar va matnlar bazasi
-├── logger.py                   # Aylanuvchi faylli loglash tizimi (Rotating Log)
-├── build_exe.py                # Standalone .exe yig'ish skripti
-├── requirements.txt            # Kerakli Python kutubxonalari
-├── app.ico / app_icon.png      # Ilova piktogrammalari
+├── core/                         # 🧠 Biznes-mantiq va ma'lumotlar bazasi
+│   ├── database.py               # SQLite WAL ulanishi, SM-2 va xavfsiz avto-zaxira
+│   ├── gamification.py           # XP tizimi, darajalar, streaklar va yutuqlar
+│   ├── retention_analytics.py    # Xotira egri chizig'i va takrorlash analitikasi
+│   ├── phonetics.py              # IPA transkripsiya va fonetik tahlil dvigateli
+│   └── word_packs.py             # Saralangan mavzuli to'plamlar bazasi
 │
-└── ui/
-    ├── main_window.py          # Asosiy bosh oyna, sidebar, system tray
-    ├── dashboard.py            # Analitika, o'zlashtirish grafigi va Activity Heatmap
-    ├── dictionary.py           # Lug'at boshqaruvi, tezkor qidiruv, audio tugmalari
-    ├── practice.py             # 5 ta mashq rejimi trenajyori
-    ├── audio_player.py         # Hands-Free Audio Pleyer (ekran-audio 100% sinxron)
-    ├── blitz_game.py           # Blitz Marathon (60s time-attack o'yini)
-    ├── match_game.py           # Word Match (xotira kartochkalar juftligi)
-    ├── worksheet_generator.py  # Chop etiladigan A4 testlar generatori
-    ├── reader.py               # Aqlli o'qish va so'z inspektori
-    ├── mini_widget.py          # Har doim ustda turuvchi mini vidjet
-    ├── quick_capture.py        # Tezkor so'z qo'shish modal oynasi
-    ├── settings_page.py        # Mavzular, kunlik reja va TTS sozlamalari
-    ├── achievements_dialog.py  # Yutuqlar va medallar modali
-    ├── word_packs_dialog.py    # Tayyor to'plamlar oynasi
-    └── import_dialog.py        # Tashqi fayllardan so'z yuklash
+├── services/                     # ⚙️ Tashqi tizimlar, Audio, Nutq va Servislar
+│   ├── tts_service.py            # SAPI5 & pyttsx3 oflayn nutq sintezi
+│   ├── speech_service.py         # Mikrofondan talaffuzni yozish va baholash
+│   ├── sound_effects.py          # Oflayn sintetik audio effektlar (Wave SFX)
+│   ├── cefr_service.py           # CEFR (A1-C2) & IELTS 64,000+ so'zlik qidiruv xizmati
+│   ├── topic_service.py          # Mavzuli kategoriyalar xizmati
+│   ├── clipboard_service.py      # Tizim buferi (clipboard) kuzatuvchisi
+│   └── global_dict_service.py    # Katta lug'at qidiruv xizmati
+│
+├── ui/                           # 🎨 Foydalanuvchi Interfeysi (PyQt6)
+│   ├── main_window.py            # Asosiy oyna qobig'i, sidebar, tray
+│   ├── theme_manager.py          # 8 xil rang mavzulari va dinamik CSS
+│   ├── views/                    # Asosiy to'liq ekranli sahifalar
+│   │   ├── dashboard_view.py     # Analitika va faollik taqvimi (Heatmap)
+│   │   ├── dictionary_view.py    # Lug'at jadvali, 60 FPS delegat va qidiruv
+│   │   ├── practice_view.py      # 6 xil mashq trenajyori
+│   │   ├── audio_player_view.py  # Hands-Free audio pleyer
+│   │   ├── reader_view.py        # Aqlli kitob o'quvchi
+│   │   ├── topic_words_view.py   # Mavzuli so'zlar bo'limi
+│   │   └── settings_view.py      # Sozlamalar sahifasi
+│   ├── games/                    # Ta'limiy interaktiv o'yinlar
+│   │   ├── blitz_game.py         # 60s Blitz marafon
+│   │   ├── match_game.py         # So'z juftlash o'yini
+│   │   ├── word_fall_game.py     # Word Fall arkadasi
+│   │   └── crossword_game.py     # Lug'at krossvordi
+│   ├── dialogs/                  # Modal oynalar va popup oynalar
+│   │   ├── word_packs_dialog.py  # CEFR & Tayyor to'plamlar modali
+│   │   ├── quick_capture_dialog.py # Tezkor so'z qo'shish (Ctrl+Shift+A)
+│   │   ├── spotlight_search_dialog.py # Spotlight qidiruv (Alt+Space)
+│   │   ├── achievements_dialog.py# Medallar va yutuqlar oynasi
+│   │   ├── worksheet_dialog.py   # Chop etiladigan A4 testlar generatori
+│   │   └── import_dialog.py      # Fayldan so'z yuklash
+│   └── components/               # Qayta ishlatiluvchi UI vidjetlari
+│       └── mini_widget.py        # Suzuvchi ish stoli mini vidjeti
+│
+├── utils/                        # 🛠️ Yordamchi umumiy modullar
+│   ├── logger.py                 # Professional log tizimi (Rotating file + console)
+│   ├── importer.py               # CSV, JSON, TXT fayllarni o'qish/yozish
+│   ├── reader_data.py            # Badiiy matnlar namunalari
+│   └── single_instance.py        # IPC QLocalServer yagona instansiya boshqaruvi
+│
+├── assets/                       # Rasmlar, piktogrammalar va tovushlar
+├── backups/                      # Avtomatik zaxira nusxalari
+├── logs/                         # Dastur ishlash loglari
+├── main.py                       # Toza kirish nuqtasi va ishga tushirish
+├── build_exe.py                  # Standalone .exe yig'ish skripti
+└── requirements.txt              # Kerakli Python kutubxonalari
 ```
 
 ---

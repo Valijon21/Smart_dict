@@ -1,90 +1,20 @@
 import sys
 import os
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import Qt, QObject, pyqtSignal
-from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont
 
-import logger
-from logger import get_logger
-import database as db
+from utils.logger import setup_logging, get_logger
+from utils.single_instance import SingleInstanceManager
+import core.database as db
 from ui.main_window import MainWindow
 
 app_log = get_logger("app")
 
 
-class SingleInstanceManager(QObject):
-    """
-    Windows va barcha platformalar uchun professional Yagona Instansiya (Single Instance) menejeri.
-    QSharedMemory'dagi qulflanib qolish (stale lock/crash) muammosidan to'liq xoli bo'lib,
-    QLocalServer / QLocalSocket IPC orqali ishlaydi:
-    - Agar dastur allaqachon ishlab turgan bo'lsa, mavjud oynaga 'RESTORE' buyrug'ini yuboradi va uning oynasini ekranga chiqaradi.
-    - Yangi instansiya esa shovqinsiz va xatosiz yopiladi.
-    - Agar avvalgi jarayon to'satdan o'chgan bo'lsa, qadimgi socketni xavfsiz tozalab yangisini yoqadi.
-    """
-    restore_requested = pyqtSignal()
-
-    def __init__(self, key: str = "VocabMasterPro_SingleInstance_IPC"):
-        super().__init__()
-        self.key = key
-        self.server = None
-
-    def is_another_instance_running(self) -> bool:
-        """Boshqa faol instansiya ishlab turganini tekshirish."""
-        socket = QLocalSocket()
-        socket.connectToServer(self.key)
-        if socket.waitForConnected(400):
-            try:
-                socket.write(b"RESTORE\n")
-                socket.waitForBytesWritten(500)
-            except Exception:
-                pass
-            socket.disconnectFromServer()
-            return True
-        return False
-
-    def start_server(self) -> bool:
-        """Yagona instansiya uchun mahalliy IPC serverni ishga tushirish."""
-        QLocalServer.removeServer(self.key)
-        self.server = QLocalServer()
-        if self.server.listen(self.key):
-            self.server.newConnection.connect(self._on_new_connection)
-            return True
-        return False
-
-    def _on_new_connection(self):
-        if not self.server:
-            return
-        client = self.server.nextPendingConnection()
-        if not client:
-            return
-        client.readyRead.connect(lambda: self._read_client(client))
-
-    def _read_client(self, client: QLocalSocket):
-        try:
-            msg = bytes(client.readAll()).decode("utf-8", errors="ignore")
-            if "RESTORE" in msg:
-                self.restore_requested.emit()
-        except Exception:
-            pass
-        finally:
-            try:
-                client.disconnectFromServer()
-            except Exception:
-                pass
-
-    def cleanup(self):
-        if self.server:
-            try:
-                self.server.close()
-                QLocalServer.removeServer(self.key)
-            except Exception:
-                pass
-            self.server = None
-
-
 def main():
     # 1. Professional log tizimini ishga tushirish (Rotating file + Console)
-    logger.setup_logging()
+    setup_logging()
     app_log.info("Vocab Master ilovasi ishga tushmoqda...")
 
     try:

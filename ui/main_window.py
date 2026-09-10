@@ -7,24 +7,27 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, QTime, QDate, pyqtSlot
 from PyQt6.QtGui import QIcon, QAction, QKeySequence, QShortcut
 
-from ui.dashboard import DashboardWidget
-from ui.dictionary import DictionaryWidget
-from ui.practice import PracticeWidget
-from ui.import_dialog import ImportWidget
-from ui.settings_page import SettingsWidget
-from ui.reader import ReaderWidget
-from ui.quick_capture import QuickCaptureDialog
-from ui.match_game import MatchGameWidget
-from ui.mini_widget import MiniWidget
-from ui.audio_player import AudioPlayerWidget
-from ui.blitz_game import BlitzGameWidget
-from ui.word_fall_game import WordFallGameWidget
-from ui.crossword_game import CrosswordGameWidget
-from ui.spotlight_search import SpotlightSearchDialog
-from ui.topic_words_page import TopicWordsWidget
-import database as db
-import theme_manager
-from logger import get_logger
+from ui.views.dashboard_view import DashboardWidget
+from ui.views.dictionary_view import DictionaryWidget
+from ui.views.practice_view import PracticeWidget
+from ui.views.audio_player_view import AudioPlayerWidget
+from ui.views.reader_view import ReaderWidget
+from ui.views.topic_words_view import TopicWordsWidget
+from ui.views.settings_view import SettingsWidget
+
+from ui.games.match_game import MatchGameWidget
+from ui.games.blitz_game import BlitzGameWidget
+from ui.games.word_fall_game import WordFallGameWidget
+from ui.games.crossword_game import CrosswordGameWidget
+
+from ui.dialogs.import_dialog import ImportWidget
+from ui.dialogs.quick_capture_dialog import QuickCaptureDialog
+from ui.dialogs.spotlight_search_dialog import SpotlightSearchDialog
+from ui.components.mini_widget import MiniWidget
+
+import core.database as db
+import ui.theme_manager as theme_manager
+from utils.logger import get_logger
 
 logger = get_logger("main_window")
 
