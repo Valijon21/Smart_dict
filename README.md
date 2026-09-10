@@ -111,21 +111,77 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 
 ## 🆕 So'nggi Yangilanishlar & O'zgarishlar (Latest Updates & Changelog)
 
-### 🎧 Hands-Free Audio Pleyer Yaxshilanishlari:
-- **Mukammal Markazlashtirish:** Ekrandagi so'z, fonetik nishon, o'zbekcha tarjima va tagidagi misol gaplar barcha ekran kengliklarida 100% gorizontal markazda turishi ta'minlandi (`AlignCenter`).
-- **Matn Tozalash Algoritmi:** Misol gaplar boshidagi va oxiridagi bazaviy belgilar (`"•`, `•`, `*`, `-`, `"`) to'liq tozalanib, chiroyli kitobiy `“ ... ”` shakliga keltirildi.
-- **Aqlli 2 Qatorli Formatlash:** Uzun va ko'p sinonimli o'zbekcha tarjimalar ekranga sig'ishi va chiroyli o'qilishi uchun mantiqiy vergullar bo'yicha teng 2 qatorga ajratiladi.
-- **Yangi Nafis Audio Vizualizator:** 1000px li og'ir bloklar o'rniga zamonaviy `260x28px` ixcham, markazlashtirilgan, 24 ta yumaloqlangan to'lqinlar animatsiyasi o'rnatildi.
-- **🎙️ Oflayn Podcast (.wav) Eksport:** Pleyer boshqaruv paneli yuqori qismiga to'g'ridan-to'g'ri audio fayl eksport qilish modali tugmasi ulandi.
+### v2.5 — 2026-09-10 🔧 UI Aniqlik Yaxshilanishlari
 
-### 📚 Tayyor So'z Paketlari (Word Packs & CEFR / IELTS):
-- **64,000+ So'zlik Baza:** A1, A2, B1, B2, C1, C2 va IELTS Academic (AWL) darajalaridagi ulkan so'zlar bazasi bilan boyitildi.
-- **Tartibli 2 Qatorli Namunalar:** Namuna so'zlar qatori endi kartochkadan tashqariga chiqib ketmaydi, qulay 2 qatorda aks etadi.
-- **Vizual Xatolar Tuzatildi:** Kartochkalardagi so'zlar soni nishonining (`52 ta so'z`) o'ng cheti kesilib qolish xatosi bartaraf etildi; QLabel larning ortiqcha ichki chegara ramkalari yo'qotildi.
+#### 🔍 Spotlight Qidiruv — "➕ Qo'shish" Tugmasi To'liq Ko'rinishi
+- **Muammo:** `QListWidget` ichidagi har bir natija kartida o'ng tomondagi "➕ Qo'shish" (yashil) tugmasi ba'zan viewport chegarasidan tashqariga chiqib ketib, faqat 12px yashil tirqish ko'rinar edi. Gorizontal scrollbar paydo bo'lar, pastki qatorlar qisman kesilardi.
+- **Sabab:** `lbl_uz` (o'zbekcha tarjima `QLabel`) kengligini cheklamasdan, `item.setSizeHint(w.sizeHint())` bilan uzun tarjimalar (masalan, 704px) butun `QListWidget`ni kengaytirar edi.
+- **Yechim (Senior-level):**
+  - `lbl_uz.setSizePolicy(Ignored, Preferred)` — uzun tarjimalar endi kenglikni bo'zmaydi; hover tooltipda to'liq matn ko'rinadi.
+  - `SpotlightResultItemWidget.sizeHint() → QSize(0, 56)` — `QListWidget` viewport kengligiga mos ravishda sozlanadi.
+  - O'ng qismidagi badge + tugma alohida `right_container QWidget` ichiga `AlignRight | AlignVCenter` bilan joylashtirildi.
+  - `setHorizontalScrollBarPolicy(ScrollBarAlwaysOff)` — gorizontal scrollbar butunlay olib tashlandi.
+  - Dialog kengligi `760 × 530px`ga kengaytirildi.
+  - `lbl_action_hint` (pastki panel) ham `Ignored` size policy va tooltip bilan ta'minlandi.
 
-### ⚡ Tizim Barqarorligi va IPC:
-- **Yagona Instansiya Boshqaruvi (Single Instance):** QLocalServer / QLocalSocket IPC orqali bir vaqtning o'zida bir nechta nusxa ochilishi oldi olindi; mavjud oyna ekranga chiqariladi.
-- **Yuqori DPI va Shriftlar:** High DPI ekranlarda tiniq ko'rinish va shrift antialiasing sozlandi.
+---
+
+### v2.4 — 2026-09-09 🎤 Mikrofon + Kunlik Missiyalar
+
+#### 🎙️ Mashq Ekraniga Mikrofon Tugmasi
+- `practice_view.py` dagi har bir so'z yoniga **mikrofon tugmasi** qo'shildi.
+- Mavjud `speech_service.py` bilan to'liq ulangan: foydalanuvchi o'z talaffuzini real vaqtda sinab ko'rishi mumkin.
+- Oflayn Windows System.Speech API orqali talaffuz yozib olinadi va to'g'ri TTS namunasi bilan taqqoslanadi.
+
+#### 🎯 Kunlik Missiyalar va Battle Pass tizimi
+- Har kuni avtomatik yangilanadigan **3 ta dinamik vazifa** tizimi (`daily_quests_service.py`).
+- XP mukofotlari, Battle Pass rivojlanishi va streak tizimi bilan integratsiya.
+- Yutuqlar (`achievements_dialog.py`) bilan parallel ishlaydi.
+
+---
+
+### v2.3 — 2026-09-08 🎧 Audio Pleyer Kengaytmasi
+
+#### 🎧 Audio Pleyerga To'plamlar va Paketlar Qo'shildi
+- **Mavzular bo'yicha tinglash:** 50+ tematik kategoriyalar (Travel, Business, Science…) audio rejimda tinglanishi mumkin.
+- **CEFR / IELTS Paketlari:** A1-C2 va IELTS Academic (AWL) so'z to'plamlarini hands-free audio tarzda o'rganish.
+- **Avto-tanlab olish muammosi tuzatildi:** Tab yoki ro'yxat bosishida audio avto-boshlanib ketish (regression) bartaraf etildi — endi faqat ▶️ Play tugmasi bosilganda audio boshlanadi.
+
+---
+
+### v2.2 — 2026-09-07 🔎 Aqlli Ikki Tomonlama Qidiruv
+
+#### 🔍 Inglizcha va O'zbekcha Qidiruvda Muammolar Tuzatildi
+- **Muammo:** O'zbekcha so'z kiritilganda ba'zan faqat inglizcha natijalar chiqar edi; apostrofli so'zlar (`don't`, `o'qituvchi`) to'g'ri topilmasdi.
+- **Yechim:** `text_search_utils.py` da multi-tier ranking tizimi va apostrof normalizatsiya algoritmi joriy etildi:
+  - `Rank 0`: Aniq to'liq moslik (inglizcha yoki o'zbekcha)
+  - `Rank 1`: Boshidan mos keluvchi (prefix)
+  - `Rank 2`: Ichki qismda mos keluvchi (substring)
+  - `Rank 3`: Normallashtirilgan (apostrofsiz, kichik harf) qidiruv
+- Qidiruv natijalarida shaxsiy lug'at har doim global 64k lug'atdan ustun turadi.
+
+---
+
+### v2.1 — 2026-09-06 📦 EXE Paketi Stabilligi
+
+#### 🛠️ Standalone EXE Xatosi Tuzatildi
+- `NameError: name 'sys' is not defined` xatosi `topic_words_view.py` va boshqa modullarda bartaraf etildi.
+- `PyInstaller` spec fayli (`VocabMaster.spec`) optimallashtirilib, barcha yashirin importlar aniq ko'rsatildi.
+- `build_exe.py` yangilandi — `hiddenimports`, `datas` va `pathex` to'liq to'g'rilandi.
+
+---
+
+### v2.0 — 2026-09-05 🎮 O'yinlar va To'plamlar
+
+#### 🎧 Hands-Free Audio Pleyer Yaxshilanishlari
+- **Mukammal Markazlashtirish:** So'z, fonetik nishon, tarjima va misol gaplar barcha ekran kengliklarida gorizontal markaz.
+- **Matn Tozalash:** Misol gaplar boshidagi `•`, `*`, `-`, `"` belgilar to'liq tozalanib chiroyli `" ... "` shakliga keltirildi.
+- **Aqlli 2 Qatorli Formatlash:** Uzun tarjimalar mantiqiy vergullar bo'yicha 2 qatorga ajratiladi.
+- **Yangi Audio Vizualizator:** 24 ta yumaloqlangan to'lqinlar animatsiyasi, `260 × 28px` ixcham format.
+- **🎙️ Podcast (.wav) Eksport** modali to'g'ridan-to'g'ri pleyer panelida.
+
+#### 🎮 O'yinlarda So'z Manba Tanlash
+- Barcha 4 ta o'yin (Blitz, Match, Word Fall, Crossword) uchun so'z manbasi tanlash qo'shildi: shaxsiy lug'at, mavzular, CEFR paketlari.
 
 ---
 
