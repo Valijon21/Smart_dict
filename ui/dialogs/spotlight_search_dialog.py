@@ -6,9 +6,10 @@ talaffuzini eshitish va yangi so'zlarni 1-bosish bilan bazaga qo'shish.
 """
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QListWidget,
-    QListWidgetItem, QLabel, QPushButton, QFrame, QWidget, QGraphicsDropShadowEffect
+    QListWidgetItem, QLabel, QPushButton, QFrame, QWidget, QGraphicsDropShadowEffect,
+    QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QPoint, QSize
 from PyQt6.QtGui import QColor, QKeyEvent, QGuiApplication
 
 import database as db
@@ -34,15 +35,17 @@ class SpotlightResultItemWidget(QWidget):
         t = theme_manager.get_active_theme()
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)
-        layout.setSpacing(10)
+        layout.setContentsMargins(12, 6, 12, 6)
+        layout.setSpacing(12)
 
         # Chap: Inglizcha so'z va transkripsiya
         left_col = QVBoxLayout()
         left_col.setSpacing(2)
+        left_col.setContentsMargins(0, 0, 0, 0)
 
         en_row = QHBoxLayout()
         en_row.setSpacing(8)
+        en_row.setContentsMargins(0, 0, 0, 0)
         self.lbl_en = QLabel(wd.get("english", ""))
         self.lbl_en.setStyleSheet(f"font-size: 15px; font-weight: 700; color: {t.text_main};")
         en_row.addWidget(self.lbl_en)
@@ -65,11 +68,19 @@ class SpotlightResultItemWidget(QWidget):
 
         self.lbl_uz = QLabel(wd.get("uzbek", ""))
         self.lbl_uz.setStyleSheet(f"font-size: 13px; color: {t.text_muted};")
+        self.lbl_uz.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.lbl_uz.setToolTip(wd.get("uzbek", ""))
         left_col.addWidget(self.lbl_uz)
 
         layout.addLayout(left_col, 1)
 
         # O'ng: Leitner Box yoki Global Lug'at holati
+        right_container = QWidget()
+        right_layout = QHBoxLayout(right_container)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(8)
+        right_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
         is_global = wd.get("source") == "global" or wd.get("is_global", False)
 
         if not is_global:
@@ -77,35 +88,41 @@ class SpotlightResultItemWidget(QWidget):
             lbl_box = QLabel(f"Box {box}")
             lbl_box.setStyleSheet(
                 "background-color: #1E1B4B; color: #C7D2FE; font-size: 11px; font-weight: 700; "
-                "border-radius: 6px; padding: 3px 8px;"
+                "border-radius: 6px; padding: 4px 10px;"
             )
-            layout.addWidget(lbl_box)
+            right_layout.addWidget(lbl_box)
         else:
             in_study = wd.get("is_in_study_list", False)
             if in_study:
                 lbl_status = QLabel("✅ O'rganilmoqda")
                 lbl_status.setStyleSheet(
                     "background-color: #064E3B; color: #6EE7B7; font-size: 11px; font-weight: 700; "
-                    "border-radius: 6px; padding: 3px 8px;"
+                    "border-radius: 6px; padding: 4px 10px;"
                 )
-                layout.addWidget(lbl_status)
+                right_layout.addWidget(lbl_status)
             else:
                 lbl_badge = QLabel("🌐 64k")
                 lbl_badge.setStyleSheet(
                     "background-color: #1E293B; color: #94A3B8; font-size: 11px; font-weight: 600; "
-                    "border-radius: 6px; padding: 3px 6px;"
+                    "border-radius: 6px; padding: 4px 8px;"
                 )
-                layout.addWidget(lbl_badge)
+                right_layout.addWidget(lbl_badge)
 
                 self.btn_add = QPushButton("➕ Qo'shish")
                 self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
+                self.btn_add.setFixedHeight(28)
                 self.btn_add.setStyleSheet(
                     "QPushButton { background-color: #10B981; color: white; border: none; "
-                    "border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600; } "
+                    "border-radius: 6px; padding: 0 12px; font-size: 12px; font-weight: 600; } "
                     "QPushButton:hover { background-color: #059669; }"
                 )
                 self.btn_add.clicked.connect(self._handle_add_click)
-                layout.addWidget(self.btn_add)
+                right_layout.addWidget(self.btn_add)
+
+        layout.addWidget(right_container, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+    def sizeHint(self) -> QSize:
+        return QSize(0, 56)
 
     def _handle_add_click(self):
         if self.on_quick_add:
@@ -114,7 +131,7 @@ class SpotlightResultItemWidget(QWidget):
                 self.btn_add.setText("✅ Qo'shildi")
                 self.btn_add.setStyleSheet(
                     "QPushButton { background-color: #065F46; color: #A7F3D0; border: none; "
-                    "border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600; }"
+                    "border-radius: 6px; padding: 0 10px; font-size: 11px; font-weight: 600; }"
                 )
                 self.btn_add.setEnabled(False)
 
@@ -135,9 +152,9 @@ class SpotlightSearchDialog(QDialog):
             Qt.WindowType.Dialog
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.resize(700, 520)
-        self.setMinimumSize(620, 440)
-        self.setMaximumSize(900, 720)
+        self.resize(760, 530)
+        self.setMinimumSize(660, 450)
+        self.setMaximumSize(960, 750)
 
         self.current_results: list[dict] = []
         self.search_timer = QTimer(self)
@@ -220,8 +237,10 @@ class SpotlightSearchDialog(QDialog):
         sep.setStyleSheet(f"background-color: {t.border}; max-height: 1px;")
         card_layout.addWidget(sep)
 
-        # 2. Natijalar ro'yxati
+        # 2. Natijalar ro'yxati (Gorizontal scroll butunlay o'chirilgan, faqat vertikal)
         self.results_list = QListWidget()
+        self.results_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.results_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.results_list.setStyleSheet(
             f"QListWidget {{ background: transparent; border: none; outline: none; }} "
             f"QListWidget::item {{ border-radius: 10px; margin-bottom: 3px; }} "
@@ -235,7 +254,7 @@ class SpotlightSearchDialog(QDialog):
         # 3. Pastki Tafsilot va Amal paneli
         self.detail_frame = QFrame()
         self.detail_frame.setStyleSheet(
-            f"QFrame {{ background-color: {t.bg_card}; border-radius: 10px; padding: 8px 12px; }}"
+            f"QFrame {{ background-color: {t.bg_card}; border-radius: 10px; padding: 6px 12px; }}"
         )
         detail_layout = QHBoxLayout(self.detail_frame)
         detail_layout.setContentsMargins(10, 6, 10, 6)
@@ -243,14 +262,14 @@ class SpotlightSearchDialog(QDialog):
 
         self.lbl_action_hint = QLabel("💡 Tanlash: ↑/↓ | Talaffuz: Space | Lug'atda ochish: Enter")
         self.lbl_action_hint.setStyleSheet(f"color: {t.text_muted}; font-size: 12px;")
-        detail_layout.addWidget(self.lbl_action_hint)
-        detail_layout.addStretch()
+        self.lbl_action_hint.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        detail_layout.addWidget(self.lbl_action_hint, 1)
 
         self.btn_speak = QPushButton("🔊 Talaffuz")
         self.btn_speak.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_speak.setStyleSheet(
             f"QPushButton {{ background-color: {t.bg_card_secondary}; color: {t.text_main}; "
-            f"border: 1px solid {t.border}; border-radius: 6px; padding: 4px 10px; font-size: 12px; }}"
+            f"border: 1px solid {t.border}; border-radius: 6px; padding: 5px 12px; font-size: 12px; }}"
             f"QPushButton:hover {{ border-color: {t.primary}; color: {t.primary}; }}"
         )
         self.btn_speak.clicked.connect(self._speak_selected)
@@ -260,7 +279,7 @@ class SpotlightSearchDialog(QDialog):
         self.btn_open_dict.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_open_dict.setStyleSheet(
             f"QPushButton {{ background-color: {t.primary}; color: white; "
-            f"border-radius: 6px; padding: 4px 12px; font-size: 12px; font-weight: 600; }}"
+            f"border-radius: 6px; padding: 5px 14px; font-size: 12px; font-weight: 600; }}"
             f"QPushButton:hover {{ background-color: {t.primary_light}; }}"
         )
         self.btn_open_dict.clicked.connect(self._open_in_dict)
@@ -270,7 +289,7 @@ class SpotlightSearchDialog(QDialog):
         self.btn_add_new.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_add_new.setStyleSheet(
             "QPushButton { background-color: #10B981; color: white; border-radius: 6px; "
-            "padding: 4px 12px; font-size: 12px; font-weight: 600; } "
+            "padding: 5px 14px; font-size: 12px; font-weight: 600; } "
             "QPushButton:hover { background-color: #059669; }"
         )
         self.btn_add_new.clicked.connect(self._request_quick_add)
@@ -411,11 +430,15 @@ class SpotlightSearchDialog(QDialog):
             is_global = data.get("source") == "global" or data.get("is_global", False)
 
             if ex:
-                self.lbl_action_hint.setText(f"💡 Misol: \"{ex[:60]}...\"" if len(ex) > 60 else f"💡 Misol: \"{ex}\"")
+                clean_ex = ex.strip().replace("\n", " ")
+                hint_text = f"💡 Misol: \"{clean_ex}\""
             elif is_global:
-                self.lbl_action_hint.setText(f"🌐 64k Lug'at: {eng} — {uz}")
+                hint_text = f"🌐 64k Lug'at: {eng} — {uz}"
             else:
-                self.lbl_action_hint.setText(f"📖 {eng} — {uz}")
+                hint_text = f"📖 {eng} — {uz}"
+
+            self.lbl_action_hint.setText(hint_text)
+            self.lbl_action_hint.setToolTip(hint_text)
 
     def _on_item_double_clicked(self, item: QListWidgetItem):
         self._open_in_dict()
