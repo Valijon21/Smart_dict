@@ -162,6 +162,9 @@ class GameSourceSelector(QFrame):
     def get_current_source_id(self) -> str:
         return self.combo_source.currentData() or "all"
 
+    def get_current_source(self) -> tuple[str, str]:
+        return self.get_current_category(), self.get_current_source_id()
+
     def get_current_source_title(self) -> str:
         return self.combo_source.currentText() or "Asosiy to'plam"
 

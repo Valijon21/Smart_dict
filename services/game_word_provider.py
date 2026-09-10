@@ -58,9 +58,26 @@ def get_sources_for_category(category_id: str) -> list[dict]:
             total_count = db.get_total_word_count()
         except Exception:
             pass
+        due_count = 0
+        try:
+            due_count = db.get_due_count()
+        except Exception:
+            pass
+        weak_count = 0
+        try:
+            weak_count = db.get_weak_words_count()
+        except Exception:
+            pass
+        learning_count = 0
+        try:
+            learning_count = len(db.get_words_by_status("learning"))
+        except Exception:
+            pass
         return [
-            {"id": "all", "title": f"Barcha so'zlar ({total_count} ta)", "count": total_count},
-            {"id": "learning", "title": "O'rganilayotgan so'zlar", "count": total_count},
+            {"id": "all", "title": f"📚 Barcha so'zlar ({total_count} ta)", "count": total_count},
+            {"id": "due", "title": f"🧠 Bugun takrorlash kerak ({due_count} ta)", "count": due_count},
+            {"id": "weak", "title": f"⚠️ Zaif / xato so'zlar ({weak_count} ta)", "count": weak_count},
+            {"id": "learning", "title": f"🌱 O'rganilayotgan so'zlar ({learning_count} ta)", "count": learning_count},
         ]
 
     elif category_id == CAT_TOPICS:
@@ -170,16 +187,52 @@ def get_words_for_game(
     return filtered
 
 
+def get_words_for_source(category_id: str, source_id: str, limit: int = 0) -> list[dict]:
+    """
+    Audio Player, Podcast eksport yoki umumiy o'rganish uchun to'plamdagi so'zlarni
+    barcha misol gaplari (example) va fonetikasi bilan to'liq qaytaradi.
+    """
+    cache_key = (category_id, source_id)
+    if cache_key in _CACHE:
+        raw_words = _CACHE[cache_key]
+    else:
+        raw_words = _load_source_words(category_id, source_id)
+        if raw_words:
+            _CACHE[cache_key] = raw_words
+
+    if not raw_words:
+        raw_words = _get_fallback_words()
+
+    if limit > 0 and len(raw_words) > limit:
+        return list(raw_words[:limit])
+    return list(raw_words)
+
+
 def _load_source_words(category_id: str, source_id: str) -> list[dict]:
     """Manba turiga qarab so'zlarni bazadan yoki xizmatdan yuklash."""
     results: list[dict] = []
 
     try:
         if category_id == CAT_PERSONAL:
-            if source_id == "learning":
-                rows = db.get_words_with_progress()
+            if source_id == "due":
+                rows = db.get_due_words(limit=500)
+                if not rows:
+                    rows = db.get_all_words()
+            elif source_id == "weak":
+                rows = db.get_weakest_words(limit=100)
+                if not rows:
+                    rows = db.get_weak_words(limit=100)
+                if not rows:
+                    rows = db.get_all_words()
+            elif source_id == "learning":
+                rows = db.get_words_by_status("learning")
+                if not rows:
+                    rows = db.get_words_with_progress()
+                if not rows:
+                    rows = db.get_all_words()
             else:
                 rows = db.get_all_words()
+
             for idx, r in enumerate(rows, 1):
                 d = dict(r) if not isinstance(r, dict) else r
                 results.append({
@@ -188,6 +241,7 @@ def _load_source_words(category_id: str, source_id: str) -> list[dict]:
                     "uzbek": d.get("uzbek", "").strip(),
                     "phonetic": d.get("phonetic", ""),
                     "part_of_speech": d.get("part_of_speech", "word"),
+                    "example": d.get("example", "").strip(),
                 })
 
         elif category_id == CAT_TOPICS:
@@ -202,6 +256,7 @@ def _load_source_words(category_id: str, source_id: str) -> list[dict]:
                         "uzbek": uz,
                         "phonetic": item.get("phonetic", ""),
                         "part_of_speech": item.get("pos", "word"),
+                        "example": item.get("example", "").strip(),
                     })
 
         elif category_id == CAT_PACKS:
@@ -212,12 +267,13 @@ def _load_source_words(category_id: str, source_id: str) -> list[dict]:
                         "id": f"pack_{source_id}_{idx}",
                         "english": w.get("english", "").strip(),
                         "uzbek": w.get("uzbek", "").strip(),
-                        "phonetic": "",
+                        "phonetic": w.get("phonetic", ""),
                         "part_of_speech": "word",
+                        "example": w.get("example", "").strip(),
                     })
 
         elif category_id == CAT_CEFR:
-            cefr_words = cefr_service.get_words_for_level(source_id, limit=150)
+            cefr_words = cefr_service.get_words_for_level(source_id, limit=300)
             for idx, w in enumerate(cefr_words, 1):
                 eng = w.get("english", "").strip()
                 uz = w.get("uzbek", "").strip()
@@ -226,8 +282,9 @@ def _load_source_words(category_id: str, source_id: str) -> list[dict]:
                         "id": f"cefr_{source_id}_{idx}",
                         "english": eng,
                         "uzbek": uz,
-                        "phonetic": "",
+                        "phonetic": w.get("phonetic", ""),
                         "part_of_speech": w.get("pos", "word"),
+                        "example": w.get("example", "").strip(),
                     })
 
     except Exception as e:

@@ -20,6 +20,8 @@ from PyQt6.QtGui import QPainter, QColor, QBrush, QPainterPath
 import database as db
 import tts
 import theme_manager
+from ui.components.game_source_selector import GameSourceSelector
+import services.game_word_provider as gwp
 from logger import get_logger
 
 logger = get_logger("audio_player")
@@ -364,13 +366,14 @@ class AudioExportThread(QThread):
 
 class AudioExportDialog(QDialog):
     """Lug'at so'zlarini oflayn audio podcast (.wav) sifatida yuklab olish oynasi."""
-    def __init__(self, current_playlist: list[dict], parent=None):
+    def __init__(self, current_playlist: list[dict], parent=None, default_source_title: str = "Tanlangan to'plam"):
         super().__init__(parent)
         self.current_playlist = current_playlist
+        self.default_source_title = default_source_title
         self.export_filepath = ""
         self.export_thread: AudioExportThread | None = None
-        self.setWindowTitle("🎙️ Oflayn Audio Podcast Eksport (.wav)")
-        self.setFixedWidth(520)
+        self.setWindowTitle(f"🎙️ Oflayn Audio Podcast Eksport — {default_source_title}")
+        self.setFixedWidth(540)
         self._build_ui()
 
     def _build_ui(self):
@@ -381,7 +384,7 @@ class AudioExportDialog(QDialog):
         layout.setSpacing(16)
         layout.setContentsMargins(24, 24, 24, 24)
 
-        title = QLabel("🎙️ Oflayn Audio Podcast Yaratish")
+        title = QLabel(f"🎙️ Oflayn Audio Podcast Yaratish")
         title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {t.text_main};")
         layout.addWidget(title)
 
@@ -399,8 +402,8 @@ class AudioExportDialog(QDialog):
         src_lbl.setStyleSheet(f"font-weight: 600; color: {t.text_main}; font-size: 13px;")
         self.combo_source = QComboBox()
         self.combo_source.addItems([
-            f"🎧 Hozirgi pleyerdagi so'zlar ({len(self.current_playlist)} ta)",
-            "📚 Barcha so'zlar (To'liq lug'at)",
+            f"🎧 Hozirgi tanlangan to'plam [{self.default_source_title}] ({len(self.current_playlist)} ta)",
+            "📚 Barcha shaxsiy so'zlar (To'liq lug'at)",
             "🧠 Bugun takrorlash kerak (SM-2)",
             "⚠️ Zaif / xato qilingan so'zlar",
         ])
@@ -647,24 +650,18 @@ class AudioPlayerWidget(QWidget):
         header_row.addWidget(self.title_lbl)
         header_row.addStretch()
 
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItems([
-            "📚 Barcha so'zlar",
-            "🧠 Bugun takrorlash kerak (SM-2)",
-            "⚠️ Zaif / ko'p xato qilingan so'zlar",
-            "🌱 O'rganilayotgan so'zlar"
-        ])
-        self.mode_combo.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.mode_combo.currentIndexChanged.connect(self.load_words)
-        header_row.addWidget(self.mode_combo)
-
         self.btn_export = QPushButton("🎙️ Podcast (.wav) Eksport")
         self.btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_export.setToolTip("Pleyerdagi yoki butun lug'atdagi so'zlarni oflayn audio podcast (.wav) qilib saqlash")
+        self.btn_export.setToolTip("Pleyerdagi yoki tanlangan to'plamdagi so'zlarni oflayn audio podcast (.wav) qilib saqlash")
         self.btn_export.clicked.connect(self._open_export_dialog)
         header_row.addWidget(self.btn_export)
 
         root.addLayout(header_row)
+
+        # 2. Mavzular va To'plamlar tanlash paneli (Universal Source Selector)
+        self.source_selector = GameSourceSelector("audio_player", self)
+        self.source_selector.source_changed.connect(self._on_source_changed)
+        root.addWidget(self.source_selector)
 
         self.sub_lbl = QLabel(
             "Ekranga qaramasdan quloqchin orqali so'zlarni eshitib yodlang. "
@@ -824,32 +821,29 @@ class AudioPlayerWidget(QWidget):
         self.slider_interval.blockSignals(False)
         self.interval_lbl.setText(f"{val_sec:.1f}s")
 
+    def _on_source_changed(self, category_id: str, source_id: str):
+        self.load_words()
+
     def load_words(self):
         was_running = self.worker.is_running
         if was_running:
             self.worker.stop_playback()
             self.worker.wait(400)
 
-        idx = self.mode_combo.currentIndex()
-        if idx == 0:
-            words = db.get_all_words()
-        elif idx == 1:
-            words = db.get_due_words()
-            if not words:
-                words = db.get_all_words()
-        elif idx == 2:
-            words = db.get_weakest_words(limit=30)
-            if not words:
-                words = db.get_all_words()
+        if hasattr(self, "source_selector"):
+            cat, src = self.source_selector.get_current_source()
+            words = gwp.get_words_for_source(cat, src)
         else:
-            words = db.get_words_by_status("learning")
-            if not words:
-                words = db.get_all_words()
+            words = db.get_all_words()
 
         if not words:
-            self.word_lbl.setText("Lug'atda so'zlar topilmadi")
-            self.trans_lbl.setText("Avval so'z qo'shing")
+            self.word_lbl.setText("To'plamda so'zlar topilmadi")
+            self.trans_lbl.setText("Boshqa mavzu yoki to'plamni tanlang")
+            self.phonetic_badge.setText("/—/")
+            self.pos_badge.setText("[—]")
+            self.example_lbl.setText("")
             self.track_idx_lbl.setText("0 / 0")
+            self.worker.set_playlist([])
             return
 
         words = [dict(w) for w in words]
@@ -884,7 +878,8 @@ class AudioPlayerWidget(QWidget):
     def _open_export_dialog(self):
         """Pleyerdagi so'zlar ro'yxatini oflayn audio (.wav) qilib yuklab olish oynasini ochadi."""
         playlist = list(self.worker.playlist) if self.worker and self.worker.playlist else []
-        dlg = AudioExportDialog(playlist, self)
+        source_title = self.source_selector.get_current_source_title() if hasattr(self, "source_selector") else "Lug'at"
+        dlg = AudioExportDialog(playlist, self, default_source_title=source_title)
         dlg.exec()
 
     def _toggle_play(self):
@@ -991,10 +986,8 @@ class AudioPlayerWidget(QWidget):
         self.trans_lbl.setStyleSheet(f"color: {t.primary_light if t.primary_light else '#34D399'}; font-size: 19px; font-weight: 700; line-height: 1.35; padding: 2px 8px;")
         self.example_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 14.5px; font-style: italic; line-height: 1.45; padding: 4px 16px;")
 
-        self.mode_combo.setStyleSheet(
-            f"QComboBox {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; "
-            f"border-radius: 7px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; }}"
-        )
+        if hasattr(self, "source_selector"):
+            self.source_selector.apply_theme(t)
         self.btn_export.setStyleSheet(
             f"QPushButton {{ background-color: {t.bg_card}; color: {t.primary_light if t.primary_light else t.primary}; "
             f"border: 1px solid {t.border}; border-radius: 7px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; }}"
