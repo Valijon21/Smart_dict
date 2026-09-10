@@ -34,6 +34,8 @@ logger = get_logger("main_window")
 
 NAV_ITEMS = [
     ("📊  Dashboard", "dashboard"),
+    ("🇬🇧→🇺🇿  EN → UZ mashq", "en_uz"),
+    ("🇺🇿→🇬🇧  UZ → EN mashq", "uz_en"),
     ("📖  Lug'at", "dictionary"),
     ("🗂️  Mavzuli so'zlar", "topic_words"),
     ("📚  Aqlli o'qish", "reader"),
@@ -42,8 +44,6 @@ NAV_ITEMS = [
     ("🌧️  Word Fall", "word_fall"),
     ("🧩  Krossvord", "crossword"),
     ("🎧  Audio Pleyer", "audio_player"),
-    ("🇬🇧→🇺🇿  EN → UZ mashq", "en_uz"),
-    ("🇺🇿→🇬🇧  UZ → EN mashq", "uz_en"),
     ("📥  So'z import qilish", "import"),
     ("⚙️  Sozlamalar", "settings"),
 ]
