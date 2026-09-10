@@ -721,7 +721,7 @@ class DictionaryWidget(QWidget):
         filter_layout.setSpacing(12)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔍 Inglizcha yoki o'zbekcha so'zni qidiring... (Ctrl+F)")
+        self.search_input.setPlaceholderText("🔍 Inglizcha yoki o'zbekcha so'zni qidiring...")
         self.search_input.setStyleSheet(
             "background-color: #151521; color: white; border: 1px solid #2A2A3C;"
             "border-radius: 8px; padding: 9px 14px; font-size: 13px;"

@@ -247,8 +247,8 @@ Yig'ish yakunlangach, tayyor `SmartDict.exe` fayli `dist/` papkasida paydo bo'la
 
 | Tugmalar | Vazifasi |
 |---|---|
+| `Ctrl + F` / `Alt + Space` | 🔍 Aqlli universal qidiruv paneli (Spotlight Search) |
 | `Space` | Mashqda kartani ag'darish / Audio pleyerda Play-Pause |
-| `Ctrl + F` | Lug'atda so'z qidirish qatoriga o'tish |
 | `Ctrl + Shift + A` | Tezkor so'z qo'shish (Quick Capture) |
 | `Enter` | Mashqda javobni tasdiqlash |
 | `1, 2, 3, 4` | Test rejimida variantni tanlash |

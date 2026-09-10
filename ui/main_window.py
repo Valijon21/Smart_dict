@@ -182,16 +182,14 @@ class MainWindow(QMainWindow):
         self.switch_page("dashboard")
 
 
-        # Spotlight universal tezkor qidiruv (Alt+Space va Ctrl+Shift+F)
+        # Spotlight universal tezkor aqlli qidiruv (Ctrl+F, Alt+Space va Ctrl+Shift+F)
         self.spotlight_dialog = None
         self.sc_spotlight = QShortcut(QKeySequence("Alt+Space"), self)
         self.sc_spotlight.activated.connect(self.open_spotlight_search)
-        self.sc_spotlight_f = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
+        self.sc_spotlight_f = QShortcut(QKeySequence("Ctrl+F"), self)
         self.sc_spotlight_f.activated.connect(self.open_spotlight_search)
-
-        # Lug'atda so'z qidirish qatoriga o'tish (Ctrl+F)
-        self.sc_dict_search = QShortcut(QKeySequence("Ctrl+F"), self)
-        self.sc_dict_search.activated.connect(self.focus_dictionary_search)
+        self.sc_spotlight_shift_f = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
+        self.sc_spotlight_shift_f.activated.connect(self.open_spotlight_search)
 
         # Mini suzib yuruvchi vidjet (Ctrl+Shift+W)
         self.mini_widget = None
