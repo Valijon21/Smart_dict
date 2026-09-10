@@ -99,3 +99,9 @@ Desktop.ini
 .AppleDouble
 .LSOverride
 $RECYCLE.BIN/
+
+# ------------------------------------------------------------------------------
+# AI Agent Configuration (Antigravity / AG Kit — faqat lokal ish muhiti uchun)
+# ------------------------------------------------------------------------------
+.agents/
+.gemini/

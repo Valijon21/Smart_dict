@@ -116,7 +116,7 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 #### 🔍 Spotlight Qidiruv — "➕ Qo'shish" Tugmasi To'liq Ko'rinishi
 - **Muammo:** `QListWidget` ichidagi har bir natija kartida o'ng tomondagi "➕ Qo'shish" (yashil) tugmasi ba'zan viewport chegarasidan tashqariga chiqib ketib, faqat 12px yashil tirqish ko'rinar edi. Gorizontal scrollbar paydo bo'lar, pastki qatorlar qisman kesilardi.
 - **Sabab:** `lbl_uz` (o'zbekcha tarjima `QLabel`) kengligini cheklamasdan, `item.setSizeHint(w.sizeHint())` bilan uzun tarjimalar (masalan, 704px) butun `QListWidget`ni kengaytirar edi.
-- **Yechim (Senior-level):**
+- **Yechim:**
   - `lbl_uz.setSizePolicy(Ignored, Preferred)` — uzun tarjimalar endi kenglikni bo'zmaydi; hover tooltipda to'liq matn ko'rinadi.
   - `SpotlightResultItemWidget.sizeHint() → QSize(0, 56)` — `QListWidget` viewport kengligiga mos ravishda sozlanadi.
   - O'ng qismidagi badge + tugma alohida `right_container QWidget` ichiga `AlignRight | AlignVCenter` bilan joylashtirildi.

@@ -24,6 +24,43 @@ except ImportError:
 
 logger = get_logger("database")
 
+# SQL ORDER BY whitelist — f-string injection xavfini bartaraf etadi.
+# Yangi sort qiymati kerak bo'lsa, shu ro'yxatga qo'shing.
+_ALLOWED_ORDER_BY: frozenset[str] = frozenset({
+    "created_at DESC",
+    "created_at ASC",
+    "english ASC",
+    "english DESC",
+    "uzbek ASC",
+    "uzbek DESC",
+    "id ASC",
+    "id DESC",
+    "w.id ASC",
+    "w.id DESC",
+    "w.created_at DESC",
+    "w.created_at ASC",
+    "w.english ASC",
+    "w.english DESC",
+    "box_level ASC",
+    "box_level DESC",
+    "correct_count DESC",
+    "wrong_count DESC",
+    "status ASC",
+    "status DESC",
+})
+
+
+def _safe_order_by(order_by: str, default: str = "created_at DESC") -> str:
+    """Whitelist tekshirish: ruxsat etilmagan qiymat kelsa, default qaytariladi va warning yoziladi."""
+    if order_by in _ALLOWED_ORDER_BY:
+        return order_by
+    logger.warning(
+        "SQL injection himoyasi: ruxsatsiz order_by=%r rad etildi, default=%r ishlatiladi.",
+        order_by, default,
+    )
+    return default
+
+
 
 def _determine_db_path() -> Path:
     """
@@ -429,14 +466,17 @@ def get_latest_added_words(limit: int = 20) -> list[sqlite3.Row]:
 
 
 def get_all_words(order_by: str = "created_at DESC") -> list[sqlite3.Row]:
+    """Barcha so'zlarni qaytaradi. order_by whitelist orqali SQL injection'dan himoyalangan."""
+    safe_order = _safe_order_by(order_by, default="created_at DESC")
     with get_conn() as conn:
-        return conn.execute(f"SELECT * FROM words ORDER BY {order_by}").fetchall()
+        return conn.execute(f"SELECT * FROM words ORDER BY {safe_order}").fetchall()
 
 
 def get_words(limit: int = 50, order_by: str = "created_at DESC") -> list[sqlite3.Row]:
-    """Cheklangan miqdordagi so'zlarni olish."""
+    """Cheklangan miqdordagi so'zlarni olish. order_by whitelist orqali SQL injection'dan himoyalangan."""
+    safe_order = _safe_order_by(order_by, default="created_at DESC")
     with get_conn() as conn:
-        return conn.execute(f"SELECT * FROM words ORDER BY {order_by} LIMIT ?", (limit,)).fetchall()
+        return conn.execute(f"SELECT * FROM words ORDER BY {safe_order} LIMIT ?", (limit,)).fetchall()
 
 
 def get_word_by_english(english: str) -> sqlite3.Row | None:
@@ -640,7 +680,11 @@ def get_random_distractors(exclude_word_id: int, target_lang: str = "uzbek", cou
 
 
 def get_words_with_progress(order_by: str = "w.id ASC") -> list[sqlite3.Row]:
-    """So'zlar va ularning progress ma'lumotlarini 1 ta tezkor JOIN so'rovi bilan qaytaradi (N+1 yo'q)."""
+    """So'zlar va ularning progress ma'lumotlarini 1 ta tezkor JOIN so'rovi bilan qaytaradi (N+1 yo'q).
+
+    order_by parametri whitelist orqali SQL injection'dan himoyalangan.
+    """
+    safe_order = _safe_order_by(order_by, default="w.id ASC")
     with get_conn() as conn:
         return conn.execute(
             f"""
@@ -650,7 +694,7 @@ def get_words_with_progress(order_by: str = "w.id ASC") -> list[sqlite3.Row]:
                    COALESCE(p.wrong_count, 0) as wrong_count
             FROM words w
             LEFT JOIN progress p ON p.word_id = w.id
-            ORDER BY {order_by}
+            ORDER BY {safe_order}
             """
         ).fetchall()
 

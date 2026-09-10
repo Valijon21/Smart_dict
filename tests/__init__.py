@@ -1,0 +1,3 @@
+"""
+SmartDict — tests package
+"""

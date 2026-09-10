@@ -1,5 +1,18 @@
+# SmartDict (Vocab Master Pro) — Python bog'liqliklari
+# pip install -r requirements.txt
+
+# --- GUI Framework ---
 PyQt6==6.7.1
-matplotlib==3.9.2
-python-docx==1.1.2
-pyinstaller==6.10.0
+
+# --- TTS: Windows SAPI5 (asosiy dvigatel) va pyttsx3 (zaxira) ---
+# MUHIM: pywin32 o'rnatilmasa, SAPI5 ishlamaydi va pyttsx3 zaxirasiga tushib qoladi.
+pywin32>=306
 pyttsx3>=2.90
+
+# --- Hujjat generatsiyasi (Printable Worksheets) ---
+python-docx==1.1.2
+
+# --- EXE packaging (faqat build vaqtida kerak) ---
+pyinstaller==6.10.0
+
+# --- NOTE: matplotlib olib tashlandi (loyihada hech qayerda import qilinmagan) ---
