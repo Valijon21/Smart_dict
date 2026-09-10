@@ -721,7 +721,7 @@ class DictionaryWidget(QWidget):
         filter_layout.setSpacing(12)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔍 Inglizcha yoki o'zbekcha so'zni qidiring...")
+        self.search_input.setPlaceholderText("🔍 Inglizcha yoki o'zbekcha so'zni qidiring... (Ctrl+F)")
         self.search_input.setStyleSheet(
             "background-color: #151521; color: white; border: 1px solid #2A2A3C;"
             "border-radius: 8px; padding: 9px 14px; font-size: 13px;"
@@ -861,6 +861,12 @@ class DictionaryWidget(QWidget):
         self.apply_theme(theme_manager.get_active_theme())
         # Tezkor boshlanish: so'zlar jadvalini navbat orqali chaqirish (UI muzlamaydi)
         QTimer.singleShot(0, self.load_words)
+
+    def focus_search(self):
+        """Ctrl + F: Qidiruv qatoriga fokus berish va mavjud matnni belgilash."""
+        if hasattr(self, "search_input") and self.search_input:
+            self.search_input.setFocus()
+            self.search_input.selectAll()
 
     def _filter_btn_style(self, active: bool) -> str:
         t = theme_manager.get_active_theme()

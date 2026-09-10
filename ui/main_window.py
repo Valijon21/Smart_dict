@@ -189,6 +189,10 @@ class MainWindow(QMainWindow):
         self.sc_spotlight_f = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
         self.sc_spotlight_f.activated.connect(self.open_spotlight_search)
 
+        # Lug'atda so'z qidirish qatoriga o'tish (Ctrl+F)
+        self.sc_dict_search = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.sc_dict_search.activated.connect(self.focus_dictionary_search)
+
         # Mini suzib yuruvchi vidjet (Ctrl+Shift+W)
         self.mini_widget = None
         self.sc_mini_widget = QShortcut(QKeySequence("Ctrl+Shift+W"), self)
@@ -481,6 +485,19 @@ class MainWindow(QMainWindow):
             self.spotlight_dialog.word_selected.connect(self._on_spotlight_word_selected)
             self.spotlight_dialog.quick_add_requested.connect(self.open_quick_capture)
         self.spotlight_dialog.show_spotlight()
+
+    def focus_dictionary_search(self):
+        """Ctrl + F: Lug'at sahifasiga o'tish va so'z qidirish qatoriga darhol fokus berish."""
+        logger.info("Klaviatura qisqa tugmasi: Ctrl+F (Lug'at qidiruviga o'tish)")
+        self.switch_page("dictionary")
+        if hasattr(self, "dictionary") and self.dictionary:
+            if hasattr(self.dictionary, "focus_search"):
+                self.dictionary.focus_search()
+            elif hasattr(self.dictionary, "search_input"):
+                self.dictionary.search_input.setFocus()
+                self.dictionary.search_input.selectAll()
+            # QStackedWidget almashgandan so'ng kafolatlangan fokus
+            QTimer.singleShot(50, lambda: hasattr(self, "dictionary") and hasattr(self.dictionary, "focus_search") and self.dictionary.focus_search())
 
     def _on_spotlight_word_selected(self, word: dict):
         self.switch_page("dictionary")
