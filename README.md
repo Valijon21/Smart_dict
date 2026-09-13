@@ -44,13 +44,20 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 - ⚡ **Blitz Marathon:** 60 soniyali tezkor so'z marafoni. Ketma-ket to'g'ri javoblar uchun Combo Multiplier (x1.5, x2.0, x3.0), hayotlar soni va shaxsiy rekordlar jadvali.
 - 🧩 **Word Match Game:** 4x4 va 6x6 katakli so'z va tarjima juftliklarini topish o'yini. Interaktiv kartochkalar, yorqin vizual effektlar va g'alaba fanfarlari.
 
-### 4. ✍️ 6 Xil Maxsus Mashq Trenajyori
-1. **Yozma Mashq (Typing):** So'zning to'g'ri orfografiyasini klaviaturada terish orqali xotirada muhrlash.
-2. **4 Variantli Test (Multiple Choice):** Tezkor assotsiativ xotira va reflekslarni rivojlantirish.
-3. **Anki Uslubidagi Flashcard:** O'zini xolis baholash (*Qayta / Qiyin / Yaxshi / Oson*).
-4. **Eshitib Yozish (Listening Dictation):** Ovozli talaffuzni eshitib, so'zni to'g'ri yozish.
-5. **Harf Terish (Word Scramble):** Chalkash harflarni to'g'ri ketma-ketlikda yig'ish.
-6. **Bo'sh Joyni To'ldirish (Cloze / Sentence Completion):** Gap kontekstida yashirilgan so'zni topish (CEFR/IELTS uslubi, 1-harf maslahati bilan).
+### 4. ✍️ 6 Xil Maxsus Mashq Trenajyori (Professional Tizim)
+- **6 ta Interaktiv Rejim:**
+  1. **Yozma Mashq (Typing):** So'zning to'g'ri orfografiyasini klaviaturada terish orqali xotirada muhrlash.
+  2. **4 Variantli Test (Multiple Choice):** Tezkor assotsiativ xotira va reflekslarni rivojlantirish.
+  3. **Anki Uslubidagi Flashcard:** O'zini xolis baholash (*Qayta / Qiyin / Yaxshi / Oson*).
+  4. **Eshitib Yozish (Listening Dictation):** Ovozli talaffuzni eshitib, so'zni to'g'ri yozish.
+  5. **Harf Terish (Word Scramble):** Chalkash harflarni to'g'ri ketma-ketlikda yig'ish.
+  6. **Bo'sh Joyni To'ldirish (Cloze / Sentence Completion):** Gap kontekstida yashirilgan so'zni topish (CEFR/IELTS uslubi, 1-harf maslahati bilan).
+- **🛡️ 100% Sessiya Saqlanishi (State Persistence):** Mashq paytida boshqa bo'limlarga (`Dashboard`, `Lug'at`, `O'quvchi`, `Sozlamalar`) o'tib qaytganda sessiya noldan boshlanmaydi; to'xtagan so'z, qolgan navbat va to'plangan statistika to'liq saqlanadi (`resume_session()`).
+- **⏸️ 2-Enter Mexanizmi:** Xato kiritilganda dastur avtomatik keyingi so'zga sakrab ketmaydi. 1-Enter javobni tekshiradi, to'g'ri javobni yorqin ko'rsatadi, misol va tarjimani o'qish imkonini beradi. Yana bir bor 2-Enter (yoki "Davom etish") bosilgandagina keyingi so'zga o'tadi (Qt debounce himoyasi bilan).
+- **🔍 Harfma-harf Visual Diff & Typo Detektori:** Xato kiritilganda Levenshtein masofasi hisoblanadi. Agar 1-2 ta harfda adashilgan bo'lsa (`💡 Deyarli to'g'ri!`), foydalanuvchi kiritgan noto'g'ri harflar qizil o'chirilgan (`~~harf~~`), to'g'ri harflar yashil chizilgan (`<u>harf</u>`) holda ko'rsatiladi.
+- **🐢 Sekin Talaffuz (0.75x Slow Speech):** Asosiy `🔊` karnay yonidagi `🐢` tugmasi uzun va murakkab inglizcha so'zlarni bo'g'inma-bo'g'in sekin tinglash imkonini beradi.
+- **🎯 Partiya Xatolari Ustida Qayta Ishlash:** Partiya yakunida faqat xato qilingan so'zlardan iborat maxsus mashqni 1-bosish bilan boshlash imkoniyati (`retry_mistakes_btn`).
+- **📳 Duolingo Uslubidagi Karta Silkinishi (Shake Animation):** Xato javob berilganda asosiy karta 300ms davomida mayin chap-o'ng silkinadi (`QPropertyAnimation`).
 
 ### 5. 📚 Aqlli Matn O'quvchi (Smart Reader)
 - A2, B1, B2 darajadagi badiiy va ilmiy hikoyalar yoki foydalanuvchining shaxsiy matnlari.
@@ -95,8 +102,10 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 - 100% oflayn rejimda Windows System.Speech va Windows audio vositalari orqali mikrofondan talaffuzni yozib olish va baholash.
 - To'g'ri TTS talaffuzi namunasi bilan o'z ovozingizni yonma-yon tinglab solishtirish.
 
-### 13. 🔍 Universal Spotlight / Raycast Tezkor Qidiruv (`Alt + Space`)
-- Istalgan joydan `Alt + Space` yoki `Ctrl + Shift + F` orqali ochiluvchi tezkor suzuvchi qidiruv kartasi.
+### 13. 🔍 Universal Spotlight & Levenshtein Fuzzy Qidiruv (`Alt + Space`)
+- **⚡ Imlo Xatolariga Chidamli (Universal Fuzzy Search):** Ham shaxsiy lug'atda, ham 64,000+ so'zlik Global akademik bazada foydalanuvchi so'zni xato yozsa ham (`wunderful` → `wonderful`, `beutiful` → `beautiful`, `accomodate` → `accommodate`), Levenshtein tahrir masofasi orqali eng yaqin so'zlar ~25-30ms da topiladi.
+- **💡 Lug'at Oynasida Aqlli Tavsiya Bannerlari:** Shaxsiy bazada topilmagan so'zlar 64k global bazadan avtomatik aniqlanib, 1-bosish bilan o'rganish ro'yxatiga qo'shish tugmasi bilan taklif qilinadi.
+- **Spotlight Kartasi:** Istalgan joydan `Alt + Space` yoki `Ctrl + Shift + F` orqali ochiladi.
 - So'zlar, tarjimalar, misollar va teglarni 0ms kechikish bilan topish, talaffuz qilish va 1-bosish bilan lug'atga yangi so'z qo'shish.
 
 ### 14. 🌧️ "Word Fall" va 🧩 "Lug'at Krossvordi" Yangi O'yinlari
@@ -110,6 +119,45 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 ---
 
 ## 🆕 So'nggi Yangilanishlar & O'zgarishlar (Latest Updates & Changelog)
+
+### v3.0 — 2026-09-14 🎯 Senior-Level Mashq Trenajyori & Universal Fuzzy Qidiruv
+
+#### 🛡️ Sessiyani Saqlash (State Persistence across Navigation)
+- Yon paneldagi boshqa sahifalarga (`Dashboard`, `Lug'at`, `O'quvchi`, `O'yinlar` va h.k.) o'tib qaytganda trenajor sessiyasi qaytadan boshlanmaydi;
+- Qolgan so'zlar navbati (`queue`), ballar, progress va kiritish maydoni fokusi to'liq saqlanadi (`resume_session()`).
+- Yuqori panelga partiyani o'z xohishi bilan qayta boshlash uchun qulay "🔄 Qayta boshlash" tugmasi joylashtirildi.
+
+#### ⏸️ 2-Enter Xatolarni Tahlil Qilish Mexanizmi
+- Xato javob berilganda dastur 2-3 soniyada avtomatik keyingi so'zga sakrab ketmaydi;
+- **1-Enter:** Javobni tekshiradi, to'g'ri so'zni qizil/yashil ranglarda ko'rsatadi, tugma yashil "Davom etish ↵" ga aylanadi;
+- Foydalanuvchi so'z tarjimasi, IPA transkripsiyasi va misol gapini bemalol o'qib, `Space` orqali talaffuzni qayta tinglashi mumkin;
+- **2-Enter:** Keyingi so'zga o'tish uchun ikkinchi marta Enter (yoki "Davom etish") bosiladi (Qt event-bubbling va 0.35s debounce himoyasi bilan).
+
+#### 🔍 Harfma-harf Visual Diff va Typo (Imlo Xatosi) Aniqlovchisi
+- Yozma mashqda xato qilinsa, Levenshtein tahrir algoritmi farqni harfma-harf hisoblaydi;
+- 1-2 ta harfda adashilganda `💡 Deyarli to'g'ri! (1 ta harfda adashdingiz)` yorlig'i chiqadi;
+- Foydalanuvchi kiritgan ortiqcha/xato harflar qizil o'chirilgan, to'g'ri harflar yashil tagiga chizilgan holda ko'rgazmali solishtiriladi (`Siz: ~~acommodate~~ → Asli: ac<u>c</u>ommodate`).
+
+#### 🐢 Sekin Talaffuz (0.75x Slow Audio)
+- Asosiy `🔊` karnay yoniga yangi yashil `🐢` tugmasi joylashtirildi;
+- SAPI5 nutq tezligini ~0.75x ga sekinlashtirib, uzun va murakkab so'zlarni bo'g'inma-bo'g'in aniq eshittiradi.
+
+#### 🎯 Partiya Xatolari Ustida Qayta Ishlash (Retry Session Mistakes)
+- Partiyada adashilgan barcha so'zlar ro'yxati avtomatik yuritiladi;
+- Partiya yakunida `🎯 Xatolar ustida ishlash (N ta so'z)` tugmasi paydo bo'lib, faqat xato so'zlardan iborat yangi maqsadli mashqni boshlaydi.
+
+#### ⚡ Universal Levenshtein Fuzzy Search (Shaxsiy + 64,000 Global Lug'at)
+- Ham shaxsiy bazada, ham 64k global akademik bazada xatolik bilan qidirilganda (`wunderful` → `wonderful`, `beutiful` → `beautiful`, `accomodate` → `accommodate`) ~25-30ms da eng yaqin so'zlar topiladi;
+- Lug'at oynasida imlo xatosi bo'yicha maxsus ko'rgazmali sariq/binafsha tavsiya bannerlari va 1-bosish bilan bazaga qo'shish joriy etildi;
+- Spotlight tezkor qidiruviga (Ctrl+F) to'liq integratsiya qilindi.
+
+#### 📳 Duolingo Uslubidagi Karta Silkinishi (Card Shake Animation)
+- Xato javob kiritilganda `quiz_card` kartasi 300ms davomida mayin chapga-o'ngga silkinadi (`QPropertyAnimation`).
+
+#### 🧪 145 ta Avtomatlashtirilgan Testlar
+- Barcha yangi imkoniyatlar uchun pytest testlari yozildi va barcha 145 ta test 100% yashil o'tdi.
+
+---
 
 ### v2.5 — 2026-09-10 🔧 UI Aniqlik Yaxshilanishlari
 
@@ -274,9 +322,15 @@ Smart_dict/
 │
 ├── utils/                        # 🛠️ Yordamchi umumiy modullar
 │   ├── logger.py                 # Professional log tizimi (Rotating file + console)
+│   ├── text_search_utils.py      # Levenshtein fuzzy tahrir algoritmi va harfma-harf Visual Diff
 │   ├── importer.py               # CSV, JSON, TXT fayllarni o'qish/yozish
 │   ├── reader_data.py            # Badiiy matnlar namunalari
 │   └── single_instance.py        # IPC QLocalServer yagona instansiya boshqaruvi
+│
+├── tests/                        # 🧪 Avtomatlashtirilgan testlar to'plami (145 ta test)
+│   ├── test_advanced_features.py # v3.0 Levenshtein, Visual Diff va trenajyor testlari
+│   ├── test_core.py              # SM-2, ma'lumotlar bazasi va xavfsizlik testlari
+│   └── ...                       # Boshqa modul va servis testlari
 │
 ├── assets/                       # Rasmlar, piktogrammalar va tovushlar
 ├── backups/                      # Avtomatik zaxira nusxalari
@@ -285,6 +339,17 @@ Smart_dict/
 ├── build_exe.py                  # Standalone .exe yig'ish skripti
 └── requirements.txt              # Kerakli Python kutubxonalari
 ```
+
+---
+
+## 🧪 Avtomatlashtirilgan Testlar (Quality Assurance)
+
+Loyiha barqarorligi va regressiya xatolarining oldini olish uchun 145 ta avtomatik pytest testlari bilan ta'minlangan:
+
+```powershell
+python -m pytest tests -v
+```
+Barcha 145 ta test 100% muvaffaqiyatli o'tadi (`145 passed`).
 
 ---
 
@@ -303,11 +368,11 @@ Yig'ish yakunlangach, tayyor `SmartDict.exe` fayli `dist/` papkasida paydo bo'la
 
 | Tugmalar | Vazifasi |
 |---|---|
-| `Ctrl + F` / `Alt + Space` | 🔍 Aqlli universal qidiruv paneli (Spotlight Search) |
-| `Space` | Mashqda kartani ag'darish / Audio pleyerda Play-Pause |
+| `Ctrl + F` / `Alt + Space` | 🔍 Aqlli universal qidiruv paneli (Spotlight Search, Typo-tolerant) |
+| `Space` | Mashqda to'g'ri talaffuzni qayta tinglash / Flashcard ag'darish / Pleyerda Play-Pause |
+| `Enter` | 1-Enter: Javobni tekshirish / 2-Enter: Xatoni o'rgangach keyingi so'zga o'tish |
 | `Ctrl + Shift + A` | Tezkor so'z qo'shish (Quick Capture) |
-| `Enter` | Mashqda javobni tasdiqlash |
-| `1, 2, 3, 4` | Test rejimida variantni tanlash |
+| `1, 2, 3, 4` | 4 Variantli test rejimida variantni tanlash |
 | `Esc` | Modal oynalarni yopish |
 
 ---
