@@ -7,6 +7,7 @@ import sqlite3
 import datetime
 import csv
 import json
+import re
 import shutil
 from pathlib import Path
 from contextlib import contextmanager
@@ -601,7 +602,51 @@ def search_words(query: str = "", status_filter: str = "all", hard_only: bool = 
     """
     all_params = where_params + order_params
     with get_conn() as conn:
-        return conn.execute(sql, all_params).fetchall()
+        results = conn.execute(sql, all_params).fetchall()
+        # Levenshtein fuzzy search fallback: agar standart SQL qidiruv natija bermasa va so'z uzunligi >= 4 bo'lsa
+        if not results and clean_q and len(clean_q) >= 4:
+            fb_clauses = []
+            fb_params = []
+            if status_filter and status_filter != "all":
+                fb_clauses.append("w.status = ?")
+                fb_params.append(status_filter)
+            if hard_only:
+                fb_clauses.append("(p.wrong_count > p.correct_count OR p.wrong_count >= 2)")
+            fb_where = ("WHERE " + " AND ".join(fb_clauses)) if fb_clauses else ""
+            candidate_sql = f"""
+                SELECT w.*, p.box_level, p.next_review, p.last_reviewed, p.correct_count, p.wrong_count
+                FROM words w
+                JOIN progress p ON p.word_id = w.id
+                {fb_where}
+            """
+            candidates = conn.execute(candidate_sql, fb_params).fetchall()
+            fuzzy_matches = []
+            q_lower = clean_q.lower()
+            max_dist = 1 if len(clean_q) <= 5 else 2
+
+            for cand in candidates:
+                eng_w = (cand["english"] or "").lower()
+                uz_w = (cand["uzbek"] or "").lower()
+
+                d_eng = text_search_utils.levenshtein_distance(q_lower, eng_w)
+                d_uz = text_search_utils.levenshtein_distance(q_lower, uz_w)
+                min_d = min(d_eng, d_uz)
+
+                # Uzbekcha vergul bilan ajratilgan qismlar bo'yicha ham tekshiramiz
+                for tok in re.split(r"[,;/]+", uz_w):
+                    tok_clean = tok.strip()
+                    if tok_clean:
+                        min_d = min(min_d, text_search_utils.levenshtein_distance(q_lower, tok_clean))
+
+                if min_d <= max_dist:
+                    fuzzy_matches.append((min_d, cand))
+
+            fuzzy_matches.sort(key=lambda item: item[0])
+            results = [item[1] for item in fuzzy_matches]
+            if limit:
+                results = results[:limit]
+
+        return results
 
 
 def get_words_by_status(status: str = "learning") -> list[sqlite3.Row]:

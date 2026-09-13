@@ -200,8 +200,8 @@ class TTSEngine:
                 logger.error(f"pyttsx3 talaffuz qilishda xatolik: {e}")
             self._pyttsx3_queue.task_done()
 
-    def speak(self, text: str):
-        """So'zni oflayn talaffuz qilish (asinxron, GUI qotmaydi)."""
+    def speak(self, text: str, slow: bool = False):
+        """So'zni oflayn talaffuz qilish (asinxron, GUI qotmaydi). slow=True bo'lsa ~0.75x sekinroq aytadi."""
         if not text or not str(text).strip():
             return
 
@@ -211,7 +211,8 @@ class TTSEngine:
             clean_text = raw_text
 
         preview = (clean_text[:75] + "...") if len(clean_text) > 75 else clean_text
-        logger.info(f"[AUDIO] Talaffuz so'rovi ({len(clean_text)} belgi): '{preview}' (dvigatel: {self._engine_type})")
+        mode_str = "sekin (0.75x)" if slow else "normal"
+        logger.info(f"[AUDIO] Talaffuz so'rovi ({len(clean_text)} belgi, {mode_str}): '{preview}' (dvigatel: {self._engine_type})")
 
         # Agar avval pauzada bo'lsa, tozalaymiz
         self._is_paused = False
@@ -223,6 +224,8 @@ class TTSEngine:
                 try:
                     import pythoncom
                     pythoncom.CoInitialize()
+                    normal_rate = max(-10, min(10, int((self._current_ui_rate - 155) / 10)))
+                    spk.Rate = max(-10, min(10, normal_rate - 4)) if slow else normal_rate
                     spk.Speak(clean_text, SVSFlagsAsync | SVSFPurgeBeforeSpeak)
                     return
                 except Exception as e:
@@ -230,6 +233,8 @@ class TTSEngine:
                     try:
                         self._init_engine()
                         if self._sapi_speaker:
+                            normal_rate = max(-10, min(10, int((self._current_ui_rate - 155) / 10)))
+                            self._sapi_speaker.Rate = max(-10, min(10, normal_rate - 4)) if slow else normal_rate
                             self._sapi_speaker.Speak(clean_text, SVSFlagsAsync | SVSFPurgeBeforeSpeak)
                             return
                     except Exception:
@@ -547,15 +552,20 @@ def _get_engine() -> TTSEngine:
         return _engine_instance
 
 
-def speak(text: str):
-    """Inglizcha so'zni oflayn talaffuz qilish."""
+def speak(text: str, slow: bool = False):
+    """Inglizcha so'zni oflayn talaffuz qilish. slow=True bo'lsa ~0.75x sekin aytadi."""
     engine = _get_engine()
-    engine.speak(text)
+    engine.speak(text, slow=slow)
 
 
-def speak_async(text: str):
+def speak_slow(text: str):
+    """Inglizcha so'zni sekinroq (0.75x) oflayn talaffuz qilish."""
+    speak(text, slow=True)
+
+
+def speak_async(text: str, slow: bool = False):
     """Asinxron oflayn talaffuz qilish (speak bilan bir xil)."""
-    speak(text)
+    speak(text, slow=slow)
 
 
 def speak_and_wait(text: str, max_wait: float = 6.0, cancel_check=None) -> bool:

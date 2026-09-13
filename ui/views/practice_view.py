@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QFrame, QGridLayout, QProgressBar
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QPoint
 from PyQt6.QtGui import QKeyEvent
 
 import database as db
@@ -15,6 +15,10 @@ import gamification
 import theme_manager
 import phonetics
 import global_dict_service
+try:
+    from utils import text_search_utils
+except ImportError:
+    import text_search_utils
 from logger import get_logger
 
 logger = get_logger("practice")
@@ -56,6 +60,8 @@ class PracticeWidget(QWidget):
         self.scramble_tiles_data = []
         self.scramble_typed_chars = []
         self.cloze_data: dict | None = None
+        self.session_mistake_word_ids: list[int] = []
+        self._card_anim = None
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -245,6 +251,18 @@ class PracticeWidget(QWidget):
         )
         self.audio_btn.clicked.connect(self.play_audio)
         word_row.addWidget(self.audio_btn)
+
+        self.slow_audio_btn = QPushButton("🐢")
+        self.slow_audio_btn.setToolTip("Sekin talaffuz (0.75x)")
+        self.slow_audio_btn.setFixedSize(42, 42)
+        self.slow_audio_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.slow_audio_btn.setStyleSheet(
+            "QPushButton { background-color: #24243A; color: #34D399; border: 1px solid #065F46; "
+            "border-radius: 21px; font-size: 18px; }"
+            "QPushButton:hover { background-color: #059669; color: white; border-color: #34D399; }"
+        )
+        self.slow_audio_btn.clicked.connect(self.play_slow_audio)
+        word_row.addWidget(self.slow_audio_btn)
 
         self.mic_btn = QPushButton("🎙️")
         self.mic_btn.setToolTip("O'z talaffuzingizni sinash va baholash")
@@ -501,6 +519,7 @@ class PracticeWidget(QWidget):
         # Feedback (✅ To'g'ri / ❌ Xato)
         self.feedback_label = QLabel("")
         self.feedback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.feedback_label.setWordWrap(True)
         self.feedback_label.setStyleSheet("font-size: 15px; font-weight: 600; min-height: 28px;")
         card_layout.addWidget(self.feedback_label)
 
@@ -530,6 +549,16 @@ class PracticeWidget(QWidget):
         self.restart_btn.clicked.connect(self.load_batch)
         self.restart_btn.setVisible(False)
         btn_row.addWidget(self.restart_btn)
+
+        self.retry_mistakes_btn = QPushButton("🎯 Xatolar ustida ishlash")
+        self.retry_mistakes_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.retry_mistakes_btn.setStyleSheet(
+            "QPushButton { background-color: #DC2626; color: white; border: none; border-radius: 10px; padding: 12px 24px; font-size: 14px; font-weight: 700; }"
+            "QPushButton:hover { background-color: #B91C1C; }"
+        )
+        self.retry_mistakes_btn.clicked.connect(self.retry_session_mistakes)
+        self.retry_mistakes_btn.setVisible(False)
+        btn_row.addWidget(self.retry_mistakes_btn)
 
         btn_row.addStretch()
         self.submit_btn = QPushButton("Tekshirish ↵")
@@ -593,6 +622,19 @@ class PracticeWidget(QWidget):
                     "QPushButton { background-color: #FFF1F2; color: #E11D48; border: 1px solid #FECDD3; "
                     "border-radius: 21px; font-size: 18px; } "
                     "QPushButton:hover { background-color: #E11D48; color: white; border-color: #E11D48; }"
+                )
+        if hasattr(self, "slow_audio_btn"):
+            if is_dark:
+                self.slow_audio_btn.setStyleSheet(
+                    "QPushButton { background-color: #24243A; color: #34D399; border: 1px solid #065F46; "
+                    "border-radius: 21px; font-size: 18px; } "
+                    "QPushButton:hover { background-color: #059669; color: white; border-color: #34D399; }"
+                )
+            else:
+                self.slow_audio_btn.setStyleSheet(
+                    "QPushButton { background-color: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; "
+                    "border-radius: 21px; font-size: 18px; } "
+                    "QPushButton:hover { background-color: #059669; color: white; border-color: #059669; }"
                 )
 
         # Yuqori statistika chiplari
@@ -1063,6 +1105,50 @@ class PracticeWidget(QWidget):
         except RuntimeError:
             pass
 
+    def play_slow_audio(self):
+        """So'zni 0.75x sekin tezlikda eshittirish (🐢 tugmasi)."""
+        if not self.isVisible():
+            return
+        if self.current:
+            word = self.current["english"]
+            logger.info(f"Mashq sekin karnay (🐢) tugmasi bosildi: '{word}'")
+            self.slow_audio_btn.setText("⏳")
+            self.slow_audio_btn.setStyleSheet(
+                "QPushButton { background-color: #059669; color: white; border: 2px solid #34D399; "
+                "border-radius: 21px; font-size: 18px; width: 42px; height: 42px; }"
+            )
+            QTimer.singleShot(400, self._revert_slow_audio_btn)
+            tts.speak_slow(word)
+
+    def _revert_slow_audio_btn(self):
+        try:
+            self.slow_audio_btn.setText("🐢")
+            self.slow_audio_btn.setStyleSheet(
+                "QPushButton { background-color: #24243A; color: #34D399; border: 1px solid #065F46; "
+                "border-radius: 21px; font-size: 18px; }"
+                "QPushButton:hover { background-color: #059669; color: white; border-color: #34D399; }"
+            )
+        except RuntimeError:
+            pass
+
+    def _shake_card(self):
+        """Xato qilinganda kartaning chap-o'ng silkinish animatsiyasi (Duolingo/iOS style)."""
+        try:
+            orig_pos = self.quiz_card.pos()
+            anim = QPropertyAnimation(self.quiz_card, b"pos", self)
+            anim.setDuration(300)
+            anim.setKeyValueAt(0.0, orig_pos)
+            anim.setKeyValueAt(0.15, orig_pos + QPoint(-10, 0))
+            anim.setKeyValueAt(0.35, orig_pos + QPoint(10, 0))
+            anim.setKeyValueAt(0.55, orig_pos + QPoint(-7, 0))
+            anim.setKeyValueAt(0.75, orig_pos + QPoint(7, 0))
+            anim.setKeyValueAt(0.9, orig_pos + QPoint(-3, 0))
+            anim.setKeyValueAt(1.0, orig_pos)
+            self._card_anim = anim
+            anim.start()
+        except Exception as e:
+            logger.debug(f"Shake animation error: {e}")
+
     def keyPressEvent(self, event: QKeyEvent):
         if getattr(self, "is_waiting_for_enter", False):
             if event.key() == Qt.Key.Key_Space:
@@ -1204,11 +1290,16 @@ class PracticeWidget(QWidget):
                 elif self.quiz_mode == "cloze" and hasattr(self, "cloze_input") and self.cloze_input.isEnabled():
                     self.cloze_input.setFocus()
 
-    def load_batch(self):
+    def load_batch(self, custom_word_ids: list[int] | None = None):
         """Sozlamalarda kiritilgan kunlik maqsad (daily_goal) miqdoridagi so'zlarni yuklaydi."""
         self._cancel_advance_timer()
         self.is_checking = False
         self.is_waiting_for_enter = False
+        self.session_mistake_word_ids = []
+        if hasattr(self, "retry_mistakes_btn"):
+            self.retry_mistakes_btn.setVisible(False)
+        if custom_word_ids is not None:
+            self.custom_word_ids = custom_word_ids
         goal = db.get_daily_goal()
 
         if self.custom_word_ids:
@@ -1232,6 +1323,15 @@ class PracticeWidget(QWidget):
         self.progress_bar.setValue(0)
 
         self.next_word()
+
+    def retry_session_mistakes(self):
+        """Ushbu partiyada xato qilingan so'zlarni qayta mashq qilish."""
+        if not getattr(self, "session_mistake_word_ids", None):
+            return
+        mistakes = list(self.session_mistake_word_ids)
+        self.session_mistake_word_ids = []
+        self.load_batch(custom_word_ids=mistakes)
+        self.mode_label.setText(f"🎯 Rejim: Partiyadagi xatolar ({len(mistakes)} ta so'z)")
 
     def next_word(self):
         self._cancel_advance_timer()
@@ -1287,6 +1387,8 @@ class PracticeWidget(QWidget):
             self.word_info_badge.setText("")
             self.phonetic_row_widget.setVisible(False)
             self.audio_btn.setVisible(False)
+            if hasattr(self, "slow_audio_btn"):
+                self.slow_audio_btn.setVisible(False)
             self.mic_btn.setVisible(False)
             self.answer_input.clear()
             self.answer_input.setEnabled(False)
@@ -1298,6 +1400,12 @@ class PracticeWidget(QWidget):
                 self.cloze_container.setVisible(False)
             self.example_card.setVisible(False)
             self.restart_btn.setVisible(total_words > 0 or bool(self.custom_word_ids))
+            if hasattr(self, "retry_mistakes_btn"):
+                if self.session_mistake_word_ids:
+                    self.retry_mistakes_btn.setText(f"🎯 Xatolar ustida ishlash ({len(self.session_mistake_word_ids)} ta so'z)")
+                    self.retry_mistakes_btn.setVisible(True)
+                else:
+                    self.retry_mistakes_btn.setVisible(False)
 
             if self.on_finish_refresh:
                 self.on_finish_refresh()
@@ -1305,7 +1413,11 @@ class PracticeWidget(QWidget):
 
         self.current = self.queue.pop(0)
         self.audio_btn.setVisible(True)
+        if hasattr(self, "slow_audio_btn"):
+            self.slow_audio_btn.setVisible(True)
         self.mic_btn.setVisible(True)
+        if hasattr(self, "retry_mistakes_btn"):
+            self.retry_mistakes_btn.setVisible(False)
 
         remaining = len(self.queue) + 1
         done = self.batch_total - remaining
@@ -1320,6 +1432,8 @@ class PracticeWidget(QWidget):
         self.badge_wrong.setText(f"❌ Xato: {self.session_wrong}")
 
         self.restart_btn.setVisible(False)
+        if hasattr(self, "retry_mistakes_btn"):
+            self.retry_mistakes_btn.setVisible(False)
         self.typing_container.setVisible(self.quiz_mode in ("typing", "listening"))
         self.submit_btn.setVisible(self.quiz_mode in ("typing", "listening", "scramble", "cloze"))
         self.choice_container.setVisible(self.quiz_mode == "choice")
@@ -1499,6 +1613,9 @@ class PracticeWidget(QWidget):
             self.feedback_label.setStyleSheet("color: #10B981; font-size: 15px; font-weight: 600;")
         else:
             self.session_wrong += 1
+            if self.current and self.current["id"] not in self.session_mistake_word_ids:
+                self.session_mistake_word_ids.append(self.current["id"])
+            self._shake_card()
             self.feedback_label.setText("🔄 Qayta takrorlanadi")
             self.feedback_label.setStyleSheet("color: #EF4444; font-size: 15px; font-weight: 600;")
 
@@ -1546,6 +1663,9 @@ class PracticeWidget(QWidget):
             self._advance_timer.start(1200)
         else:
             self.session_wrong += 1
+            if self.current and self.current["id"] not in self.session_mistake_word_ids:
+                self.session_mistake_word_ids.append(self.current["id"])
+            self._shake_card()
             self.badge_wrong.setText(f"❌ Xato: {self.session_wrong}")
             self.feedback_label.setText(
                 f"❌ To'g'ri javob: <b style='color: #F87171;'>{expected}</b>"
@@ -1632,12 +1752,35 @@ class PracticeWidget(QWidget):
             self._advance_timer.start(1200)
         else:
             self.session_wrong += 1
+            if self.current and self.current["id"] not in self.session_mistake_word_ids:
+                self.session_mistake_word_ids.append(self.current["id"])
+            self._shake_card()
             self.badge_wrong.setText(f"❌ Xato: {self.session_wrong}")
+
+            # Feature 1: Harfma-harf Visual Diff va Typo (imlo xatosi) hisoblash
+            diff_res = text_search_utils.compute_visual_diff(user_answer, expected_display)
+            diff_badge = ""
+            if diff_res["is_typo"]:
+                diff_badge = f"<div style='margin-top: 4px; color: #FBBF24; font-size: 13px; font-weight: 600;'>{diff_res['tip_message']}</div>"
+
+            diff_comparison = ""
+            if len(user_answer) >= 2 and len(expected_display) >= 2:
+                diff_comparison = (
+                    f"<div style='margin-top: 4px; font-size: 14px; font-family: monospace;'>"
+                    f"<span style='color: #94A3B8;'>Siz: </span>{diff_res['user_diff_html']}"
+                    f"&nbsp;&nbsp;→&nbsp;&nbsp;<span style='color: #94A3B8;'>Asli: </span>{diff_res['expected_diff_html']}"
+                    f"</div>"
+                )
+
             self.feedback_label.setText(
+                f"<div>"
                 f"❌ To'g'ri javob: <b style='color: #F87171;'>{expected_display}</b>"
                 f"&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;<span style='color: #94A3B8; font-size: 13px;'>[ Davom etish uchun <b>Enter ↵</b> bosing ]</span>"
+                f"{diff_badge}"
+                f"{diff_comparison}"
+                f"</div>"
             )
-            self.feedback_label.setStyleSheet("font-size: 15px; font-weight: 600; min-height: 28px;")
+            self.feedback_label.setStyleSheet("font-size: 15px; font-weight: 600; min-height: 32px;")
 
             if self.quiz_mode in ("listening", "scramble"):
                 self.word_label.setText(f"❌ {self.current['english']}")

@@ -10,6 +10,7 @@ Imkoniyatlar:
 """
 import re
 import html
+import difflib
 from typing import TypedDict
 
 CYR_TO_LAT: dict[str, str] = {
@@ -243,3 +244,84 @@ def calculate_match_rank(query: str, english: str, uzbek: str, patterns: SearchP
 
     # 4. Qism mosligi (Rank 3)
     return 3
+
+
+def levenshtein_distance(s1: str, s2: str) -> int:
+    """
+    Ikki so'z orasidagi Levenshtein (tahrirlash) masofasini hisoblash.
+    Katta-kichik harf farqlari inobatga olinmaydi.
+    """
+    s1, s2 = (s1 or "").lower(), (s2 or "").lower()
+    if s1 == s2:
+        return 0
+    if not s1:
+        return len(s2)
+    if not s2:
+        return len(s1)
+
+    if len(s1) > len(s2):
+        s1, s2 = s2, s1
+
+    distances = list(range(len(s1) + 1))
+    for i2, c2 in enumerate(s2):
+        new_distances = [i2 + 1]
+        for i1, c1 in enumerate(s1):
+            if c1 == c2:
+                new_distances.append(distances[i1])
+            else:
+                new_distances.append(1 + min(distances[i1], distances[i1 + 1], new_distances[-1]))
+        distances = new_distances
+    return distances[-1]
+
+
+def compute_visual_diff(user_input: str, expected: str) -> dict:
+    """
+    Kiritilgan javob bilan to'g'ri javob orasidagi farqlarni harfma-harf aniqlash.
+    Qaytaradi:
+    - is_typo: bool (kichik imlo xatosi bo'lsa True: masofa 1-2)
+    - distance: int (Levenshtein masofasi)
+    - expected_diff_html: str (to'g'ri so'zdagi o'zgarishlar/tushib qolgan harflar yashil rangda)
+    - user_diff_html: str (foydalanuvchi kiritgan xato/ortiqcha harflar qizil rangda o'chirilgan)
+    - tip_message: str (foydalanuvchi uchun qulay tushuntirish xabari)
+    """
+    u_raw = (user_input or "").strip()
+    e_raw = (expected or "").strip()
+    u = u_raw.lower()
+    e = e_raw.lower()
+
+    dist = levenshtein_distance(u, e)
+    # Typo agar masofa 1 bo'lsa (harf uzunligi >=3) yoki 2 bo'lsa (harf uzunligi >=4)
+    is_typo = (dist == 1 and len(e) >= 3) or (dist == 2 and len(e) >= 4)
+
+    matcher = difflib.SequenceMatcher(None, u_raw, e_raw)
+    u_parts: list[str] = []
+    e_parts: list[str] = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        u_chunk = html.escape(u_raw[i1:i2])
+        e_chunk = html.escape(e_raw[j1:j2])
+
+        if tag == 'equal':
+            u_parts.append(u_chunk)
+            e_parts.append(e_chunk)
+        elif tag == 'replace':
+            u_parts.append(f'<span style="color:#EF4444; text-decoration:line-through; font-weight:700;">{u_chunk}</span>')
+            e_parts.append(f'<span style="color:#10B981; font-weight:700; text-decoration:underline;">{e_chunk}</span>')
+        elif tag == 'delete':
+            u_parts.append(f'<span style="color:#EF4444; text-decoration:line-through; font-weight:700;">{u_chunk}</span>')
+        elif tag == 'insert':
+            e_parts.append(f'<span style="color:#10B981; font-weight:700; text-decoration:underline;">{e_chunk}</span>')
+
+    tip_msg = ""
+    if is_typo:
+        count_str = "1 ta" if dist == 1 else "2 ta"
+        tip_msg = f"💡 Deyarli to'g'ri! ({count_str} harfda adashdingiz)"
+
+    return {
+        "is_typo": is_typo,
+        "distance": dist,
+        "expected_diff_html": "".join(e_parts),
+        "user_diff_html": "".join(u_parts),
+        "tip_message": tip_msg,
+    }
+
