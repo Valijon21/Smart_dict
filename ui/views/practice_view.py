@@ -1,5 +1,6 @@
 import random
 import re
+import time
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QFrame, QGridLayout, QProgressBar
@@ -46,6 +47,9 @@ class PracticeWidget(QWidget):
         self.batch_total = 0
         self.consecutive_correct = 0
         self.is_checking = False
+        self.is_waiting_for_enter = False
+        self._mistake_timestamp = 0.0
+        self._advance_timer = None
         self.quiz_mode = "typing"  # "typing" | "choice" | "flashcard" | "listening" | "scramble" | "cloze"
         self.current_options = []
         self.card_flipped = False
@@ -156,6 +160,17 @@ class PracticeWidget(QWidget):
         )
         self.filter_weak_btn.clicked.connect(self.load_weak_words)
         badges_row.addWidget(self.filter_weak_btn)
+
+        self.restart_batch_btn = QPushButton("🔄 Qayta boshlash")
+        self.restart_batch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.restart_batch_btn.setToolTip("Joriy mashq partiyasini qaytadan boshlash")
+        self.restart_batch_btn.setStyleSheet(
+            "QPushButton { background-color: #1F2937; color: #E5E7EB; border: 1px solid #374151;"
+            "border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; }"
+            "QPushButton:hover { background-color: #374151; color: white; }"
+        )
+        self.restart_batch_btn.clicked.connect(self.load_batch)
+        badges_row.addWidget(self.restart_batch_btn)
 
         self.all_words_btn = QPushButton("✖ Kunlik rejaga qaytish")
         self.all_words_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -626,6 +641,32 @@ class PracticeWidget(QWidget):
                     "QPushButton:hover { background-color: #B91C1C; color: white; }"
                 )
 
+        if hasattr(self, "restart_batch_btn"):
+            if is_dark:
+                self.restart_batch_btn.setStyleSheet(
+                    "QPushButton { background-color: #1F2937; color: #E5E7EB; border: 1px solid #374151;"
+                    "border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #374151; color: white; }"
+                )
+            else:
+                self.restart_batch_btn.setStyleSheet(
+                    "QPushButton { background-color: #F3F4F6; color: #374151; border: 1px solid #D1D5DB;"
+                    "border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; }"
+                    "QPushButton:hover { background-color: #E5E7EB; color: #111827; }"
+                )
+
+        if hasattr(self, "submit_btn"):
+            if getattr(self, "is_waiting_for_enter", False):
+                self.submit_btn.setStyleSheet(
+                    "QPushButton { background-color: #10B981; color: white; border: none; border-radius: 10px; padding: 12px 28px; font-size: 14px; font-weight: 700; }"
+                    "QPushButton:hover { background-color: #059669; }"
+                )
+            else:
+                self.submit_btn.setStyleSheet(
+                    f"QPushButton {{ background-color: {t.primary}; color: white; border: none; border-radius: 10px; padding: 12px 28px; font-size: 14px; font-weight: 700; }} "
+                    f"QPushButton:hover {{ background-color: {t.primary_light if not t.is_dark else '#4338CA'}; }}"
+                )
+
         if hasattr(self, "progress_bar"):
             txt_color = "white" if is_dark else t.text_main
             self.progress_bar.setStyleSheet(
@@ -1023,6 +1064,26 @@ class PracticeWidget(QWidget):
             pass
 
     def keyPressEvent(self, event: QKeyEvent):
+        if getattr(self, "is_waiting_for_enter", False):
+            if event.key() == Qt.Key.Key_Space:
+                self.play_audio()
+                event.accept()
+                return
+            elif event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                if time.time() - getattr(self, "_mistake_timestamp", 0) < 0.35:
+                    event.accept()
+                    return
+                self.next_word()
+                event.accept()
+                return
+
+        if hasattr(self, "_advance_timer") and self._advance_timer and self._advance_timer.isActive():
+            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                self._cancel_advance_timer()
+                self.next_word()
+                event.accept()
+                return
+
         if event.key() == Qt.Key.Key_Space:
             if self.quiz_mode == "flashcard" and not self.card_flipped:
                 self.flip_flashcard()
@@ -1101,9 +1162,53 @@ class PracticeWidget(QWidget):
             self.feedback_label.setText("✅ Zaif so'zlar yo'q! Barcha so'zlar yaxshi o'zlashtirilgan.")
             self.feedback_label.setStyleSheet("color: #10B981; font-size: 14px; font-weight: 600;")
 
+    def _cancel_advance_timer(self):
+        if hasattr(self, "_advance_timer") and self._advance_timer is not None:
+            try:
+                self._advance_timer.stop()
+            except Exception:
+                pass
+            self._advance_timer = None
+
+    def resume_session(self):
+        """Boshqa bo'limlardan ushbu mashq sahifasiga qaytilganda sessiya holatini tiklash va davom ettirish."""
+        # Agar sessiya umuman boshlanmagan bo'lsa yoki bo'sh bo'lsa, yuklaymiz
+        if not self.current and not self.queue:
+            if hasattr(self, "restart_btn") and self.restart_btn.isVisible():
+                return
+            self.load_batch()
+            return
+
+        # Faol sessiya davom etayotgan bo'lsa: umumiy kunlik reja hisoblagichlarini yangilaymiz
+        goal = db.get_daily_goal()
+        prog = db.get_today_progress()
+        remaining = len(self.queue) + (1 if self.current else 0)
+        self.badge_remaining.setText(f"📌 Qoldi: {remaining}")
+        self.badge_goal.setText(f"🎯 Kunlik reja: {goal}")
+        self.badge_today.setText(f"🔥 Bugun: {prog['practiced']} / {goal}")
+        self.badge_correct.setText(f"✅ To'g'ri: {self.session_correct}")
+        self.badge_wrong.setText(f"❌ Xato: {self.session_wrong}")
+
+        # Maydonlarga fokusni qulay qaytarish
+        if not getattr(self, "is_checking", False):
+            if getattr(self, "is_waiting_for_enter", False):
+                if self.quiz_mode in ("typing", "listening"):
+                    self.answer_input.setFocus()
+                elif self.quiz_mode == "cloze" and hasattr(self, "cloze_input"):
+                    self.cloze_input.setFocus()
+                else:
+                    self.submit_btn.setFocus()
+            else:
+                if self.quiz_mode in ("typing", "listening") and self.answer_input.isEnabled():
+                    self.answer_input.setFocus()
+                elif self.quiz_mode == "cloze" and hasattr(self, "cloze_input") and self.cloze_input.isEnabled():
+                    self.cloze_input.setFocus()
+
     def load_batch(self):
         """Sozlamalarda kiritilgan kunlik maqsad (daily_goal) miqdoridagi so'zlarni yuklaydi."""
+        self._cancel_advance_timer()
         self.is_checking = False
+        self.is_waiting_for_enter = False
         goal = db.get_daily_goal()
 
         if self.custom_word_ids:
@@ -1129,8 +1234,28 @@ class PracticeWidget(QWidget):
         self.next_word()
 
     def next_word(self):
+        self._cancel_advance_timer()
         self.is_checking = False
+        self.is_waiting_for_enter = False
         self.card_flipped = False
+
+        if hasattr(self, "answer_input"):
+            self.answer_input.setReadOnly(False)
+            self.answer_input.setEnabled(True)
+            self.answer_input.clear()
+        if hasattr(self, "cloze_input"):
+            self.cloze_input.setReadOnly(False)
+            self.cloze_input.setEnabled(True)
+            self.cloze_input.clear()
+
+        # Submit tugmasini standart holatga qaytarish
+        t = theme_manager.get_active_theme()
+        if hasattr(self, "submit_btn"):
+            self.submit_btn.setText("Tekshirish ↵")
+            self.submit_btn.setStyleSheet(
+                f"QPushButton {{ background-color: {t.primary}; color: white; border: none; border-radius: 10px; padding: 12px 28px; font-size: 14px; font-weight: 700; }} "
+                f"QPushButton:hover {{ background-color: {t.primary_light if not t.is_dark else '#4338CA'}; }}"
+            )
 
         if not self.queue:
             total_words = db.word_count().get("total", 0)
@@ -1380,6 +1505,12 @@ class PracticeWidget(QWidget):
         QTimer.singleShot(900, self.next_word)
 
     def check_choice(self, chosen_idx: int):
+        if getattr(self, "is_waiting_for_enter", False):
+            if time.time() - getattr(self, "_mistake_timestamp", 0) < 0.35:
+                return
+            self.next_word()
+            return
+
         if not self.current or self.is_checking or chosen_idx >= len(self.current_options):
             return
         self.is_checking = True
@@ -1405,16 +1536,41 @@ class PracticeWidget(QWidget):
 
         if is_correct:
             self.session_correct += 1
+            self.badge_correct.setText(f"✅ To'g'ri: {self.session_correct}")
             self.feedback_label.setText("✅ To'g'ri!")
             self.feedback_label.setStyleSheet("color: #10B981; font-size: 15px; font-weight: 600;")
-            QTimer.singleShot(1200, self.next_word)
+            self._cancel_advance_timer()
+            self._advance_timer = QTimer(self)
+            self._advance_timer.setSingleShot(True)
+            self._advance_timer.timeout.connect(self.next_word)
+            self._advance_timer.start(1200)
         else:
             self.session_wrong += 1
-            self.feedback_label.setText(f"❌ To'g'ri javob: {expected}")
-            self.feedback_label.setStyleSheet("color: #EF4444; font-size: 15px; font-weight: 600;")
-            QTimer.singleShot(2400, self.next_word)
+            self.badge_wrong.setText(f"❌ Xato: {self.session_wrong}")
+            self.feedback_label.setText(
+                f"❌ To'g'ri javob: <b style='color: #F87171;'>{expected}</b>"
+                f"&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;<span style='color: #94A3B8; font-size: 13px;'>[ Davom etish uchun <b>Enter ↵</b> bosing ]</span>"
+            )
+            self.feedback_label.setStyleSheet("font-size: 15px; font-weight: 600;")
+            self.is_waiting_for_enter = True
+            self._mistake_timestamp = time.time()
+            self.is_checking = False
+            self.submit_btn.setText("Davom etish ↵")
+            self.submit_btn.setVisible(True)
+            self.submit_btn.setEnabled(True)
+            self.submit_btn.setStyleSheet(
+                "QPushButton { background-color: #10B981; color: white; border: none; border-radius: 10px; padding: 12px 28px; font-size: 14px; font-weight: 700; }"
+                "QPushButton:hover { background-color: #059669; }"
+            )
+            self.submit_btn.setFocus()
 
     def check_answer(self):
+        if getattr(self, "is_waiting_for_enter", False):
+            if time.time() - getattr(self, "_mistake_timestamp", 0) < 0.35:
+                return
+            self.next_word()
+            return
+
         if not self.current or self.is_checking:
             return
 
@@ -1457,6 +1613,7 @@ class PracticeWidget(QWidget):
 
         if is_correct:
             self.session_correct += 1
+            self.badge_correct.setText(f"✅ To'g'ri: {self.session_correct}")
             self.feedback_label.setText("✅ To'g'ri!")
             self.feedback_label.setStyleSheet("color: #10B981; font-size: 16px; font-weight: 700;")
             if self.quiz_mode in ("listening", "scramble"):
@@ -1468,13 +1625,24 @@ class PracticeWidget(QWidget):
                 self.cloze_sentence_display.setText(highlighted)
                 self.word_label.setText(f"✅ {self.current['english']}")
                 self.play_audio()
-            QTimer.singleShot(1400, self.next_word)
+            self._cancel_advance_timer()
+            self._advance_timer = QTimer(self)
+            self._advance_timer.setSingleShot(True)
+            self._advance_timer.timeout.connect(self.next_word)
+            self._advance_timer.start(1200)
         else:
             self.session_wrong += 1
-            self.feedback_label.setText(f"❌ To'g'ri javob: {expected_display}")
-            self.feedback_label.setStyleSheet("color: #EF4444; font-size: 16px; font-weight: 700;")
+            self.badge_wrong.setText(f"❌ Xato: {self.session_wrong}")
+            self.feedback_label.setText(
+                f"❌ To'g'ri javob: <b style='color: #F87171;'>{expected_display}</b>"
+                f"&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;<span style='color: #94A3B8; font-size: 13px;'>[ Davom etish uchun <b>Enter ↵</b> bosing ]</span>"
+            )
+            self.feedback_label.setStyleSheet("font-size: 15px; font-weight: 600; min-height: 28px;")
+
             if self.quiz_mode in ("listening", "scramble"):
                 self.word_label.setText(f"❌ {self.current['english']}")
+                self.play_audio()
+            elif self.direction == "uz_en":
                 self.play_audio()
             elif self.quiz_mode == "cloze" and hasattr(self, "cloze_data") and self.cloze_data:
                 orig = self.cloze_data["original_sentence"]
@@ -1483,4 +1651,27 @@ class PracticeWidget(QWidget):
                 self.cloze_sentence_display.setText(highlighted)
                 self.word_label.setText(f"❌ {self.current['english']}")
                 self.play_audio()
-            QTimer.singleShot(2600, self.next_word)
+
+            self.is_waiting_for_enter = True
+            self._mistake_timestamp = time.time()
+            self.is_checking = False
+
+            # Submit tugmasini "Davom etish" ga aylantiramiz
+            self.submit_btn.setText("Davom etish ↵")
+            self.submit_btn.setEnabled(True)
+            self.submit_btn.setStyleSheet(
+                "QPushButton { background-color: #10B981; color: white; border: none; border-radius: 10px; padding: 12px 28px; font-size: 14px; font-weight: 700; }"
+                "QPushButton:hover { background-color: #059669; }"
+            )
+
+            # Input maydonini qayta yoqamiz, lekin tahrirlanmas qilamiz, fokusni saqlaymiz
+            if self.quiz_mode in ("typing", "listening"):
+                self.answer_input.setEnabled(True)
+                self.answer_input.setReadOnly(True)
+                self.answer_input.setFocus()
+            elif self.quiz_mode == "cloze" and hasattr(self, "cloze_input"):
+                self.cloze_input.setEnabled(True)
+                self.cloze_input.setReadOnly(True)
+                self.cloze_input.setFocus()
+            else:
+                self.submit_btn.setFocus()

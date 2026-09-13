@@ -567,7 +567,9 @@ class MainWindow(QMainWindow):
         elif key == "settings":
             page.load_settings()
         elif key in ("en_uz", "uz_en"):
-            if not getattr(page, "custom_word_ids", None):
+            if hasattr(page, "resume_session"):
+                page.resume_session()
+            elif not getattr(page, "custom_word_ids", None):
                 page.load_batch()
 
         self.stack.setCurrentWidget(page)
