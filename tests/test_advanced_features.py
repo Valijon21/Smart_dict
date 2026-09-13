@@ -82,6 +82,18 @@ def test_fuzzy_search_in_database(temp_db):
     assert res2[0]["english"].lower() == "accommodate"
 
 
+def test_fuzzy_search_in_global_dict():
+    """64,000 so'zlik global lug'atda xato yozilgan so'zlarni Levenshtein orqali topish."""
+    import services.global_dict_service as gds
+    res1 = gds.search_global_words("wunderful", limit=3)
+    assert len(res1) >= 1
+    assert res1[0]["english"].lower() == "wonderful"
+
+    res2 = gds.search_global_words("beutiful", limit=3)
+    assert len(res2) >= 1
+    assert res2[0]["english"].lower() == "beautiful"
+
+
 def test_practice_visual_diff_and_shake(app, temp_db):
     """Mashqda xato qilinganda visual diff chiqishi va karta silkinishi."""
     w = PracticeWidget("en_uz")

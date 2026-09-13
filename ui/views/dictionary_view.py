@@ -1007,15 +1007,24 @@ class DictionaryWidget(QWidget):
         self._current_rows_data = rows
         self.table.setRowCount(len(rows))
 
-        # Agar shaxsiy bazada topilmasa va qidiruv kiritilgan bo'lsa, 64k bazadan tavsiya
+        # Agar shaxsiy bazada topilmasa yoki imlo xatosi (fuzzy) bilan topilgan bo'lsa
         clean_q = query.strip()
+        is_fuzzy_personal = (
+            len(rows) > 0 and clean_q and len(clean_q) >= 4 and
+            not any(clean_q.lower() == (r["english"] or "").lower() or clean_q.lower() in (r["uzbek"] or "").lower() for r in rows)
+        )
+
         if len(rows) == 0 and clean_q:
             global_matches = global_dict_service.search_global_words(clean_q, limit=3)
             if global_matches:
-                self._update_global_banner(global_matches)
+                is_typo = global_matches[0]["english"].lower() != clean_q.lower()
+                self._update_global_banner(global_matches, query=clean_q, is_typo=is_typo)
                 self.global_banner.setVisible(True)
             else:
                 self.global_banner.setVisible(False)
+        elif is_fuzzy_personal:
+            self._update_fuzzy_notice(clean_q, rows[0]["english"])
+            self.global_banner.setVisible(True)
         else:
             self.global_banner.setVisible(False)
 
@@ -1136,15 +1145,19 @@ class DictionaryWidget(QWidget):
 
         self.count_label.setText(f"Ko'rsatilmoqda: {len(rows)} ta so'z")
 
-    def _update_global_banner(self, matches: list[dict]):
+    def _update_global_banner(self, matches: list[dict], query: str = "", is_typo: bool = False):
         """64,000 so'zlik bazadan topilgan natijalarni chiroyli bannerda ko'rsatish."""
         while self.global_banner_layout.count():
             item = self.global_banner_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        lbl = QLabel("🌐 64,000 so'zlik lug'atdan tavsiya:")
-        lbl.setStyleSheet("color: #C7D2FE; font-size: 12px; font-weight: 700;")
+        if is_typo and query:
+            lbl = QLabel(f"💡 Imlo xatosi: \"{query}\" so'zi topilmadi. O'xshash so'z (64k lug'atdan):")
+            lbl.setStyleSheet("color: #FBBF24; font-size: 13px; font-weight: 700;")
+        else:
+            lbl = QLabel("🌐 64,000 so'zlik lug'atdan tavsiya:")
+            lbl.setStyleSheet("color: #C7D2FE; font-size: 12px; font-weight: 700;")
         self.global_banner_layout.addWidget(lbl)
 
         for m in matches:
@@ -1160,6 +1173,18 @@ class DictionaryWidget(QWidget):
             btn.clicked.connect(lambda checked, w=m: self._quick_add_from_banner(w))
             self.global_banner_layout.addWidget(btn)
 
+        self.global_banner_layout.addStretch()
+
+    def _update_fuzzy_notice(self, query: str, matched_word: str):
+        """Shaxsiy lug'atda Levenshtein fuzzy search orqali topilgan so'zni ko'rsatish."""
+        while self.global_banner_layout.count():
+            item = self.global_banner_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        lbl = QLabel(f"💡 Imlo xatosi: \"{query}\" bo'yicha aniq so'z topilmadi. Eng yaqin natija: <b style='color:#34D399;'>{matched_word}</b>")
+        lbl.setStyleSheet("color: #FBBF24; font-size: 13px; font-weight: 600;")
+        self.global_banner_layout.addWidget(lbl)
         self.global_banner_layout.addStretch()
 
     def _quick_add_from_banner(self, word_data: dict):

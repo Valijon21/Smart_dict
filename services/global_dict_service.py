@@ -184,6 +184,66 @@ def search_global_words(query: str, limit: int = 25) -> list[dict]:
                 "match_rank": row["match_rank"],
             })
 
+        # Levenshtein fuzzy search fallback: agar standart SQL qidiruv natija bermasa va so'z uzunligi >= 4 bo'lsa
+        if not results and len(clean_q) >= 4:
+            q_low = clean_q.lower()
+            min_len = max(len(clean_q) - 2, 3)
+            max_len = len(clean_q) + 2
+            max_dist = 1 if len(clean_q) <= 4 else 2
+
+            # 1. Tezkor bosqich: birinchi harfi bir xil bo'lgan so'zlardan qidirish (~25ms)
+            cursor.execute(
+                """
+                SELECT we.id, we.word, we.word_classword_class AS pos, we.star, we.example,
+                       GROUP_CONCAT(wz.word, ', ') AS uzbek
+                FROM word_entity we
+                LEFT JOIN words_uz wz ON we.id = wz.word_id
+                WHERE we.word LIKE ? AND LENGTH(we.word) BETWEEN ? AND ?
+                GROUP BY we.id
+                """,
+                (clean_q[0] + '%', min_len, max_len)
+            )
+            cand_rows = cursor.fetchall()
+            fuzzy_matches = []
+            for r in cand_rows:
+                cand_word = (r["word"] or "").lower()
+                d = text_search_utils.levenshtein_distance(q_low, cand_word)
+                if d <= max_dist:
+                    fuzzy_matches.append((d, r))
+
+            # 2. Agar birinchi harf bo'yicha topilmasa, uzunlik bo'yicha kengroq qidirish
+            if not fuzzy_matches:
+                cursor.execute(
+                    """
+                    SELECT we.id, we.word, we.word_classword_class AS pos, we.star, we.example,
+                           GROUP_CONCAT(wz.word, ', ') AS uzbek
+                    FROM word_entity we
+                    LEFT JOIN words_uz wz ON we.id = wz.word_id
+                    WHERE LENGTH(we.word) BETWEEN ? AND ?
+                    GROUP BY we.id
+                    """,
+                    (min_len, max_len)
+                )
+                cand_rows = cursor.fetchall()
+                for r in cand_rows:
+                    cand_word = (r["word"] or "").lower()
+                    d = text_search_utils.levenshtein_distance(q_low, cand_word)
+                    if d <= max_dist:
+                        fuzzy_matches.append((d, r))
+
+            fuzzy_matches.sort(key=lambda x: (x[0], -int(x[1]["star"] or 0)))
+            for d, row in fuzzy_matches[:limit]:
+                results.append({
+                    "id": row["id"],
+                    "english": row["word"],
+                    "pos": row["pos"] or "",
+                    "star": str(row["star"] or "0"),
+                    "uzbek": row["uzbek"] or "",
+                    "example": clean_html(row["example"]),
+                    "source": "global",
+                    "match_rank": 3,
+                })
+
     except Exception as e:
         logger.error(f"Global qidiruvda xatolik: {e}")
     finally:

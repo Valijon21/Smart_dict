@@ -616,13 +616,13 @@ def search_words(query: str = "", status_filter: str = "all", hard_only: bool = 
             candidate_sql = f"""
                 SELECT w.*, p.box_level, p.next_review, p.last_reviewed, p.correct_count, p.wrong_count
                 FROM words w
-                JOIN progress p ON p.word_id = w.id
+                LEFT JOIN progress p ON p.word_id = w.id
                 {fb_where}
             """
             candidates = conn.execute(candidate_sql, fb_params).fetchall()
             fuzzy_matches = []
             q_lower = clean_q.lower()
-            max_dist = 1 if len(clean_q) <= 5 else 2
+            max_dist = 1 if len(clean_q) <= 4 else 2
 
             for cand in candidates:
                 eng_w = (cand["english"] or "").lower()
@@ -640,6 +640,28 @@ def search_words(query: str = "", status_filter: str = "all", hard_only: bool = 
 
                 if min_d <= max_dist:
                     fuzzy_matches.append((min_d, cand))
+
+            # Agar joriy status bo'yicha topilmasa, lekin boshqa statuslarda so'z bo'lsa
+            if not fuzzy_matches and fb_clauses:
+                all_candidates = conn.execute(
+                    """
+                    SELECT w.*, p.box_level, p.next_review, p.last_reviewed, p.correct_count, p.wrong_count
+                    FROM words w
+                    LEFT JOIN progress p ON p.word_id = w.id
+                    """
+                ).fetchall()
+                for cand in all_candidates:
+                    eng_w = (cand["english"] or "").lower()
+                    uz_w = (cand["uzbek"] or "").lower()
+                    d_eng = text_search_utils.levenshtein_distance(q_lower, eng_w)
+                    d_uz = text_search_utils.levenshtein_distance(q_lower, uz_w)
+                    min_d = min(d_eng, d_uz)
+                    for tok in re.split(r"[,;/]+", uz_w):
+                        tok_clean = tok.strip()
+                        if tok_clean:
+                            min_d = min(min_d, text_search_utils.levenshtein_distance(q_lower, tok_clean))
+                    if min_d <= max_dist:
+                        fuzzy_matches.append((min_d, cand))
 
             fuzzy_matches.sort(key=lambda item: item[0])
             results = [item[1] for item in fuzzy_matches]
