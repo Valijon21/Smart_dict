@@ -1,0 +1,11 @@
+# SmartDict (Vocab Master Pro) — Development & Testing Dependencies
+-r requirements.txt
+
+# --- Testing Suite ---
+pytest>=8.0.0
+pytest-qt>=4.4.0
+pytest-mock>=3.14.0
+
+# --- Linting & Code Quality ---
+ruff>=0.5.0
+mypy>=1.10.0

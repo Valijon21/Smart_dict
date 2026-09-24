@@ -18,6 +18,15 @@ def main():
     app_log.info("Vocab Master ilovasi ishga tushmoqda...")
 
     try:
+        # Windows Taskbar AppUserModelID (Taskbar'da dastur o'zining shaxsiy ikonkasi bilan ko'rinishi uchun)
+        if sys.platform == "win32":
+            import ctypes
+            try:
+                myappid = "smartdict.vocabmaster.pro.1.0"
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+            except Exception as app_id_err:
+                app_log.debug(f"SetCurrentProcessExplicitAppUserModelID: {app_id_err}")
+
         # High DPI ekranlar uchun tiniq shriftlar
         if hasattr(Qt.HighDpiScaleFactorRoundingPolicy, "PassThrough"):
             QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
@@ -26,8 +35,18 @@ def main():
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
         app.setApplicationName("VocabMasterPro")
+        app.setOrganizationName("SmartDict")
         # System Tray rejimida oyna yopilganda dastur o'z-o'zidan to'xtab qolmasligi uchun
         app.setQuitOnLastWindowClosed(False)
+
+        # Dastur darajasidagi global ikonka
+        from utils.logger import get_resource_path
+        from PyQt6.QtGui import QIcon
+        for candidate in ("app_icon.png", "app.ico"):
+            icon_p = get_resource_path(candidate)
+            if icon_p.exists():
+                app.setWindowIcon(QIcon(str(icon_p)))
+                break
 
         # Global standart shrift (Segoe UI 10pt - tiniq va o'qishga qulay)
         from PyQt6.QtGui import QFont

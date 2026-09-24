@@ -1,0 +1,692 @@
+[
+    {
+        "v1":  "be(am,is,are)",
+        "v2":  "was/were",
+        "v3":  "been",
+        "translation":  "bo\u0027lmoq"
+    },
+    {
+        "v1":  "beat",
+        "v2":  "beat",
+        "v3":  "beaten",
+        "translation":  "urmoq"
+    },
+    {
+        "v1":  "become",
+        "v2":  "became",
+        "v3":  "become",
+        "translation":  "bolmoq"
+    },
+    {
+        "v1":  "begin",
+        "v2":  "began",
+        "v3":  "begun",
+        "translation":  "boshlamoq"
+    },
+    {
+        "v1":  "bend",
+        "v2":  "bent",
+        "v3":  "bent",
+        "translation":  "egmoq"
+    },
+    {
+        "v1":  "bet",
+        "v2":  "bet",
+        "v3":  "bet",
+        "translation":  "garov oynamoq"
+    },
+    {
+        "v1":  "bite",
+        "v2":  "bit",
+        "v3":  "bitten",
+        "translation":  "tishlamoq"
+    },
+    {
+        "v1":  "blow",
+        "v2":  "blew",
+        "v3":  "blown",
+        "translation":  "esmoq"
+    },
+    {
+        "v1":  "break",
+        "v2":  "broke",
+        "v3":  "broken",
+        "translation":  "sindirmoq"
+    },
+    {
+        "v1":  "bring",
+        "v2":  "brought",
+        "v3":  "brought",
+        "translation":  "olib kelmoq"
+    },
+    {
+        "v1":  "broadcast",
+        "v2":  "broadcast",
+        "v3":  "broadcast",
+        "translation":  "efirga uzatmoq"
+    },
+    {
+        "v1":  "build",
+        "v2":  "built",
+        "v3":  "built",
+        "translation":  "qurmoq"
+    },
+    {
+        "v1":  "burst",
+        "v2":  "burst",
+        "v3":  "burst",
+        "translation":  "portlamoq, kuydirib olmoqbuy"
+    },
+    {
+        "v1":  "buy",
+        "v2":  "bought",
+        "v3":  "bought",
+        "translation":  "sotib olmoq"
+    },
+    {
+        "v1":  "catch",
+        "v2":  "caught",
+        "v3":  "caught",
+        "translation":  "ushlamoq"
+    },
+    {
+        "v1":  "choose",
+        "v2":  "chose",
+        "v3":  "chosen",
+        "translation":  "tanlamoq"
+    },
+    {
+        "v1":  "come",
+        "v2":  "came",
+        "v3":  "come",
+        "translation":  "kelmoq"
+    },
+    {
+        "v1":  "cost",
+        "v2":  "cost",
+        "v3":  "cost",
+        "translation":  "narxi turmoq"
+    },
+    {
+        "v1":  "creep",
+        "v2":  "crept",
+        "v3":  "crept",
+        "translation":  "sudralmoq, emaklamoq"
+    },
+    {
+        "v1":  "cut",
+        "v2":  "cut",
+        "v3":  "cut",
+        "translation":  "kesmoq"
+    },
+    {
+        "v1":  "deal",
+        "v2":  "dealt",
+        "v3":  "dealt",
+        "translation":  "tarqatmoq, hal qilmoq"
+    },
+    {
+        "v1":  "dig",
+        "v2":  "dug",
+        "v3":  "dug",
+        "translation":  "kovlamoq"
+    },
+    {
+        "v1":  "do",
+        "v2":  "did",
+        "v3":  "done",
+        "translation":  "qilmoq, bajarmoq"
+    },
+    {
+        "v1":  "draw",
+        "v2":  "drew",
+        "v3":  "drawn",
+        "translation":  "chizmoq"
+    },
+    {
+        "v1":  "drink",
+        "v2":  "drank",
+        "v3":  "drunk",
+        "translation":  "ichmoq"
+    },
+    {
+        "v1":  "drive",
+        "v2":  "drove",
+        "v3":  "driven",
+        "translation":  "haydamoq (mashinani….)"
+    },
+    {
+        "v1":  "eat",
+        "v2":  "ate",
+        "v3":  "eaten",
+        "translation":  "yemoq"
+    },
+    {
+        "v1":  "fall",
+        "v2":  "fell",
+        "v3":  "fallen",
+        "translation":  "yiqilmoq"
+    },
+    {
+        "v1":  "feed",
+        "v2":  "fed",
+        "v3":  "fed",
+        "translation":  "boqmoq, ovqatlantirmoq"
+    },
+    {
+        "v1":  "feel",
+        "v2":  "felt",
+        "v3":  "felt",
+        "translation":  "his qilmoq"
+    },
+    {
+        "v1":  "fight",
+        "v2":  "fought",
+        "v3":  "fought",
+        "translation":  "kurashmoq"
+    },
+    {
+        "v1":  "find",
+        "v2":  "found",
+        "v3":  "found",
+        "translation":  "topmoq"
+    },
+    {
+        "v1":  "flee",
+        "v2":  "fled",
+        "v3":  "fled",
+        "translation":  "qochmoq, qochib ketmoq"
+    },
+    {
+        "v1":  "fly",
+        "v2":  "flew",
+        "v3":  "flown",
+        "translation":  "uchmoq"
+    },
+    {
+        "v1":  "forbid",
+        "v2":  "forbade",
+        "v3":  "forbiddin",
+        "translation":  "ta\u0027qiqlamoq"
+    },
+    {
+        "v1":  "forget",
+        "v2":  "forgot",
+        "v3":  "forgotten",
+        "translation":  "unutmoq"
+    },
+    {
+        "v1":  "forgive",
+        "v2":  "forgave",
+        "v3":  "forgiven",
+        "translation":  "kechirmoq"
+    },
+    {
+        "v1":  "freeze",
+        "v2":  "froze",
+        "v3":  "frozen",
+        "translation":  "muzlamoq"
+    },
+    {
+        "v1":  "get",
+        "v2":  "got",
+        "v3":  "got",
+        "translation":  "olmoq, yetmoq"
+    },
+    {
+        "v1":  "give",
+        "v2":  "gave",
+        "v3":  "given",
+        "translation":  "bermoq"
+    },
+    {
+        "v1":  "go",
+        "v2":  "went",
+        "v3":  "gone",
+        "translation":  "ketmoq, bormoq"
+    },
+    {
+        "v1":  "grow",
+        "v2":  "grew",
+        "v3":  "grown",
+        "translation":  "o\u0027smoq, o\u0027stirmoq"
+    },
+    {
+        "v1":  "hang",
+        "v2":  "hung",
+        "v3":  "hung",
+        "translation":  "ilmoq"
+    },
+    {
+        "v1":  "hear",
+        "v2":  "heard",
+        "v3":  "heard",
+        "translation":  "eshitmoq"
+    },
+    {
+        "v1":  "hide",
+        "v2":  "hid",
+        "v3":  "hidden",
+        "translation":  "yashirmoq, berkitmoq"
+    },
+    {
+        "v1":  "hit",
+        "v2":  "hit",
+        "v3":  "hit",
+        "translation":  "urmoq"
+    },
+    {
+        "v1":  "hold",
+        "v2":  "held",
+        "v3":  "held",
+        "translation":  "ushlamoq, o\u0027tkazmoq"
+    },
+    {
+        "v1":  "hurt",
+        "v2":  "hurt",
+        "v3":  "hurt",
+        "translation":  "jarohatlamoq, og\u0027rimoq"
+    },
+    {
+        "v1":  "keep",
+        "v2":  "kept",
+        "v3":  "kept",
+        "translation":  "saqlamoq"
+    },
+    {
+        "v1":  "kneel",
+        "v2":  "knelt",
+        "v3":  "knelt",
+        "translation":  "tizzalamoq"
+    },
+    {
+        "v1":  "know",
+        "v2":  "knew",
+        "v3":  "known",
+        "translation":  "bilmoq"
+    },
+    {
+        "v1":  "lay",
+        "v2":  "laid",
+        "v3":  "laid",
+        "translation":  "qo\u0027ymoq"
+    },
+    {
+        "v1":  "lead",
+        "v2":  "led",
+        "v3":  "led",
+        "translation":  "yetaklamoq"
+    },
+    {
+        "v1":  "leave",
+        "v2":  "left",
+        "v3":  "left",
+        "translation":  "jo\u0027nab ketmoq, qoldirmoq"
+    },
+    {
+        "v1":  "lend",
+        "v2":  "lent",
+        "v3":  "lent",
+        "translation":  "qarz bermoq"
+    },
+    {
+        "v1":  "let",
+        "v2":  "let",
+        "v3":  "let",
+        "translation":  "ruxsat bermoq"
+    },
+    {
+        "v1":  "lie",
+        "v2":  "lay",
+        "v3":  "lain",
+        "translation":  "yotmoq aldamoq"
+    },
+    {
+        "v1":  "light",
+        "v2":  "lit",
+        "v3":  "lit",
+        "translation":  "yoqmoq, yoqmoq"
+    },
+    {
+        "v1":  "lose",
+        "v2":  "lost",
+        "v3":  "lost",
+        "translation":  "yo\u0027qotmoq"
+    },
+    {
+        "v1":  "mean",
+        "v2":  "meant",
+        "v3":  "meant",
+        "translation":  "anglatmoq"
+    },
+    {
+        "v1":  "meet",
+        "v2":  "met",
+        "v3":  "met",
+        "translation":  "uchrashmoq"
+    },
+    {
+        "v1":  "pay",
+        "v2":  "paid",
+        "v3":  "paid",
+        "translation":  "to\u0027lamoq"
+    },
+    {
+        "v1":  "put",
+        "v2":  "put",
+        "v3":  "put",
+        "translation":  "qo\u0027ymoq"
+    },
+    {
+        "v1":  "read",
+        "v2":  "read",
+        "v3":  "read",
+        "translation":  "o\u0027qimoq"
+    },
+    {
+        "v1":  "ride",
+        "v2":  "rode",
+        "v3":  "ridden",
+        "translation":  "minmoq(velosiped, ot..)"
+    },
+    {
+        "v1":  "ring",
+        "v2":  "rang",
+        "v3":  "rung",
+        "translation":  "qo\u0027ng\u0027iroq qilmoq"
+    },
+    {
+        "v1":  "rise",
+        "v2":  "rose",
+        "v3":  "risen",
+        "translation":  "ko\u0027tarilmoq"
+    },
+    {
+        "v1":  "run",
+        "v2":  "ran",
+        "v3":  "run",
+        "translation":  "yugurmoq"
+    },
+    {
+        "v1":  "say",
+        "v2":  "said",
+        "v3":  "said",
+        "translation":  "aytmoq, demoq"
+    },
+    {
+        "v1":  "see",
+        "v2":  "saw",
+        "v3":  "seen",
+        "translation":  "ko\u0027rmoq"
+    },
+    {
+        "v1":  "seek",
+        "v2":  "sought",
+        "v3":  "sought",
+        "translation":  "qidirmoq, izlamoq"
+    },
+    {
+        "v1":  "sell",
+        "v2":  "sold",
+        "v3":  "sold",
+        "translation":  "sotmoq"
+    },
+    {
+        "v1":  "send",
+        "v2":  "sent",
+        "v3":  "sent",
+        "translation":  "jo\u0027natmoq"
+    },
+    {
+        "v1":  "set",
+        "v2":  "set",
+        "v3":  "set",
+        "translation":  "botmoq"
+    },
+    {
+        "v1":  "sew",
+        "v2":  "sewed",
+        "v3":  "sewn/sewed",
+        "translation":  "to\u0027qimoq"
+    },
+    {
+        "v1":  "shake",
+        "v2":  "shook",
+        "v3":  "shaken",
+        "translation":  "silkitmoq, titramoq"
+    },
+    {
+        "v1":  "shine",
+        "v2":  "shone",
+        "v3":  "shone",
+        "translation":  "nur sochmoq"
+    },
+    {
+        "v1":  "shoot",
+        "v2":  "shot",
+        "v3":  "shot",
+        "translation":  "o\u0027q otmoq"
+    },
+    {
+        "v1":  "show",
+        "v2":  "showed",
+        "v3":  "shown/showed",
+        "translation":  "ko\u0027rsatmoq"
+    },
+    {
+        "v1":  "shrink",
+        "v2":  "shrank",
+        "v3":  "shrunk",
+        "translation":  "kichraymoq, (kiyim) kirishmoq"
+    },
+    {
+        "v1":  "shut",
+        "v2":  "shut",
+        "v3":  "shut",
+        "translation":  "yopmoq"
+    },
+    {
+        "v1":  "sing",
+        "v2":  "sang",
+        "v3":  "sung",
+        "translation":  "kuylamoq"
+    },
+    {
+        "v1":  "sink",
+        "v2":  "sank",
+        "v3":  "sunk",
+        "translation":  "cho\u0027qmoq"
+    },
+    {
+        "v1":  "sit",
+        "v2":  "sat",
+        "v3":  "sat",
+        "translation":  "o\u0027tirmoq"
+    },
+    {
+        "v1":  "sleep",
+        "v2":  "slept",
+        "v3":  "slept",
+        "translation":  "uxlamoq"
+    },
+    {
+        "v1":  "slide",
+        "v2":  "slid",
+        "v3":  "slid",
+        "translation":  "sirpanmoq, toymoq"
+    },
+    {
+        "v1":  "speak",
+        "v2":  "spoke",
+        "v3":  "spoken",
+        "translation":  "gapirmoq"
+    },
+    {
+        "v1":  "spend",
+        "v2":  "spent",
+        "v3":  "spent",
+        "translation":  "sarflamoq, o\u0027tkazmoq (vaqtni)"
+    },
+    {
+        "v1":  "spit",
+        "v2":  "spat",
+        "v3":  "spat",
+        "translation":  "tupurmoq"
+    },
+    {
+        "v1":  "split",
+        "v2":  "split",
+        "v3":  "split",
+        "translation":  "ajralib ketmoq"
+    },
+    {
+        "v1":  "spread",
+        "v2":  "spread",
+        "v3":  "spread",
+        "translation":  "yoyilmoq"
+    },
+    {
+        "v1":  "spring",
+        "v2":  "sprang",
+        "v3":  "sprung",
+        "translation":  "yoyilmoq, sochmoq"
+    },
+    {
+        "v1":  "stand",
+        "v2":  "stood",
+        "v3":  "stood",
+        "translation":  "turmoq"
+    },
+    {
+        "v1":  "steal",
+        "v2":  "stole",
+        "v3":  "stolen",
+        "translation":  "o\u0027g\u0027irlamoq"
+    },
+    {
+        "v1":  "stick",
+        "v2":  "stuck",
+        "v3":  "stuck",
+        "translation":  "yopishtirmoq, sanchmoq"
+    },
+    {
+        "v1":  "sting",
+        "v2":  "stung",
+        "v3":  "stung",
+        "translation":  "(ari)chaqmoq,(ko\u0027zi)achishmoq"
+    },
+    {
+        "v1":  "stink",
+        "v2":  "stank",
+        "v3":  "stunk",
+        "translation":  "sasimoq"
+    },
+    {
+        "v1":  "strike",
+        "v2":  "struck",
+        "v3":  "struck",
+        "translation":  "urmoq, ish tashlamoq"
+    },
+    {
+        "v1":  "swear",
+        "v2":  "swore",
+        "v3":  "sworn",
+        "translation":  "so\u0027kinmoq"
+    },
+    {
+        "v1":  "sweep",
+        "v2":  "swept",
+        "v3":  "swept",
+        "translation":  "supurmoq"
+    },
+    {
+        "v1":  "swim",
+        "v2":  "swam",
+        "v3":  "swum",
+        "translation":  "cho\u0027milmoq"
+    },
+    {
+        "v1":  "swing",
+        "v2":  "swung",
+        "v3":  "swung",
+        "translation":  "tebranmoq, tebratmoq"
+    },
+    {
+        "v1":  "take",
+        "v2":  "took",
+        "v3":  "taken",
+        "translation":  "olmoq"
+    },
+    {
+        "v1":  "teach",
+        "v2":  "taught",
+        "v3":  "taught",
+        "translation":  "o\u0027qitmoq, o\u0027rgatmoq"
+    },
+    {
+        "v1":  "tear",
+        "v2":  "tore",
+        "v3":  "torn",
+        "translation":  "yirtmoq"
+    },
+    {
+        "v1":  "tell",
+        "v2":  "told",
+        "v3":  "told",
+        "translation":  "aytmoq"
+    },
+    {
+        "v1":  "think",
+        "v2":  "thought",
+        "v3":  "thought",
+        "translation":  "o\u0027ylamoq"
+    },
+    {
+        "v1":  "throw",
+        "v2":  "threw",
+        "v3":  "thrown",
+        "translation":  "uloqtirmoq"
+    },
+    {
+        "v1":  "understand",
+        "v2":  "understood",
+        "v3":  "understood",
+        "translation":  "tushunmoq"
+    },
+    {
+        "v1":  "upset",
+        "v2":  "upset",
+        "v3":  "upset",
+        "translation":  "xafa qilomoq"
+    },
+    {
+        "v1":  "wake",
+        "v2":  "woke",
+        "v3":  "woken",
+        "translation":  "o\u0027yg\u0027onmoq"
+    },
+    {
+        "v1":  "wear",
+        "v2":  "wore",
+        "v3":  "worn",
+        "translation":  "kiymoq"
+    },
+    {
+        "v1":  "weep",
+        "v2":  "wept",
+        "v3":  "wept",
+        "translation":  "yig\u0027lamoq"
+    },
+    {
+        "v1":  "win",
+        "v2":  "won",
+        "v3":  "won",
+        "translation":  "yutmoq, g\u0027olib bo\u0027lmoq"
+    },
+    {
+        "v1":  "write",
+        "v2":  "wrote",
+        "v3":  "written",
+        "translation":  "yozmoq"
+    }
+]

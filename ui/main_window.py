@@ -14,6 +14,7 @@ from ui.views.audio_player_view import AudioPlayerWidget
 from ui.views.reader_view import ReaderWidget
 from ui.views.topic_words_view import TopicWordsWidget
 from ui.views.settings_view import SettingsWidget
+from ui.views.irregular_verbs_view import IrregularVerbsWidget
 
 from ui.games.match_game import MatchGameWidget
 from ui.games.blitz_game import BlitzGameWidget
@@ -37,6 +38,7 @@ NAV_ITEMS = [
     ("🇬🇧→🇺🇿  EN → UZ mashq", "en_uz"),
     ("🇺🇿→🇬🇧  UZ → EN mashq", "uz_en"),
     ("📖  Lug'at", "dictionary"),
+    ("⚡  Noto'g'ri fe'llar", "irregular_verbs"),
     ("🗂️  Mavzuli so'zlar", "topic_words"),
     ("📚  Aqlli o'qish", "reader"),
     ("🎮  So'z juftlash", "match"),
@@ -131,6 +133,7 @@ class MainWindow(QMainWindow):
         self._key_to_attr = {
             "dashboard": "dashboard",
             "dictionary": "dictionary",
+            "irregular_verbs": "irregular_verbs_widget",
             "topic_words": "topic_words",
             "reader": "reader_widget",
             "en_uz": "practice_en_uz",
@@ -153,6 +156,7 @@ class MainWindow(QMainWindow):
 
         # Qolgan og'ir yoki kamroq ishlatiladigan sahifalar talab bo'yicha (lazy) ochiladi
         self._page_factories = {
+            "irregular_verbs": lambda: IrregularVerbsWidget(self),
             "topic_words": lambda: TopicWordsWidget(
                 self,
                 on_words_changed=self._on_words_changed,
@@ -289,10 +293,17 @@ class MainWindow(QMainWindow):
         self.tray_icon.activated.connect(self._on_tray_activated)
         self.tray_icon.show()
 
-    def _on_tray_activated(self, reason=None):
-        """Tray ikonka bosilganda oynani tiklash (PyQt6 type-safe)."""
-        if reason == QSystemTrayIcon.ActivationReason.Context:
-            return
+    def _on_tray_activated(self, *args, **kwargs):
+        """Tray ikonka bosilganda oynani tiklash (PyQt6 C++ crash-safe)."""
+        try:
+            if args:
+                reason = args[0]
+                if hasattr(QSystemTrayIcon, "ActivationReason") and reason == QSystemTrayIcon.ActivationReason.Context:
+                    return
+                if isinstance(reason, int) and reason == 1:  # ContextMenu = 1
+                    return
+        except Exception:
+            pass
         self.restore_window()
 
     def restore_window(self):

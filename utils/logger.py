@@ -17,6 +17,18 @@ def get_app_dir() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def get_resource_path(relative_path: str | Path = "") -> Path:
+    """
+    Statik resurslar (assets, rasmlar, txt fayllar) yo'lini xavfsiz qaytaradi.
+    Frozen (PyInstaller _MEIPASS) va ishlab chiqish rejimida to'g'ri ishlaydi.
+    """
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        base = Path(sys._MEIPASS)
+    else:
+        base = Path(__file__).resolve().parent.parent
+    return base / relative_path if relative_path else base
+
+
 def _determine_log_dir() -> Path:
     """Loglar papkasini dastur yonida yoki fallback sifatida User profilida aniqlaydi."""
     try:

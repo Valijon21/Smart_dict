@@ -6,12 +6,12 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, QRect, QPoint, QPointF, QEvent
 from PyQt6.QtGui import QColor, QCursor, QPainter, QPen, QBrush, QFont
 
-import database as db
-import tts
-import theme_manager
-import phonetics
-import global_dict_service
-from logger import get_logger
+import core.database as db
+import services.tts_service as tts
+import ui.theme_manager as theme_manager
+import core.phonetics as phonetics
+import services.global_dict_service as global_dict_service
+from utils.logger import get_logger
 
 from ui.word_packs_dialog import WordPacksDialog
 from ui.worksheet_generator import WorksheetGeneratorDialog
@@ -1003,7 +1003,8 @@ class DictionaryWidget(QWidget):
         status = None if self.current_filter in ("all", "hard") else self.current_filter
         hard_only = (self.current_filter == "hard")
 
-        rows = db.search_words(query=query, status_filter=status, hard_only=hard_only)
+        PAGE_LIMIT = 250
+        rows = db.search_words(query=query, status_filter=status, hard_only=hard_only, limit=PAGE_LIMIT)
         self._current_rows_data = rows
         self.table.setRowCount(len(rows))
 
@@ -1143,7 +1144,10 @@ class DictionaryWidget(QWidget):
 
         self.table.setUpdatesEnabled(True)
 
-        self.count_label.setText(f"Ko'rsatilmoqda: {len(rows)} ta so'z")
+        if len(rows) >= PAGE_LIMIT:
+            self.count_label.setText(f"Ko'rsatilmoqda: {len(rows)}+ ta so'z (Tezkor 60 FPS rejim)")
+        else:
+            self.count_label.setText(f"Ko'rsatilmoqda: {len(rows)} ta so'z")
 
     def _update_global_banner(self, matches: list[dict], query: str = "", is_typo: bool = False):
         """64,000 so'zlik bazadan topilgan natijalarni chiroyli bannerda ko'rsatish."""

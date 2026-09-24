@@ -14,12 +14,12 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, QObject, pyqtSignal, QPoint
 from PyQt6.QtGui import QCursor, QFont
 
-import database as db
-import global_dict_service
-import phonetics
-import tts
-import theme_manager
-from logger import get_logger
+import core.database as db
+import services.global_dict_service as global_dict_service
+import core.phonetics as phonetics
+import services.tts_service as tts
+import ui.theme_manager as theme_manager
+from utils.logger import get_logger
 
 logger = get_logger("clipboard_monitor")
 
@@ -343,12 +343,25 @@ class ClipboardMonitor(QObject):
         if words_count > 3:
             return
 
-        # 3. URL, email, sonlar, kod sintaksisi bo'lsa rad etamiz
-        if any(x in text for x in ("http://", "https://", "www.", "@", "{", "}", ";", "=", "def ", "class ")):
+        # 3. Maxfiylik va xavfsizlik (Privacy & Security Guard):
+        # URL, email, kod sintaksisi, parollar, tokenlar va bank kartalarini rad etamiz
+        if any(x in text for x in ("http://", "https://", "www.", "@", "{", "}", ";", "=", "def ", "class ", "Bearer ")):
             return
 
-        # Raqamlardan iborat bo'lsa rad etamiz
-        if re.match(r"^[\d\s\.,:\-]+$", text):
+        # Raqamlardan yoki telefon/kodlardan iborat bo'lsa rad etamiz
+        if re.match(r"^[\d\s\.,:\-]+$", text) or re.match(r"^\+?\d{7,15}$", text):
+            return
+
+        # Parol yoki maxfiy token belgilari (aralash maxsus belgilar)
+        if any(c in text for c in ("$", "%", "^", "*", "~", "\\", "|", "`", "<", ">")):
+            return
+
+        # API tokenlar va maxfiy kalitlar (sk-..., ghp_..., eyJ...)
+        if re.search(r"\b(sk-[a-zA-Z0-9]+|ghp_[a-zA-Z0-9]+|ey[a-zA-Z0-9_\-\.]+)\b", text):
+            return
+
+        # Karta raqamlari (13-19 ta ketma-ket yoki bo'shliqli raqamlar)
+        if re.search(r"\b(?:\d[ -]*?){13,19}\b", text):
             return
 
         # 4. Oldingi qidirilgan so'z bilan bir xil bo'lsa va 8 soniya o'tmagan bo'lsa, takrorlamaymiz

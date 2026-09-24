@@ -3,6 +3,7 @@ Vocab Master — ma'lumotlar bazasi qatlami.
 SQLite orqali so'zlar, progress va statistika saqlanadi.
 Dublikatlarni oldini olish: english UNIQUE COLLATE NOCASE.
 """
+import sys
 import sqlite3
 import datetime
 import csv
@@ -194,12 +195,30 @@ def init_db():
                 max_progress INTEGER DEFAULT 1
             );
 
+            -- Noto'g'ri fe'llar (Irregular Verbs) jadvali
+            CREATE TABLE IF NOT EXISTS irregular_verbs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                v1 TEXT NOT NULL COLLATE NOCASE,
+                v2 TEXT NOT NULL,
+                v3 TEXT NOT NULL,
+                translation TEXT NOT NULL,
+                learned INTEGER DEFAULT 0,
+                favorite INTEGER DEFAULT 0,
+                practice_count INTEGER DEFAULT 0,
+                correct_count INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL,
+                last_practiced TEXT
+            );
+
             -- Tezkor qidiruv va filtrlar uchun SQLite indekslari
             CREATE INDEX IF NOT EXISTS idx_words_status ON words(status);
             CREATE INDEX IF NOT EXISTS idx_words_created ON words(created_at);
             CREATE INDEX IF NOT EXISTS idx_progress_next_review ON progress(next_review);
             CREATE INDEX IF NOT EXISTS idx_progress_wrong ON progress(wrong_count);
             CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date);
+            CREATE INDEX IF NOT EXISTS idx_iv_v1 ON irregular_verbs(v1);
+            CREATE INDEX IF NOT EXISTS idx_iv_learned ON irregular_verbs(learned);
+            CREATE INDEX IF NOT EXISTS idx_iv_favorite ON irregular_verbs(favorite);
             """
         )
         # Mavjud bazalar uchun xavfsiz migratsiyalar
@@ -238,8 +257,18 @@ def init_db():
         # Agar ilgari match_best_time '0' bo'lib qolgan bo'lsa, tozalaymiz
         conn.execute("UPDATE settings SET value='' WHERE key='match_best_time' AND value='0'")
 
-    # Mavjud so'zlarga bo'sh bo'lgan IPA va POS qiymatlarini avtomatik to'ldirish
-    backfill_phonetics()
+        # Noto'g'ri fe'llar jadvali bo'sh bo'lsa yoki kam bo'lsa, JSON'dan to'liq 115 ta fe'lni yuklash
+        iv_count = conn.execute("SELECT COUNT(*) as cnt FROM irregular_verbs").fetchone()
+        if not iv_count or iv_count["cnt"] < 50:
+            if iv_count and iv_count["cnt"] > 0:
+                conn.execute("DELETE FROM irregular_verbs")
+            seed_irregular_verbs_from_json(conn)
+
+        # Mavjud so'zlarga bo'sh bo'lgan IPA va POS qiymatlarini faqat birinchi startda to'ldirish (Tezkor yuklanish)
+        bf_row = conn.execute("SELECT value FROM settings WHERE key='phonetics_backfilled_v1'").fetchone()
+        if not bf_row or bf_row["value"] != "true":
+            backfill_phonetics()
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('phonetics_backfilled_v1', 'true')")
 
 
 def backfill_phonetics() -> int:
@@ -612,56 +641,52 @@ def search_words(query: str = "", status_filter: str = "all", hard_only: bool = 
                 fb_params.append(status_filter)
             if hard_only:
                 fb_clauses.append("(p.wrong_count > p.correct_count OR p.wrong_count >= 2)")
+
+            # Tezkor uzunlik chegarasi (SQL-level pruning): 
+            # Levenshtein masofasi <= 2 bo'lgan so'zlar uzunligi faqat [len(q)-2, len(q)+5] oralig'ida bo'ladi
+            max_dist = 1 if len(clean_q) <= 4 else 2
+            min_l = max(1, len(clean_q) - max_dist)
+            max_l = len(clean_q) + max_dist + 5
+
+            fb_clauses.append("(LENGTH(w.english) BETWEEN ? AND ? OR LENGTH(w.uzbek) BETWEEN ? AND ?)")
+            fb_params.extend([min_l, max_l, min_l, max_l])
+
             fb_where = ("WHERE " + " AND ".join(fb_clauses)) if fb_clauses else ""
             candidate_sql = f"""
                 SELECT w.*, p.box_level, p.next_review, p.last_reviewed, p.correct_count, p.wrong_count
                 FROM words w
                 LEFT JOIN progress p ON p.word_id = w.id
                 {fb_where}
+                ORDER BY w.id DESC
+                LIMIT 250
             """
             candidates = conn.execute(candidate_sql, fb_params).fetchall()
             fuzzy_matches = []
             q_lower = clean_q.lower()
-            max_dist = 1 if len(clean_q) <= 4 else 2
 
             for cand in candidates:
                 eng_w = (cand["english"] or "").lower()
                 uz_w = (cand["uzbek"] or "").lower()
+
+                # Tezkor pruning: agar har ikkala so'z uzunligi bo'yicha masofadan uzoq bo'lsa, hisoblamaslik
+                if abs(len(q_lower) - len(eng_w)) > max_dist and abs(len(q_lower) - len(uz_w)) > max_dist:
+                    continue
 
                 d_eng = text_search_utils.levenshtein_distance(q_lower, eng_w)
                 d_uz = text_search_utils.levenshtein_distance(q_lower, uz_w)
                 min_d = min(d_eng, d_uz)
 
                 # Uzbekcha vergul bilan ajratilgan qismlar bo'yicha ham tekshiramiz
-                for tok in re.split(r"[,;/]+", uz_w):
-                    tok_clean = tok.strip()
-                    if tok_clean:
-                        min_d = min(min_d, text_search_utils.levenshtein_distance(q_lower, tok_clean))
+                if min_d > max_dist and ("," in uz_w or ";" in uz_w):
+                    for tok in re.split(r"[,;/]+", uz_w):
+                        tok_clean = tok.strip()
+                        if tok_clean and abs(len(q_lower) - len(tok_clean)) <= max_dist:
+                            min_d = min(min_d, text_search_utils.levenshtein_distance(q_lower, tok_clean))
+                            if min_d <= max_dist:
+                                break
 
                 if min_d <= max_dist:
                     fuzzy_matches.append((min_d, cand))
-
-            # Agar joriy status bo'yicha topilmasa, lekin boshqa statuslarda so'z bo'lsa
-            if not fuzzy_matches and fb_clauses:
-                all_candidates = conn.execute(
-                    """
-                    SELECT w.*, p.box_level, p.next_review, p.last_reviewed, p.correct_count, p.wrong_count
-                    FROM words w
-                    LEFT JOIN progress p ON p.word_id = w.id
-                    """
-                ).fetchall()
-                for cand in all_candidates:
-                    eng_w = (cand["english"] or "").lower()
-                    uz_w = (cand["uzbek"] or "").lower()
-                    d_eng = text_search_utils.levenshtein_distance(q_lower, eng_w)
-                    d_uz = text_search_utils.levenshtein_distance(q_lower, uz_w)
-                    min_d = min(d_eng, d_uz)
-                    for tok in re.split(r"[,;/]+", uz_w):
-                        tok_clean = tok.strip()
-                        if tok_clean:
-                            min_d = min(min_d, text_search_utils.levenshtein_distance(q_lower, tok_clean))
-                    if min_d <= max_dist:
-                        fuzzy_matches.append((min_d, cand))
 
             fuzzy_matches.sort(key=lambda item: item[0])
             results = [item[1] for item in fuzzy_matches]
@@ -1576,6 +1601,236 @@ def list_local_backups() -> list[dict]:
     except Exception as e:
         logger.error(f"Zaxiralar ro'yxatini olishda xatolik: {e}")
     return result
+
+
+# =====================================================================
+# NOTO'G'RI FE'LLAR (IRREGULAR VERBS) MODULI VA MA'LUMOTLAR BAZASI
+# =====================================================================
+
+def seed_irregular_verbs_from_json(conn=None) -> int:
+    """assets/irregular_verbs.json faylidan noto'g'ri fe'llarni bazaga yuklash."""
+    import json
+    if hasattr(sys, "_MEIPASS"):
+        json_path = Path(sys._MEIPASS) / "assets" / "irregular_verbs.json"
+    else:
+        json_path = Path(__file__).resolve().parent.parent / "assets" / "irregular_verbs.json"
+
+    items = []
+    if json_path.exists():
+        try:
+            with open(json_path, "r", encoding="utf-8-sig") as f:
+                items = json.load(f)
+        except Exception as e:
+            logger.error(f"irregular_verbs.json o'qishda xatolik: {e}")
+
+    if not items:
+        # Fallback zaxira ro'yxati (agar JSON fayl topilmasa)
+        items = [
+            {"v1": "be", "v2": "was/were", "v3": "been", "translation": "bo'lmoq"},
+            {"v1": "beat", "v2": "beat", "v3": "beaten", "translation": "urmoq"},
+            {"v1": "become", "v2": "became", "v3": "become", "translation": "bo'lmoq"},
+            {"v1": "begin", "v2": "began", "v3": "begun", "translation": "boshlamoq"},
+            {"v1": "break", "v2": "broke", "v3": "broken", "translation": "sindirmoq"},
+            {"v1": "bring", "v2": "brought", "v3": "brought", "translation": "keltirmoq"},
+            {"v1": "build", "v2": "built", "v3": "built", "translation": "qurmoq"},
+            {"v1": "buy", "v2": "bought", "v3": "bought", "translation": "sotib olmoq"},
+            {"v1": "catch", "v2": "caught", "v3": "caught", "translation": "ushlamoq"},
+            {"v1": "choose", "v2": "chose", "v3": "chosen", "translation": "tanlamoq"},
+            {"v1": "come", "v2": "came", "v3": "come", "translation": "kelmoq"},
+            {"v1": "do", "v2": "did", "v3": "done", "translation": "qilmoq"},
+            {"v1": "drink", "v2": "drank", "v3": "drunk", "translation": "ichmoq"},
+            {"v1": "drive", "v2": "drove", "v3": "driven", "translation": "haydamoq"},
+            {"v1": "eat", "v2": "ate", "v3": "eaten", "translation": "yemoq"},
+            {"v1": "find", "v2": "found", "v3": "found", "translation": "topmoq"},
+            {"v1": "give", "v2": "gave", "v3": "given", "translation": "bermoq"},
+            {"v1": "go", "v2": "went", "v3": "gone", "translation": "bormoq"},
+            {"v1": "have", "v2": "had", "v3": "had", "translation": "ega bo'lmoq"},
+            {"v1": "make", "v2": "made", "v3": "made", "translation": "yasamoq"},
+            {"v1": "see", "v2": "saw", "v3": "seen", "translation": "ko'rmoq"},
+            {"v1": "take", "v2": "took", "v3": "taken", "translation": "olmoq"},
+            {"v1": "write", "v2": "wrote", "v3": "written", "translation": "yozmoq"},
+        ]
+
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    insert_data = [
+        (item["v1"].strip(), item["v2"].strip(), item["v3"].strip(), item.get("translation", "").strip(), now_str)
+        for item in items
+        if item.get("v1")
+    ]
+
+    query = """
+        INSERT INTO irregular_verbs (v1, v2, v3, translation, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """
+
+    if conn is not None:
+        conn.executemany(query, insert_data)
+        count = len(insert_data)
+    else:
+        with get_conn() as c:
+            c.executemany(query, insert_data)
+            count = len(insert_data)
+
+    logger.info(f"Noto'g'ri fe'llar bazasiga {count} ta fe'l muvaffaqiyatli yuklandi.")
+    return count
+
+
+def get_irregular_verbs(search: str = "", filter_mode: str = "all", limit: int = 500, offset: int = 0) -> list[dict]:
+    """Noto'g'ri fe'llar ro'yxatini filtrlash va qidirish bilan olish."""
+    query = "SELECT * FROM irregular_verbs WHERE 1=1"
+    params = []
+
+    if filter_mode == "learned":
+        query += " AND learned = 1"
+    elif filter_mode == "unlearned":
+        query += " AND learned = 0"
+    elif filter_mode == "favorites":
+        query += " AND favorite = 1"
+
+    if search:
+        s = f"%{search.strip()}%"
+        query += " AND (v1 LIKE ? OR v2 LIKE ? OR v3 LIKE ? OR translation LIKE ?)"
+        params.extend([s, s, s, s])
+
+    query += " ORDER BY v1 ASC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
+    with get_conn() as conn:
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_all_irregular_verbs_for_practice(filter_mode: str = "all") -> list[dict]:
+    """Mashq va o'yinlar uchun barcha kerakli fe'llarni olish."""
+    query = "SELECT * FROM irregular_verbs WHERE 1=1"
+    params = []
+    if filter_mode == "unlearned":
+        query += " AND learned = 0"
+    elif filter_mode == "favorites":
+        query += " AND favorite = 1"
+    query += " ORDER BY RANDOM()"
+
+    with get_conn() as conn:
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_irregular_verb_by_id(verb_id: int) -> dict | None:
+    """ID bo'yicha bitta fe'lni olish."""
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM irregular_verbs WHERE id = ?", (verb_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def add_irregular_verb(v1: str, v2: str, v3: str, translation: str) -> int:
+    """Yangi noto'g'ri fe'l qo'shish."""
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with get_conn() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO irregular_verbs (v1, v2, v3, translation, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (v1.strip(), v2.strip(), v3.strip(), translation.strip(), now_str),
+        )
+        return cur.lastrowid
+
+
+def update_irregular_verb(verb_id: int, v1: str, v2: str, v3: str, translation: str) -> bool:
+    """Mavjud noto'g'ri fe'lni tahrirlash."""
+    with get_conn() as conn:
+        cur = conn.execute(
+            """
+            UPDATE irregular_verbs
+            SET v1 = ?, v2 = ?, v3 = ?, translation = ?
+            WHERE id = ?
+            """,
+            (v1.strip(), v2.strip(), v3.strip(), translation.strip(), verb_id),
+        )
+        return cur.rowcount > 0
+
+
+def delete_irregular_verb(verb_id: int) -> bool:
+    """Noto'g'ri fe'lni bazadan o'chirish."""
+    with get_conn() as conn:
+        cur = conn.execute("DELETE FROM irregular_verbs WHERE id = ?", (verb_id,))
+        return cur.rowcount > 0
+
+
+def toggle_irregular_verb_favorite(verb_id: int) -> bool:
+    """Fe'lning sevimli (yulduzcha) holatini almashtirish."""
+    with get_conn() as conn:
+        conn.execute("UPDATE irregular_verbs SET favorite = 1 - favorite WHERE id = ?", (verb_id,))
+        row = conn.execute("SELECT favorite FROM irregular_verbs WHERE id = ?", (verb_id,)).fetchone()
+        return bool(row["favorite"]) if row else False
+
+
+def toggle_irregular_verb_learned(verb_id: int) -> bool:
+    """Fe'lning o'rganilgan holatini almashtirish."""
+    with get_conn() as conn:
+        conn.execute("UPDATE irregular_verbs SET learned = 1 - learned WHERE id = ?", (verb_id,))
+        row = conn.execute("SELECT learned FROM irregular_verbs WHERE id = ?", (verb_id,)).fetchone()
+        return bool(row["learned"]) if row else False
+
+
+def record_irregular_verb_practice(verb_id: int, is_correct: bool):
+    """Mashq natijasini qayd qilish."""
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with get_conn() as conn:
+        if is_correct:
+            conn.execute(
+                """
+                UPDATE irregular_verbs
+                SET practice_count = practice_count + 1,
+                    correct_count = correct_count + 1,
+                    last_practiced = ?
+                WHERE id = ?
+                """,
+                (now_str, verb_id),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE irregular_verbs
+                SET practice_count = practice_count + 1,
+                    last_practiced = ?
+                WHERE id = ?
+                """,
+                (now_str, verb_id),
+            )
+
+
+def get_irregular_verbs_stats() -> dict:
+    """Noto'g'ri fe'llar bo'yicha umumiy statistika."""
+    with get_conn() as conn:
+        total_row = conn.execute("SELECT COUNT(*) as c FROM irregular_verbs").fetchone()
+        total = total_row["c"] if total_row else 0
+        learned_row = conn.execute("SELECT COUNT(*) as c FROM irregular_verbs WHERE learned = 1").fetchone()
+        learned = learned_row["c"] if learned_row else 0
+        fav_row = conn.execute("SELECT COUNT(*) as c FROM irregular_verbs WHERE favorite = 1").fetchone()
+        favorites = fav_row["c"] if fav_row else 0
+
+        stats_row = conn.execute(
+            """
+            SELECT SUM(practice_count) as total_practiced, SUM(correct_count) as total_correct
+            FROM irregular_verbs
+            """
+        ).fetchone()
+
+        total_practiced = (stats_row["total_practiced"] if stats_row and stats_row["total_practiced"] else 0)
+        total_correct = (stats_row["total_correct"] if stats_row and stats_row["total_correct"] else 0)
+        accuracy = round((total_correct / total_practiced) * 100, 1) if total_practiced > 0 else 0.0
+
+        return {
+            "total": total,
+            "learned": learned,
+            "unlearned": max(0, total - learned),
+            "favorites": favorites,
+            "total_practiced": total_practiced,
+            "total_correct": total_correct,
+            "accuracy": accuracy,
+        }
+
 
 
 

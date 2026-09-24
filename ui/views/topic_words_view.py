@@ -17,13 +17,16 @@ import topic_service
 import global_dict_service
 import tts
 import theme_manager
-from logger import get_logger
+try:
+    from utils.logger import get_logger, get_resource_path
+except ImportError:
+    from logger import get_logger, get_resource_path
 
 from ui.dictionary import WordDetailsDialog
 
 logger = get_logger("topic_words_page")
 
-ROOT_DIR = Path(sys._MEIPASS) if hasattr(sys, "_MEIPASS") else Path(__file__).resolve().parent.parent
+ROOT_DIR = get_resource_path()
 
 _TOPIC_PIXMAP_CACHE: dict[str, QPixmap] = {}
 

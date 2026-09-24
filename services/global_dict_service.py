@@ -191,7 +191,7 @@ def search_global_words(query: str, limit: int = 25) -> list[dict]:
             max_len = len(clean_q) + 2
             max_dist = 1 if len(clean_q) <= 4 else 2
 
-            # 1. Tezkor bosqich: birinchi harfi bir xil bo'lgan so'zlardan qidirish (~25ms)
+            # 1. Tezkor bosqich: birinchi harfi bir xil bo'lgan so'zlardan qidirish (~5ms)
             cursor.execute(
                 """
                 SELECT we.id, we.word, we.word_classword_class AS pos, we.star, we.example,
@@ -200,6 +200,8 @@ def search_global_words(query: str, limit: int = 25) -> list[dict]:
                 LEFT JOIN words_uz wz ON we.id = wz.word_id
                 WHERE we.word LIKE ? AND LENGTH(we.word) BETWEEN ? AND ?
                 GROUP BY we.id
+                ORDER BY we.star DESC
+                LIMIT 200
                 """,
                 (clean_q[0] + '%', min_len, max_len)
             )
@@ -207,11 +209,13 @@ def search_global_words(query: str, limit: int = 25) -> list[dict]:
             fuzzy_matches = []
             for r in cand_rows:
                 cand_word = (r["word"] or "").lower()
+                if abs(len(q_low) - len(cand_word)) > max_dist:
+                    continue
                 d = text_search_utils.levenshtein_distance(q_low, cand_word)
                 if d <= max_dist:
                     fuzzy_matches.append((d, r))
 
-            # 2. Agar birinchi harf bo'yicha topilmasa, uzunlik bo'yicha kengroq qidirish
+            # 2. Agar birinchi harf bo'yicha topilmasa, eng yuqori reytingli so'zlardan qidirish (~15ms)
             if not fuzzy_matches:
                 cursor.execute(
                     """
@@ -221,12 +225,16 @@ def search_global_words(query: str, limit: int = 25) -> list[dict]:
                     LEFT JOIN words_uz wz ON we.id = wz.word_id
                     WHERE LENGTH(we.word) BETWEEN ? AND ?
                     GROUP BY we.id
+                    ORDER BY we.star DESC
+                    LIMIT 200
                     """,
                     (min_len, max_len)
                 )
                 cand_rows = cursor.fetchall()
                 for r in cand_rows:
                     cand_word = (r["word"] or "").lower()
+                    if abs(len(q_low) - len(cand_word)) > max_dist:
+                        continue
                     d = text_search_utils.levenshtein_distance(q_low, cand_word)
                     if d <= max_dist:
                         fuzzy_matches.append((d, r))

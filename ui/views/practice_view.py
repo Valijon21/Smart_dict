@@ -8,18 +8,19 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QPoint
 from PyQt6.QtGui import QKeyEvent
 
-import database as db
-import tts
-import sound_effects
-import gamification
-import theme_manager
-import phonetics
-import global_dict_service
+import core.database as db
+import services.tts_service as tts
+import services.sound_effects as sound_effects
+import core.gamification as gamification
+import ui.theme_manager as theme_manager
+import core.phonetics as phonetics
+import services.global_dict_service as global_dict_service
+from ui.views.practice_helpers import prepare_cloze_data, prepare_scramble_chars
 try:
     from utils import text_search_utils
 except ImportError:
     import text_search_utils
-from logger import get_logger
+from utils.logger import get_logger
 
 logger = get_logger("practice")
 
@@ -882,11 +883,7 @@ class PracticeWidget(QWidget):
         self.scramble_tiles_data = []
         self.scramble_typed_chars = []
 
-        scrambled = [c for c in target if not c.isspace()]
-        random.shuffle(scrambled)
-        # Agar tasodifan asl so'z bilan bir xil bo'lib qolsa
-        if "".join(scrambled) == target.replace(" ", "") and len(scrambled) > 2:
-            scrambled.reverse()
+        scrambled = prepare_scramble_chars(target)
 
         for idx, char in enumerate(scrambled):
             btn = QPushButton(char.upper())
@@ -948,72 +945,23 @@ class PracticeWidget(QWidget):
         slots_str = "  ".join(list(typed_str) + ["_"] * remaining_slots)
         self.scramble_answer_display.setText(slots_str)
 
+    def _fetch_global_example(self, eng: str) -> str:
+        try:
+            g_matches = global_dict_service.search_global_words(eng, limit=1)
+            if g_matches and g_matches[0].get("example"):
+                cand = g_matches[0]["example"].strip()
+                if cand.startswith("•") or cand.startswith("-"):
+                    cand = cand[1:].strip()
+                return cand
+        except Exception:
+            pass
+        return ""
+
     def _prepare_cloze_data(self) -> dict | None:
         """Hozirgi so'z uchun misol gapni topish va bo'sh joy qilib formatlash."""
         if not self.current:
             return None
-
-        eng = self.current["english"].strip()
-        uz = self.current["uzbek"].strip()
-        ex = self.current["example"] if "example" in self.current.keys() and self.current["example"] else ""
-        ex = ex.strip()
-
-        # Agar misol gap bo'lmasa yoki juda qisqa bo'lsa, global 64k lug'atdan qidiramiz
-        if not ex or len(ex) < 10:
-            try:
-                g_matches = global_dict_service.search_global_words(eng, limit=1)
-                if g_matches and g_matches[0].get("example"):
-                    cand = g_matches[0]["example"].strip()
-                    if cand.startswith("•") or cand.startswith(""):
-                        cand = cand[1:].strip()
-                    if len(cand) >= 10:
-                        ex = cand
-            except Exception as e:
-                logger.debug(f"Global misol qidirishda xatolik: {e}")
-
-        # Agar hali ham misol bo'lmasa, grammatik to'g'ri kontekstli shablon yaratamiz
-        if not ex or len(ex) < 8:
-            ex = f"It is very important to learn how to use '{eng}' in your daily English sentences."
-
-        # Gap ichidan target so'z yoki uning grammatik shakllarini qidiramiz
-        clean_eng = re.escape(eng)
-        stem = clean_eng
-        if len(eng) > 4 and eng.endswith("e"):
-            stem = re.escape(eng[:-1])
-        elif len(eng) > 4 and eng.endswith("y"):
-            stem = re.escape(eng[:-1])
-
-        pattern = re.compile(rf"\b({clean_eng}\w*|{stem}\w*)\b", re.IGNORECASE)
-        match = pattern.search(ex)
-
-        if match:
-            found_token = match.group(1)
-            start, end = match.span(1)
-            before = ex[:start]
-            after = ex[end:]
-            blank_html = "<span style='color: #38BDF8; font-weight: 800; background-color: rgba(56, 189, 248, 0.15); border-radius: 6px; padding: 2px 12px; border-bottom: 2px solid #38BDF8;'>&nbsp;[ &nbsp;______&nbsp; ]&nbsp;</span>"
-            masked_sentence = f"{before}{blank_html}{after}"
-            correct_tokens = [found_token.lower(), eng.lower()]
-        else:
-            found_token = eng
-            blank_html = "<span style='color: #38BDF8; font-weight: 800; background-color: rgba(56, 189, 248, 0.15); border-radius: 6px; padding: 2px 12px; border-bottom: 2px solid #38BDF8;'>&nbsp;[ &nbsp;______&nbsp; ]&nbsp;</span>"
-            masked_sentence = f"In English, the word {blank_html} translates to '{uz}'."
-            correct_tokens = [eng.lower()]
-
-        for alt in eng.split(","):
-            alt_clean = alt.strip().lower()
-            if alt_clean:
-                correct_tokens.append(alt_clean)
-
-        uz_first = uz.split(",")[0].strip()
-
-        return {
-            "sentence_masked": masked_sentence,
-            "original_sentence": ex,
-            "target_token": found_token,
-            "correct_tokens": list(dict.fromkeys(correct_tokens)),
-            "uzbek_hint": uz_first,
-        }
+        return prepare_cloze_data(self.current, global_example_fetcher=self._fetch_global_example)
 
     def _setup_cloze(self):
         """Bo'sh joyni to'ldirish (Cloze) mashqini sozlash."""

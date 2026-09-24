@@ -254,23 +254,29 @@ class TTSEngine:
             except Exception as e:
                 logger.error(f"pyttsx3 navbatga qo'yishda xatolik: {e}")
 
-        # 3. PowerShell Fallback (Har qanday Windows tizimida ishlaydi)
+        # 3. PowerShell Fallback (Har qanday Windows tizimida xavfsiz va in'yeksiyasiz ishlaydi)
         try:
-            safe_text = clean_text.replace('"', '').replace("'", "").replace("\n", " ")
+            import base64
+            encoded_b64 = base64.b64encode(clean_text.encode("utf-8")).decode("ascii")
+            ps_cmd = (
+                f"$t = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{encoded_b64}')); "
+                "Add-Type -AssemblyName System.Speech; "
+                "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+                "$s.SpeakAsync($t)"
+            )
             cmd = [
                 "powershell",
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
-                f"Add-Type -AssemblyName System.Speech; "
-                f"$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
-                f"$s.SpeakAsync('{safe_text}')"
+                ps_cmd
             ]
             create_flags = 0
             if sys.platform == "win32":
                 create_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
             subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=create_flags)
-            logger.info(f"PowerShell orqali talaffuz qilindi: '{safe_text}'")
+            preview_txt = (clean_text[:60] + "...") if len(clean_text) > 60 else clean_text
+            logger.info(f"PowerShell orqali talaffuz qilindi: '{preview_txt}'")
         except Exception as e:
             logger.critical(f"Barcha TTS vositalari xatolik berdi: {e}")
 
