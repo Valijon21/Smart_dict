@@ -137,6 +137,37 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 
 ## 🆕 So'nggi Yangilanishlar & O'zgarishlar (Latest Updates & Changelog)
 
+### v3.6 — 2026-09-24 📥 Professional Import, Dublikatsiz Birlashtirish & Multi-Game Integratsiyasi
+
+#### 🔄 Aqlli Dublikatsiz Import & Sessiya Birlashtirishi (Smart Batch Resolution)
+- **Muammo:** Oldin foydalanuvchi import qilgan ro'yxatdagi so'zlar bazada allaqachon mavjud bo'lsa, ular dublikat deb tashlab yuborilar va mashq to'plamidan tushib qolardi (foydalanuvchi to'liq ro'yxatini mashq qila olmasdi).
+- **Yechim:** Yangi algoritmi bazada mavjud so'zlarni ikkinchi marta bazaga qo'shmaydi (bazani toza saqlaydi), lekin ularning mavjud ID larini bazadan ajratib olib, yangi qo'shilgan so'zlar bilan birga yagona mashq to'plamiga birlashtiradi (`all_batch_ids`).
+- Foydalanuvchiga aniq statistika taqdim etiladi: `✅ N ta yangi so'z qo'shildi | 🔄 M ta mavjud so'z bazadan birlashtirildi (Jami N+M ta so'z mashqqa tayyor!)`.
+
+#### 📖 Lug'atda "📥 Oxirgi import" Alohida Filtr & Boshqaruv Paneli
+- Lug'at filtrlari qatoriga yangi `📥 Oxirgi import` tugmasi qo'shildi (`ui/views/dictionary_view.py`);
+- Tanlanganda faqat oxirgi import qilingan so'zlar to'plami ajratib ko'rsatiladi;
+- Jadval ustida tezkor harakatlar paneli paydo bo'lib, import qilingan so'zlarni darhol mashq qilish yoki o'yinlarda mustahkamlash imkonini beradi;
+- Lug'at boshqaruv paneli tepasiga universal `⚡ Mashq qilish ▾` (EN→UZ, UZ→EN, Flashcard, Speaking) va `🎮 O'yinlar ▾` (Match, Blitz, Word Fall, Krossvord) menyu tugmalari o'rnatildi.
+
+#### 🎮 Barcha O'yinlar va Mashqlar bilan To'liq Integratsiya
+- Import oynasidan (`ui/dialogs/import_dialog.py`) chiqmasdan turib:
+  1. `🇬🇧→🇺🇿 EN → UZ Test`
+  2. `🇺🇿→🇬🇧 UZ → EN Test`
+  3. `🎴 Flashcard (Anki uslubi)`
+  4. `🎙️ Speaking Trenajyori (AI talaffuz baholash)`
+  5. `🎮 So'z Juftlash (Match Game)`
+  6. `⚡ Blitz Marafon`
+  7. `🌧️ Word Fall`
+  8. `📖 Lug'atda ko'rish (Ajratilgan holda)`
+- `GameSourceSelector` va `game_word_provider` da `CAT_PERSONAL` ostida `📥 Oxirgi import qilinganlar` manbasi joriy etildi (barcha mini-o'yinlar import qilingan so'zlarni to'g'ridan-to'g'ri o'ynash imkoniga ega bo'ldi).
+
+#### 🧪 177 ta Avtomatlashtirilgan Testlar (100% Yashil)
+- `tests/test_import_batch.py` orqali dublikatsiz import, filtrlar, o'yin integratsiyasi va marshrutlash to'liq tekshirildi;
+- Barcha 177 ta test 100% muvaffaqiyatli o'tdi (`177 passed in 11.14s`).
+
+---
+
 ### v3.5 — 2026-09-24 🧠 FSRS v5 Algoritmi, 🎙️ Speaking Trenajyori & ⚡ Noto'g'ri Fe'llar Moduli
 
 #### 🧠 Anki 24 FSRS v5 (Free Spaced Repetition Scheduler) Integratsiyasi
@@ -397,12 +428,12 @@ Smart_dict/
 
 ## 🧪 Avtomatlashtirilgan Testlar (Quality Assurance)
 
-Loyiha barqarorligi va regressiya xatolarining oldini olish uchun 172 ta avtomatik pytest testlari bilan ta'minlangan:
+Loyiha barqarorligi va regressiya xatolarining oldini olish uchun 177 ta avtomatik pytest testlari bilan ta'minlangan:
 
 ```powershell
 python -m pytest tests -v
 ```
-Barcha 172 ta test 100% muvaffaqiyatli o'tadi (`172 passed in 9.40s`).
+Barcha 177 ta test 100% muvaffaqiyatli o'tadi (`177 passed in 11.14s`).
 
 ---
 

@@ -442,9 +442,13 @@ def add_word(english: str, uzbek: str, source: str = "manual", example: str = ""
 
 
 def bulk_add_words(pairs: list[tuple], source: str = "import") -> dict:
-    """(english, uzbek) yoki (english, uzbek, example) juftliklar ro'yxatini tezkor bitta tranzaksiyada qo'shadi."""
+    """(english, uzbek) yoki (english, uzbek, example) juftliklar ro'yxatini tezkor bitta tranzaksiyada qo'shadi.
+    Bazada oldindan mavjud so'zlarni dublikat qilmaydi, lekin ularni bazadan ajratib olib mashq to'plamiga birlashtiradi.
+    """
     added, duplicates, invalid = 0, 0, 0
     added_ids = []
+    batch_word_ids = []
+    existing_ids = []
     seen_in_batch = set()
     now_iso = datetime.datetime.now().isoformat()
     today_iso = datetime.date.today().isoformat()
@@ -493,7 +497,16 @@ def bulk_add_words(pairs: list[tuple], source: str = "import") -> dict:
                 )
                 added += 1
                 added_ids.append(w_id)
+                batch_word_ids.append(w_id)
             except sqlite3.IntegrityError:
+                # Bazada mavjud so'zni bazaga qayta qo'shmaymiz, lekin uning mavjud ID sini topamiz
+                # va mashq qilish uchun sessiya to'plamiga birlashtiramiz!
+                existing_row = conn.execute("SELECT id FROM words WHERE LOWER(english) = LOWER(?)", (key,)).fetchone()
+                if existing_row:
+                    ex_id = existing_row[0]
+                    batch_word_ids.append(ex_id)
+                    existing_ids.append(ex_id)
+
                 if ex_str or phonetic_val:
                     try:
                         conn.execute(
@@ -510,11 +523,29 @@ def bulk_add_words(pairs: list[tuple], source: str = "import") -> dict:
                         pass
                 duplicates += 1
 
+    if batch_word_ids:
+        try:
+            set_setting("last_import_word_ids", ",".join(str(i) for i in batch_word_ids))
+            set_setting("last_import_time", now_iso)
+        except Exception as e:
+            logger.warning(f"Oxirgi import sozlamasini saqlashda ogohlantirish: {e}")
+
     if added:
         bump_daily_stat(new_words_added=added)
         _invalidate_cache()
-    logger.info(f"Tezkor bulk import yakunlandi: {added} qo'shildi, {duplicates} dublikat, {invalid} yaroqsiz")
-    return {"added": added, "duplicates": duplicates, "invalid": invalid, "word_ids": added_ids}
+    logger.info(
+        f"Tezkor bulk import yakunlandi: {added} yangi qo'shildi, "
+        f"{len(existing_ids)} ta mavjud so'z birlashtirildi (jami {len(batch_word_ids)} ta mashqqa tayyor), "
+        f"{duplicates} dublikat, {invalid} yaroqsiz"
+    )
+    return {
+        "added": added,
+        "duplicates": duplicates,
+        "invalid": invalid,
+        "word_ids": added_ids,
+        "all_batch_ids": batch_word_ids,
+        "existing_ids": existing_ids,
+    }
 
 
 def bulk_import_pack(pack_id: str, words_list: list[dict]) -> dict:
@@ -561,6 +592,49 @@ def get_words_by_ids(word_ids: list[int]) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def get_last_import_word_ids() -> list[int]:
+    """Oxirgi import qilingan barcha so'zlar (yangi qo'shilgan + bazadan topilgan) ID larini qaytaradi."""
+    raw = get_setting("last_import_word_ids", "")
+    if not raw:
+        return []
+    ids = []
+    for piece in raw.split(","):
+        piece = piece.strip()
+        if piece.isdigit():
+            ids.append(int(piece))
+    if not ids:
+        return []
+    # Haqiqatda bazada mavjudligini tasdiqlash
+    placeholders = ",".join("?" for _ in ids)
+    with get_conn() as conn:
+        valid_rows = conn.execute(
+            f"SELECT id FROM words WHERE id IN ({placeholders})",
+            tuple(ids)
+        ).fetchall()
+        valid_set = {r[0] for r in valid_rows}
+    return [i for i in ids if i in valid_set]
+
+
+def get_last_imported_words(limit: int = 500) -> list[sqlite3.Row]:
+    """Oxirgi import qilingan so'zlarning to'liq qatorlarini tartiblangan holda qaytaradi."""
+    ids = get_last_import_word_ids()
+    if not ids:
+        return []
+    target_ids = ids[:limit] if limit > 0 else ids
+    placeholders = ",".join("?" for _ in target_ids)
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT w.*, p.box_level, p.next_review, p.last_reviewed, p.correct_count, p.wrong_count
+            FROM words w JOIN progress p ON p.word_id = w.id
+            WHERE w.id IN ({placeholders})
+            """,
+            tuple(target_ids)
+        ).fetchall()
+        row_map = {r["id"]: r for r in rows}
+        return [row_map[i] for i in target_ids if i in row_map]
+
+
 def get_latest_added_words(limit: int = 20) -> list[sqlite3.Row]:
     """Oxirgi qo'shilgan so'zlar ro'yxatini qaytaradi."""
     with get_conn() as conn:
@@ -573,6 +647,13 @@ def get_latest_added_words(limit: int = 20) -> list[sqlite3.Row]:
             """,
             (limit,),
         ).fetchall()
+
+
+def get_total_word_count() -> int:
+    """Bazadagi jami so'zlar sonini qaytaradi."""
+    with get_conn() as conn:
+        row = conn.execute("SELECT COUNT(*) FROM words").fetchone()
+        return row[0] if row else 0
 
 
 def get_all_words(order_by: str = "created_at DESC") -> list[sqlite3.Row]:
@@ -692,7 +773,15 @@ def search_words(query: str = "", status_filter: str = "all", hard_only: bool = 
                 w.id DESC
         """
 
-    if status_filter and status_filter != "all":
+    if status_filter == "import":
+        imp_ids = get_last_import_word_ids()
+        if imp_ids:
+            ph = ",".join("?" for _ in imp_ids)
+            clauses.append(f"w.id IN ({ph})")
+            where_params.extend(imp_ids)
+        else:
+            clauses.append("1 = 0")
+    elif status_filter and status_filter != "all":
         clauses.append("w.status = ?")
         where_params.append(status_filter)
 

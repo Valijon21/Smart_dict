@@ -137,12 +137,13 @@ class SpeakingWidget(QWidget):
         ctrl_layout.addWidget(lbl_cat)
 
         self.combo_filter = QComboBox()
-        self.combo_filter.setFixedWidth(220)
+        self.combo_filter.setFixedWidth(240)
         self.combo_filter.addItems([
             "📖 Barcha so'zlar (Lug'at)",
             "⚠️ Qiyin so'zlar (Xatolar ko'p)",
             "⚡ Noto'g'ri fe'llar (V1 / V2 / V3)",
             "🆕 Yangi so'zlar",
+            "📥 Oxirgi import qilinganlar",
         ])
         self.combo_filter.currentIndexChanged.connect(self._on_filter_changed)
         ctrl_layout.addWidget(self.combo_filter)
@@ -500,6 +501,13 @@ class SpeakingWidget(QWidget):
         mode_idx = self.combo_filter.currentIndex()
         words = []
 
+        if getattr(self, "_custom_words", None):
+            self.words_list = list(self._custom_words)
+            self._custom_words = None
+            self.current_idx = 0
+            self._display_current_word()
+            return
+
         if mode_idx == 0:
             # Barcha so'zlar
             rows = db.get_all_words(order_by="created_at DESC")
@@ -537,9 +545,23 @@ class SpeakingWidget(QWidget):
                     "part_of_speech": "verb",
                     "example": f"V1: {v['v1']} | V2: {v['v2']} | V3: {v['v3']}",
                 })
-        else:
+        elif mode_idx == 3:
             # Yangi so'zlar
             rows = db.get_words_by_status("new")
+            for r in rows:
+                words.append({
+                    "id": r["id"],
+                    "english": r["english"],
+                    "uzbek": r["uzbek"],
+                    "phonetic": r["phonetic"] if "phonetic" in r.keys() else "",
+                    "part_of_speech": r["part_of_speech"] if "part_of_speech" in r.keys() else "",
+                    "example": r["example"] if "example" in r.keys() else "",
+                })
+        else:
+            # Oxirgi import qilinganlar (index 4)
+            rows = db.get_last_imported_words(limit=200)
+            if not rows:
+                rows = db.get_all_words(order_by="created_at DESC")
             for r in rows:
                 words.append({
                     "id": r["id"],
@@ -553,6 +575,29 @@ class SpeakingWidget(QWidget):
         self.words_list = words
         self.current_idx = 0
         self._display_current_word()
+
+    def set_custom_words(self, words_or_ids: list):
+        """Maxsus so'zlar ro'yxati (masalan, import yoki lug'atdan) bo'yicha mashq boshlash."""
+        if not words_or_ids:
+            return
+        words = []
+        if isinstance(words_or_ids[0], int):
+            rows = db.get_words_by_ids(words_or_ids)
+            for r in rows:
+                words.append({
+                    "id": r["id"],
+                    "english": r["english"],
+                    "uzbek": r["uzbek"],
+                    "phonetic": r["phonetic"] if "phonetic" in r.keys() else "",
+                    "part_of_speech": r["part_of_speech"] if "part_of_speech" in r.keys() else "",
+                    "example": r["example"] if "example" in r.keys() else "",
+                })
+        else:
+            words = list(words_or_ids)
+
+        if words:
+            self._custom_words = words
+            self.load_words()
 
     def _on_filter_changed(self):
         self._stop_recording()

@@ -61,36 +61,80 @@ class ImportWidget(QWidget):
         self.result_label.setWordWrap(True)
         layout.addWidget(self.result_label)
 
-        # Yangi qo'shilgan so'zlarni darhol mashq qilish paneli
+        # Yangi qo'shilgan va bazadan birlashtirilgan so'zlarni darhol mashq qilish paneli
         self.quick_practice_box = QFrame()
         self.quick_practice_box.setStyleSheet(
-            "background-color: #1E1E2E; border: 1px solid #4F46E5; border-radius: 12px;"
+            "background-color: #1E1E2E; border: 1.5px solid #4F46E5; border-radius: 12px;"
         )
         quick_layout = QVBoxLayout(self.quick_practice_box)
         quick_layout.setContentsMargins(18, 14, 18, 14)
         quick_layout.setSpacing(10)
 
-        self.quick_title = QLabel("🎯 Yangi qo'shilgan so'zlarni hoziroq mashq qilasizmi?")
-        self.quick_title.setStyleSheet("color: white; font-size: 14px; font-weight: 600;")
+        self.quick_title = QLabel("🎯 So'zlarni hoziroq mashq qilish va o'yinlarda mustahkamlash:")
+        self.quick_title.setStyleSheet("color: white; font-size: 14px; font-weight: 700;")
         quick_layout.addWidget(self.quick_title)
 
-        quick_btns_row = QHBoxLayout()
-        self.quick_btn_en = QPushButton("🇬🇧→🇺🇿 EN → UZ mashq qilish")
-        self.quick_btn_en.setStyleSheet(
-            "background-color: #4F46E5; color: white; border-radius: 6px; padding: 8px 14px; font-size: 13px;"
-        )
+        # 1-qator: Asosiy testlar va trenajyorlar
+        quick_row1 = QHBoxLayout()
+        quick_row1.setSpacing(8)
+
+        self.quick_btn_en = QPushButton("🇬🇧→🇺🇿 EN → UZ")
+        self.quick_btn_en.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.quick_btn_en.setStyleSheet("background-color: #4F46E5; color: white; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;")
         self.quick_btn_en.clicked.connect(lambda: self.launch_quick_practice("en_uz"))
+        quick_row1.addWidget(self.quick_btn_en)
 
-        self.quick_btn_uz = QPushButton("🇺🇿→🇬🇧 UZ → EN mashq qilish")
-        self.quick_btn_uz.setStyleSheet(
-            "background-color: #6366F1; color: white; border-radius: 6px; padding: 8px 14px; font-size: 13px;"
-        )
+        self.quick_btn_uz = QPushButton("🇺🇿→🇬🇧 UZ → EN")
+        self.quick_btn_uz.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.quick_btn_uz.setStyleSheet("background-color: #6366F1; color: white; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;")
         self.quick_btn_uz.clicked.connect(lambda: self.launch_quick_practice("uz_en"))
+        quick_row1.addWidget(self.quick_btn_uz)
 
-        quick_btns_row.addWidget(self.quick_btn_en)
-        quick_btns_row.addWidget(self.quick_btn_uz)
-        quick_btns_row.addStretch()
-        quick_layout.addLayout(quick_btns_row)
+        self.quick_btn_flash = QPushButton("🎴 Flashcard (Anki)")
+        self.quick_btn_flash.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.quick_btn_flash.setStyleSheet("background-color: #8B5CF6; color: white; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;")
+        self.quick_btn_flash.clicked.connect(lambda: self.launch_quick_practice("flashcard"))
+        quick_row1.addWidget(self.quick_btn_flash)
+
+        self.quick_btn_speak = QPushButton("🎙️ Speaking Trenajyori")
+        self.quick_btn_speak.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.quick_btn_speak.setStyleSheet("background-color: #E11D48; color: white; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;")
+        self.quick_btn_speak.clicked.connect(lambda: self.launch_quick_practice("speaking"))
+        quick_row1.addWidget(self.quick_btn_speak)
+
+        quick_row1.addStretch()
+        quick_layout.addLayout(quick_row1)
+
+        # 2-qator: O'yinlar va Lug'atda ko'rish
+        quick_row2 = QHBoxLayout()
+        quick_row2.setSpacing(8)
+
+        self.quick_btn_match = QPushButton("🎮 So'z Juftlash (Match)")
+        self.quick_btn_match.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.quick_btn_match.setStyleSheet("background-color: #059669; color: white; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;")
+        self.quick_btn_match.clicked.connect(lambda: self.launch_quick_practice("match"))
+        quick_row2.addWidget(self.quick_btn_match)
+
+        self.quick_btn_blitz = QPushButton("⚡ Blitz Marafon")
+        self.quick_btn_blitz.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.quick_btn_blitz.setStyleSheet("background-color: #D97706; color: white; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;")
+        self.quick_btn_blitz.clicked.connect(lambda: self.launch_quick_practice("blitz"))
+        quick_row2.addWidget(self.quick_btn_blitz)
+
+        self.quick_btn_fall = QPushButton("🌧️ Word Fall")
+        self.quick_btn_fall.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.quick_btn_fall.setStyleSheet("background-color: #2563EB; color: white; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;")
+        self.quick_btn_fall.clicked.connect(lambda: self.launch_quick_practice("word_fall"))
+        quick_row2.addWidget(self.quick_btn_fall)
+
+        self.quick_btn_dict = QPushButton("📖 Lug'atda ko'rish (Ajratilgan)")
+        self.quick_btn_dict.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.quick_btn_dict.setStyleSheet("background-color: #374151; color: #F3F4F6; border: 1px solid #6B7280; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;")
+        self.quick_btn_dict.clicked.connect(lambda: self.launch_quick_practice("dictionary_import"))
+        quick_row2.addWidget(self.quick_btn_dict)
+
+        quick_row2.addStretch()
+        quick_layout.addLayout(quick_row2)
 
         self.quick_practice_box.setVisible(False)
         layout.addWidget(self.quick_practice_box)
@@ -152,9 +196,10 @@ class ImportWidget(QWidget):
                 )
 
     def launch_quick_practice(self, direction: str):
-        if self.on_start_practice and self.last_added_ids:
-            logger.info(f"Yangi qo'shilgan so'zlar bo'yicha tezkor mashq boshlandi: {len(self.last_added_ids)} ta so'z ({direction})")
-            self.on_start_practice(self.last_added_ids, direction)
+        target_ids = self.last_added_ids or db.get_last_import_word_ids()
+        if self.on_start_practice and target_ids:
+            logger.info(f"Import to'plami bo'yicha mashq boshlandi: {len(target_ids)} ta so'z (Rejim: {direction})")
+            self.on_start_practice(target_ids, direction)
 
     def choose_file(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -179,20 +224,40 @@ class ImportWidget(QWidget):
             return
 
         summary = db.bulk_add_words(pairs, source="import")
-        new_ids = summary.get("word_ids", [])
-        if new_ids:
-            self.last_added_ids = new_ids
+        all_ids = summary.get("all_batch_ids", summary.get("word_ids", []))
+        added_cnt = summary.get("added", 0)
+        existing_cnt = len(summary.get("existing_ids", []))
+        invalid_cnt = summary.get("invalid", 0)
+
+        if all_ids:
+            self.last_added_ids = all_ids
             self.quick_title.setText(
-                f"🎯 Yangi qo'shilgan {len(self.last_added_ids)} ta so'zni hoziroq mashq qilasizmi?"
+                f"🎯 Import qilingan {len(self.last_added_ids)} ta so'zni hoziroq mashq qilasizmi?"
             )
             self.quick_practice_box.setVisible(True)
 
-        self.result_label.setText(
-            f"✅ {summary['added']} ta yangi so'z qo'shildi | "
-            f"⏭ {summary['duplicates']} dublikat o'tkazildi | "
-            f"⚠️ {summary['invalid']} noto'g'ri qator"
-        )
-        self.result_label.setStyleSheet("color: #10B981;")
+        if added_cnt > 0 and existing_cnt > 0:
+            msg = (
+                f"✅ {added_cnt} ta yangi so'z qo'shildi | "
+                f"🔄 {existing_cnt} ta mavjud so'z bazadan birlashtirildi (Jami: {len(all_ids)} ta so'z) | "
+                f"⚠️ {invalid_cnt} ta xato qator"
+            )
+            color = "#10B981"
+        elif added_cnt > 0:
+            msg = f"✅ {added_cnt} ta yangi so'z qo'shildi | ⚠️ {invalid_cnt} ta xato qator"
+            color = "#10B981"
+        elif existing_cnt > 0:
+            msg = (
+                f"🔄 Barcha {existing_cnt} ta so'z allaqachon lug'atda bor edi — "
+                f"ular takrorlanmasdan bazadan ajratib olindi va mashq to'plamiga birlashtirildi! (Jami: {existing_cnt} ta)"
+            )
+            color = "#60A5FA"
+        else:
+            msg = f"⚠️ Hech qanday so'z qo'shilmadi (Yaroqsiz qatorlar: {invalid_cnt})"
+            color = "#F59E0B"
+
+        self.result_label.setText(msg)
+        self.result_label.setStyleSheet(f"color: {color};")
         if self.on_words_changed:
             self.on_words_changed()
 
@@ -204,22 +269,34 @@ class ImportWidget(QWidget):
             return
         added_id = db.add_word(eng, uz, source="manual", example=ex)
         if added_id:
-            self.last_added_ids.append(added_id)
+            w_id = added_id
+            msg = f"✅ '{eng} - {uz}' yangi so'z sifatida qo'shildi"
+            color = "#10B981"
+        else:
+            existing = db.get_word_by_english(eng)
+            w_id = existing["id"] if existing else None
+            msg = f"🔄 '{eng}' allaqachon mavjud — bazadan ajratilib mashq to'plamiga kiritildi!"
+            color = "#60A5FA"
+
+        if w_id:
+            if w_id not in self.last_added_ids:
+                self.last_added_ids.append(w_id)
+            current_ids = db.get_last_import_word_ids()
+            if w_id not in current_ids:
+                current_ids.append(w_id)
+                db.set_setting("last_import_word_ids", ",".join(str(i) for i in current_ids))
             self.quick_title.setText(
-                f"🎯 Yangi kiritilgan {len(self.last_added_ids)} ta so'zni hoziroq mashq qilasizmi?"
+                f"🎯 Tanlangan {len(self.last_added_ids)} ta so'zni hoziroq mashq qilasizmi?"
             )
             self.quick_practice_box.setVisible(True)
-            self.result_label.setText(f"✅ '{eng} - {uz}' qo'shildi")
-            self.result_label.setStyleSheet("color: #10B981;")
+            self.result_label.setText(msg)
+            self.result_label.setStyleSheet(f"color: {color};")
             self.eng_input.clear()
             self.uz_input.clear()
             self.ex_input.clear()
             self.eng_input.setFocus()
             if self.on_words_changed:
                 self.on_words_changed()
-        else:
-            self.result_label.setText(f"⏭ '{eng}' allaqachon bazada mavjud")
-            self.result_label.setStyleSheet("color: #F59E0B;")
 
     def open_word_packs(self):
         """Tayyor so'z to'plamlari oynasini ochish."""

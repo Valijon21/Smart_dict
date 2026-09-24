@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QDialog, QMessageBox,
-    QFileDialog, QFrame, QScrollArea, QStyledItemDelegate, QStyle
+    QFileDialog, QFrame, QScrollArea, QStyledItemDelegate, QStyle, QMenu
 )
 from PyQt6.QtCore import Qt, QTimer, QRect, QPoint, QPointF, QEvent
 from PyQt6.QtGui import QColor, QCursor, QPainter, QPen, QBrush, QFont
@@ -691,22 +691,42 @@ class DictionaryWidget(QWidget):
         top_row.addWidget(self.header_title)
         top_row.addStretch()
 
-        self.export_csv_btn = QPushButton("📥 CSV Eksport")
+        self.practice_btn = QPushButton("⚡ Mashq qilish ▾")
+        self.practice_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.practice_menu = QMenu(self)
+        self.practice_menu.addAction("🇬🇧→🇺🇿 EN → UZ Test", lambda: self._launch_practice_for_current_words("en_uz"))
+        self.practice_menu.addAction("🇺🇿→🇬🇧 UZ → EN Test", lambda: self._launch_practice_for_current_words("uz_en"))
+        self.practice_menu.addAction("🎴 Flashcard (Anki uslubi)", lambda: self._launch_practice_for_current_words("flashcard"))
+        self.practice_menu.addAction("🎙️ Speaking Trenajyori", lambda: self._launch_practice_for_current_words("speaking"))
+        self.practice_btn.setMenu(self.practice_menu)
+        top_row.addWidget(self.practice_btn)
+
+        self.games_btn = QPushButton("🎮 O'yinlar ▾")
+        self.games_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.games_menu = QMenu(self)
+        self.games_menu.addAction("🎮 So'zlarni Juftlash (Match)", lambda: self._launch_practice_for_current_words("match"))
+        self.games_menu.addAction("⚡ Blitz Marafon", lambda: self._launch_practice_for_current_words("blitz"))
+        self.games_menu.addAction("🌧️ Word Fall", lambda: self._launch_practice_for_current_words("word_fall"))
+        self.games_menu.addAction("🧩 Krossvord", lambda: self._launch_practice_for_current_words("crossword"))
+        self.games_btn.setMenu(self.games_menu)
+        top_row.addWidget(self.games_btn)
+
+        self.export_csv_btn = QPushButton("📥 CSV")
         self.export_csv_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.export_csv_btn.clicked.connect(self.export_csv)
         top_row.addWidget(self.export_csv_btn)
 
-        self.export_json_btn = QPushButton("📥 JSON Eksport")
+        self.export_json_btn = QPushButton("📥 JSON")
         self.export_json_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.export_json_btn.clicked.connect(self.export_json)
         top_row.addWidget(self.export_json_btn)
 
-        self.packs_btn = QPushButton("📚 Tayyor to'plamlar (Word Packs)")
+        self.packs_btn = QPushButton("📚 To'plamlar")
         self.packs_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.packs_btn.clicked.connect(self.open_word_packs)
         top_row.addWidget(self.packs_btn)
 
-        self.print_btn = QPushButton("🖨️ Chop etish / PDF")
+        self.print_btn = QPushButton("🖨️ Chop etish")
         self.print_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.print_btn.clicked.connect(self.open_worksheet_generator)
         top_row.addWidget(self.print_btn)
@@ -738,6 +758,7 @@ class DictionaryWidget(QWidget):
         self.filter_buttons = {}
         filters = [
             ("Barchasi", "all"),
+            ("📥 Oxirgi import", "import"),
             ("Yangi", "new"),
             ("O'rganilmoqda", "learning"),
             ("O'zlashtirilgan", "mastered"),
@@ -768,6 +789,17 @@ class DictionaryWidget(QWidget):
         self.global_banner_layout.setSpacing(10)
         self.global_banner.setVisible(False)
         layout.addWidget(self.global_banner)
+
+        # --- 2.2. Oxirgi import qilingan so'zlar paneli (Tezkor mashqlar va o'yinlar) ---
+        self.import_banner = QFrame()
+        self.import_banner.setStyleSheet(
+            "background-color: #1A1A2E; border: 1.5px solid #10B981; border-radius: 12px; padding: 10px 14px;"
+        )
+        self.import_banner_layout = QHBoxLayout(self.import_banner)
+        self.import_banner_layout.setContentsMargins(12, 8, 12, 8)
+        self.import_banner_layout.setSpacing(10)
+        self.import_banner.setVisible(False)
+        layout.addWidget(self.import_banner)
 
         # --- 3. Jadval (QTableWidget) ---
         self.table = QTableWidget()
@@ -929,6 +961,37 @@ class DictionaryWidget(QWidget):
                     "border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; }"
                     "QPushButton:hover { background-color: #FEF3C7; }"
                 )
+        if hasattr(self, "practice_btn"):
+            self.practice_btn.setStyleSheet(
+                f"QPushButton {{ background-color: {t.primary}; color: white; border: none; "
+                f"border-radius: 8px; padding: 7px 16px; font-size: 12px; font-weight: 700; }} "
+                f"QPushButton:hover {{ background-color: {t.primary_hover}; }}"
+            )
+        if hasattr(self, "games_btn"):
+            if t.is_dark:
+                self.games_btn.setStyleSheet(
+                    "QPushButton {{ background-color: #065F46; color: #6EE7B7; border: 1px solid #059669; "
+                    "border-radius: 8px; padding: 7px 16px; font-size: 12px; font-weight: 700; }} "
+                    "QPushButton:hover {{ background-color: #047857; color: white; }}"
+                )
+            else:
+                self.games_btn.setStyleSheet(
+                    "QPushButton {{ background-color: #ECFDF5; color: #047857; border: 1px solid #10B981; "
+                    "border-radius: 8px; padding: 7px 16px; font-size: 12px; font-weight: 700; }} "
+                    "QPushButton:hover {{ background-color: #D1FAE5; }}"
+                )
+        if hasattr(self, "practice_menu"):
+            self.practice_menu.setStyleSheet(
+                f"QMenu {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; padding: 6px; }} "
+                f"QMenu::item {{ padding: 8px 16px; border-radius: 6px; font-size: 13px; color: {t.text_main}; }} "
+                f"QMenu::item:selected {{ background-color: {t.primary}; color: white; }}"
+            )
+        if hasattr(self, "games_menu"):
+            self.games_menu.setStyleSheet(
+                f"QMenu {{ background-color: {t.bg_card}; color: {t.text_main}; border: 1px solid {t.border}; padding: 6px; }} "
+                f"QMenu::item {{ padding: 8px 16px; border-radius: 6px; font-size: 13px; color: {t.text_main}; }} "
+                f"QMenu::item:selected {{ background-color: {t.primary}; color: white; }}"
+            )
         if hasattr(self, "global_banner"):
             if t.is_dark:
                 self.global_banner.setStyleSheet(
@@ -937,6 +1000,15 @@ class DictionaryWidget(QWidget):
             else:
                 self.global_banner.setStyleSheet(
                     "background-color: #EEF2FF; border: 1.5px solid #818CF8; border-radius: 12px; padding: 10px 14px;"
+                )
+        if hasattr(self, "import_banner"):
+            if t.is_dark:
+                self.import_banner.setStyleSheet(
+                    "background-color: #064E3B; border: 1.5px solid #10B981; border-radius: 12px; padding: 10px 14px;"
+                )
+            else:
+                self.import_banner.setStyleSheet(
+                    "background-color: #ECFDF5; border: 1.5px solid #059669; border-radius: 12px; padding: 10px 14px;"
                 )
         if hasattr(self, "count_label"):
             self.count_label.setStyleSheet(f"color: {t.text_muted}; font-size: 13px; font-weight: 500;")
@@ -1026,8 +1098,12 @@ class DictionaryWidget(QWidget):
         elif is_fuzzy_personal:
             self._update_fuzzy_notice(clean_q, rows[0]["english"])
             self.global_banner.setVisible(True)
-        else:
+        if self.current_filter == "import":
+            self._update_import_banner(len(rows))
+            self.import_banner.setVisible(True)
             self.global_banner.setVisible(False)
+        else:
+            self.import_banner.setVisible(False)
 
         # Leitner Box va Status ranglari (Mavzuga mos zamonaviy chip palitrasi)
         t = theme_manager.get_active_theme()
@@ -1190,6 +1266,70 @@ class DictionaryWidget(QWidget):
         lbl.setStyleSheet("color: #FBBF24; font-size: 13px; font-weight: 600;")
         self.global_banner_layout.addWidget(lbl)
         self.global_banner_layout.addStretch()
+
+    def _update_import_banner(self, count: int):
+        """Oxirgi import qilingan so'zlar uchun interaktiv harakatlar paneli."""
+        while self.import_banner_layout.count():
+            item = self.import_banner_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        lbl = QLabel(f"📥 <b>Oxirgi import:</b> {count} ta so'z ajratildi")
+        lbl.setStyleSheet("color: #6EE7B7; font-size: 13px; font-weight: 700;")
+        self.import_banner_layout.addWidget(lbl)
+
+        btn_en = QPushButton("🇬🇧 EN → UZ")
+        btn_en.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_en.setStyleSheet("background-color: #4F46E5; color: white; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+        btn_en.clicked.connect(lambda: self._launch_practice_for_current_words("en_uz"))
+        self.import_banner_layout.addWidget(btn_en)
+
+        btn_uz = QPushButton("🇺🇿 UZ → EN")
+        btn_uz.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_uz.setStyleSheet("background-color: #6366F1; color: white; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+        btn_uz.clicked.connect(lambda: self._launch_practice_for_current_words("uz_en"))
+        self.import_banner_layout.addWidget(btn_uz)
+
+        btn_flash = QPushButton("🎴 Flashcard")
+        btn_flash.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_flash.setStyleSheet("background-color: #8B5CF6; color: white; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+        btn_flash.clicked.connect(lambda: self._launch_practice_for_current_words("flashcard"))
+        self.import_banner_layout.addWidget(btn_flash)
+
+        btn_speak = QPushButton("🎙️ Speaking")
+        btn_speak.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_speak.setStyleSheet("background-color: #E11D48; color: white; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+        btn_speak.clicked.connect(lambda: self._launch_practice_for_current_words("speaking"))
+        self.import_banner_layout.addWidget(btn_speak)
+
+        btn_match = QPushButton("🎮 Juftlash")
+        btn_match.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_match.setStyleSheet("background-color: #059669; color: white; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+        btn_match.clicked.connect(lambda: self._launch_practice_for_current_words("match"))
+        self.import_banner_layout.addWidget(btn_match)
+
+        btn_blitz = QPushButton("⚡ Blitz")
+        btn_blitz.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_blitz.setStyleSheet("background-color: #D97706; color: white; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
+        btn_blitz.clicked.connect(lambda: self._launch_practice_for_current_words("blitz"))
+        self.import_banner_layout.addWidget(btn_blitz)
+
+        self.import_banner_layout.addStretch()
+
+    def _launch_practice_for_current_words(self, mode: str):
+        """Hozirgi jadvalda ko'rinib turgan so'zlar bo'yicha mashq yoki o'yinni boshlash."""
+        word_ids = [r["id"] for r in self._current_rows_data if "id" in r.keys()]
+        if not word_ids:
+            QMessageBox.information(self, "So'zlar yo'q", "Tanlangan filtr yoki qidiruv bo'yicha mashq qilish uchun so'zlar topilmadi.")
+            return
+
+        parent_main = self.window()
+        practice_fn = getattr(parent_main, "start_custom_practice", None)
+        if callable(practice_fn):
+            logger.info(f"Lug'atdan mashq ishga tushirildi: {len(word_ids)} ta so'z, rejim='{mode}'")
+            practice_fn(word_ids, mode)
+        else:
+            QMessageBox.warning(self, "Xatolik", "Mashq modulini chaqirib bo'lmadi.")
 
     def _quick_add_from_banner(self, word_data: dict):
         eng = word_data.get("english", "")

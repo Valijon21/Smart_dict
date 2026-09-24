@@ -426,10 +426,45 @@ class MainWindow(QMainWindow):
                 )
 
     def start_custom_practice(self, word_ids: list[int], direction: str = "en_uz"):
-        page_key = "en_uz" if direction == "en_uz" else "uz_en"
+        if not word_ids:
+            return
+
+        if direction == "dictionary_import":
+            self.switch_page("dictionary")
+            if hasattr(self, "dictionary") and self.dictionary:
+                self.dictionary.set_filter("import")
+            return
+
+        if direction == "flashcard":
+            page = self.get_or_create_page("en_uz")
+            if hasattr(page, "set_custom_words"):
+                page.set_custom_words(word_ids)
+            if hasattr(page, "set_quiz_mode"):
+                page.set_quiz_mode("flashcard")
+            self.switch_page("en_uz")
+            return
+
+        if direction == "speaking":
+            page = self.get_or_create_page("speaking")
+            if hasattr(page, "set_custom_words"):
+                page.set_custom_words(word_ids)
+            self.switch_page("speaking")
+            return
+
+        if direction in ("match", "blitz", "word_fall", "crossword"):
+            page = self.get_or_create_page(direction)
+            if hasattr(page, "set_custom_words"):
+                page.set_custom_words(word_ids)
+            self.switch_page(direction)
+            return
+
+        page_key = "uz_en" if direction == "uz_en" else "en_uz"
         page = self.get_or_create_page(page_key)
         if hasattr(page, "set_custom_words"):
             page.set_custom_words(word_ids)
+        if hasattr(page, "set_quiz_mode"):
+            if getattr(page, "quiz_mode", "") == "flashcard":
+                page.set_quiz_mode("typing")
         self.switch_page(page_key)
 
     def _nav_style(self, active: bool) -> str:

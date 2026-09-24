@@ -388,9 +388,22 @@ class CrosswordGameWidget(QWidget):
 
         root.addLayout(btn_bar)
 
+    def set_custom_words(self, words_or_ids: list):
+        """Maxsus so'zlar ro'yxati bo'yicha Krossvord yaratish."""
+        if not words_or_ids:
+            return
+        if isinstance(words_or_ids[0], int):
+            rows = db.get_words_by_ids(words_or_ids)
+            self._custom_words = [dict(r) for r in rows]
+        else:
+            self._custom_words = [dict(w) if not isinstance(w, dict) else w for w in words_or_ids]
+        self.generate_new_puzzle()
+
     def generate_new_puzzle(self):
         """Tanlangan to'plam so'zlaridan yangi krossvord yasash."""
-        if hasattr(self, "source_selector"):
+        if getattr(self, "_custom_words", None):
+            words = list(self._custom_words)
+        elif hasattr(self, "source_selector"):
             words = self.source_selector.get_words(limit=80, min_len=3, max_len=8, alpha_only=True)
         else:
             words = db.get_all_words()

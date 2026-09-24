@@ -42,6 +42,11 @@ CATEGORIES = [
 _CACHE: dict[tuple[str, str], list[dict]] = {}
 
 
+def invalidate_cache():
+    """Barcha o'yin so'zlari keshini tozalash."""
+    _CACHE.clear()
+
+
 def get_available_categories() -> list[dict]:
     """Mavjud barcha asosiy toifalar ro'yxatini qaytaradi."""
     return CATEGORIES
@@ -73,12 +78,23 @@ def get_sources_for_category(category_id: str) -> list[dict]:
             learning_count = len(db.get_words_by_status("learning"))
         except Exception:
             pass
-        return [
+        imported_count = 0
+        try:
+            imported_count = len(db.get_last_import_word_ids())
+        except Exception:
+            pass
+
+        sources = [
             {"id": "all", "title": f"📚 Barcha so'zlar ({total_count} ta)", "count": total_count},
+        ]
+        if imported_count > 0:
+            sources.append({"id": "imported", "title": f"📥 Oxirgi import qilinganlar ({imported_count} ta)", "count": imported_count})
+        sources.extend([
             {"id": "due", "title": f"🧠 Bugun takrorlash kerak ({due_count} ta)", "count": due_count},
             {"id": "weak", "title": f"⚠️ Zaif / xato so'zlar ({weak_count} ta)", "count": weak_count},
             {"id": "learning", "title": f"🌱 O'rganilayotgan so'zlar ({learning_count} ta)", "count": learning_count},
-        ]
+        ])
+        return sources
 
     elif category_id == CAT_TOPICS:
         topics = topic_service.get_all_topics()
@@ -214,7 +230,11 @@ def _load_source_words(category_id: str, source_id: str) -> list[dict]:
 
     try:
         if category_id == CAT_PERSONAL:
-            if source_id == "due":
+            if source_id == "imported":
+                rows = db.get_last_imported_words()
+                if not rows:
+                    rows = db.get_all_words()
+            elif source_id == "due":
                 rows = db.get_due_words(limit=500)
                 if not rows:
                     rows = db.get_all_words()
