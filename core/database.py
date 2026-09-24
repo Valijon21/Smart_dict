@@ -18,6 +18,17 @@ except ImportError:
     import phonetics
 
 try:
+    from core.fsrs import FSRSv5, FSRSCard, Rating, CardState
+except ImportError:
+    try:
+        from fsrs import FSRSv5, FSRSCard, Rating, CardState
+    except ImportError:
+        FSRSv5 = None
+        FSRSCard = None
+        Rating = None
+        CardState = None
+
+try:
     from utils.logger import get_logger, get_app_dir
     from utils import text_search_utils
 except ImportError:
@@ -229,11 +240,24 @@ def init_db():
             ("progress", "ease_factor", "REAL DEFAULT 2.5"),
             ("progress", "interval_days", "INTEGER DEFAULT 0"),
             ("progress", "repetitions", "INTEGER DEFAULT 0"),
+            ("progress", "fsrs_stability", "REAL DEFAULT 0.0"),
+            ("progress", "fsrs_difficulty", "REAL DEFAULT 5.0"),
+            ("progress", "fsrs_reps", "INTEGER DEFAULT 0"),
+            ("progress", "fsrs_lapses", "INTEGER DEFAULT 0"),
+            ("progress", "fsrs_state", "INTEGER DEFAULT 0"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE {col_table} ADD COLUMN {col_name} {col_type}")
             except Exception:
                 pass
+
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_progress_fsrs_stability ON progress(fsrs_stability)")
+        except Exception:
+            pass
+
+        # Agar bazada eski SM-2 so'zlari bo'lsa, ularni FSRS v5 ga silliq o'tkazamiz
+        migrate_sm2_to_fsrs_if_needed(conn)
 
         conn.executemany(
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
@@ -269,6 +293,60 @@ def init_db():
         if not bf_row or bf_row["value"] != "true":
             backfill_phonetics()
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('phonetics_backfilled_v1', 'true')")
+
+
+def migrate_sm2_to_fsrs_if_needed(conn: sqlite3.Connection) -> int:
+    """Mavjud SM-2 takrorlash parametrlarini FSRS v5 barqarorlik va qiyinlik ko'rsatkichlariga avtomatik o'tkazish."""
+    if FSRSv5 is None:
+        return 0
+    try:
+        rows = conn.execute(
+            """
+            SELECT word_id, ease_factor, interval_days, repetitions, wrong_count, last_reviewed
+            FROM progress
+            WHERE (fsrs_stability IS NULL OR fsrs_stability = 0.0)
+              AND (repetitions > 0 OR interval_days > 0 OR (ease_factor IS NOT NULL AND ease_factor != 2.5))
+            """
+        ).fetchall()
+
+        if not rows:
+            return 0
+
+        updates = []
+        for r in rows:
+            card = FSRSv5.from_sm2(
+                ease_factor=r["ease_factor"] if r["ease_factor"] is not None else 2.5,
+                interval_days=r["interval_days"] if r["interval_days"] is not None else 0,
+                repetitions=r["repetitions"] if r["repetitions"] is not None else 0,
+                wrong_count=r["wrong_count"] if r["wrong_count"] is not None else 0,
+                last_reviewed_str=r["last_reviewed"],
+            )
+            updates.append((
+                card.stability,
+                card.difficulty,
+                card.reps,
+                card.lapses,
+                int(card.state),
+                r["word_id"],
+            ))
+
+        conn.executemany(
+            """
+            UPDATE progress SET
+                fsrs_stability = ?,
+                fsrs_difficulty = ?,
+                fsrs_reps = ?,
+                fsrs_lapses = ?,
+                fsrs_state = ?
+            WHERE word_id = ?
+            """,
+            updates,
+        )
+        logger.info(f"FSRS v5 migratsiyasi: {len(updates)} ta so'z SM-2 dan FSRS modeliga muvaffaqiyatli o'tkazildi.")
+        return len(updates)
+    except Exception as e:
+        logger.warning(f"FSRS migratsiyasida xatolik: {e}")
+        return 0
 
 
 def backfill_phonetics() -> int:
@@ -335,8 +413,9 @@ def add_word(english: str, uzbek: str, source: str = "manual", example: str = ""
             word_id = cur.lastrowid
             conn.execute(
                 """
-                INSERT INTO progress (word_id, next_review, ease_factor, interval_days, repetitions)
-                VALUES (?, ?, 2.5, 0, 0)
+                INSERT INTO progress (word_id, next_review, ease_factor, interval_days, repetitions,
+                                      fsrs_stability, fsrs_difficulty, fsrs_reps, fsrs_lapses, fsrs_state)
+                VALUES (?, ?, 2.5, 0, 0, 0.0, 5.0, 0, 0, 0)
                 """,
                 (word_id, datetime.date.today().isoformat()),
             )
@@ -406,8 +485,9 @@ def bulk_add_words(pairs: list[tuple], source: str = "import") -> dict:
                 w_id = cur.lastrowid
                 conn.execute(
                     """
-                    INSERT INTO progress (word_id, next_review, ease_factor, interval_days, repetitions)
-                    VALUES (?, ?, 2.5, 0, 0)
+                    INSERT INTO progress (word_id, next_review, ease_factor, interval_days, repetitions,
+                                          fsrs_stability, fsrs_difficulty, fsrs_reps, fsrs_lapses, fsrs_state)
+                    VALUES (?, ?, 2.5, 0, 0, 0.0, 5.0, 0, 0, 0)
                     """,
                     (w_id, today_iso),
                 )
@@ -957,20 +1037,22 @@ def _apply_progress_update(conn: sqlite3.Connection, word_id: int, box: int, is_
     conn.execute("UPDATE words SET status=? WHERE id=?", (status, word_id))
 
 
-def record_sm2_review(word_id: int, quality: int) -> dict:
+def record_fsrs_review(word_id: int, rating: int, desired_retention: float = 0.90) -> dict:
     """
-    Anki SM-2 Spaced Repetition algoritmi:
-    quality:
-      5: Easy (Juda oson eslandi)
-      4: Good (Yaxshi, me'yorida eslandi)
-      3: Hard (Qiyinchilik bilan eslandi)
-      0..2: Again/Wrong (Eslanmadi yoki xato)
+    FSRS v5 (Free Spaced Repetition Scheduler) algoritmi orqali so'zni takrorlash va baholash.
+    rating:
+      1: AGAIN  (Eslay olmadi / xato)
+      2: HARD   (Qiyinchilik bilan esladi)
+      3: GOOD   (Yaxshi, o'z vaqtida esladi)
+      4: EASY   (Juda oson va tez esladi)
     """
     with get_conn() as conn:
         row = conn.execute(
             """
-            SELECT ease_factor, interval_days, repetitions, box_level, correct_count, wrong_count
-            FROM progress WHERE word_id = ?
+            SELECT p.ease_factor, p.interval_days, p.repetitions, p.box_level, 
+                   p.correct_count, p.wrong_count, p.last_reviewed,
+                   p.fsrs_stability, p.fsrs_difficulty, p.fsrs_reps, p.fsrs_lapses, p.fsrs_state
+            FROM progress p WHERE p.word_id = ?
             """,
             (word_id,),
         ).fetchone()
@@ -983,36 +1065,89 @@ def record_sm2_review(word_id: int, quality: int) -> dict:
         box = row["box_level"] if row["box_level"] is not None else 0
         c_cnt = row["correct_count"] or 0
         w_cnt = row["wrong_count"] or 0
+        last_rev = row["last_reviewed"]
 
-        q = max(0, min(5, quality))
-        # SM-2 EF yangilash formulasi: EF' = EF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
-        ef_prime = ef + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
-        new_ef = max(1.3, round(ef_prime, 2))
+        # Rating tekshirish (1..4)
+        r_val = int(rating)
+        if r_val < 1:
+            r_val = 1
+        elif r_val > 4:
+            r_val = 4
 
-        is_correct = (q >= 3)
-        if q < 3:
-            new_repetitions = 0
-            new_interval = 1
+        card_s = row["fsrs_stability"]
+        card_d = row["fsrs_difficulty"]
+        card_reps = row["fsrs_reps"] or 0
+        card_lapses = row["fsrs_lapses"] or 0
+        card_st = row["fsrs_state"] or 0
+
+        now = datetime.datetime.now()
+        now_iso = now.isoformat()
+
+        if FSRSv5 is not None:
+            if (card_s is None or card_s == 0.0) and (repetitions > 0 or interval > 0 or (card_reps == 0 and repetitions > 0)):
+                card = FSRSv5.from_sm2(
+                    ease_factor=ef,
+                    interval_days=interval,
+                    repetitions=repetitions,
+                    wrong_count=w_cnt,
+                    last_reviewed_str=last_rev,
+                )
+            else:
+                last_dt = None
+                if last_rev:
+                    for fmt in ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                        try:
+                            last_dt = datetime.datetime.strptime(last_rev.strip(), fmt)
+                            break
+                        except Exception:
+                            pass
+                card = FSRSCard(
+                    stability=float(card_s or 0.0),
+                    difficulty=float(card_d if card_d is not None else 5.0),
+                    reps=int(card_reps),
+                    lapses=int(card_lapses),
+                    state=CardState(card_st) if card_st in (0, 1, 2, 3) else CardState.NEW,
+                    last_review=last_dt,
+                )
+
+            scheduler = FSRSv5(desired_retention=desired_retention)
+            new_card, next_interval = scheduler.review_card(card, Rating(r_val), review_time=now)
+        else:
+            next_interval = max(1, interval * 2) if r_val >= 3 else 1
+            new_card = FSRSCard(
+                stability=float(next_interval),
+                difficulty=5.0,
+                reps=card_reps + (1 if r_val >= 3 else 0),
+                lapses=card_lapses + (0 if r_val >= 3 else 1),
+                state=CardState.REVIEW if r_val >= 3 else CardState.LEARNING,
+            )
+
+        # SM-2 ko'rsatkichlarini ham sinxron saqlash (To'liq teskari muvofiqlik)
+        is_correct = (r_val >= 2)
+        if r_val == 1:  # AGAIN
+            new_reps = 0
             new_box = max(0, box - 1)
             w_cnt += 1
+            new_ef = max(1.3, round(ef - 0.2, 2))
         else:
-            if repetitions == 0:
-                new_interval = 1
-            elif repetitions == 1:
-                new_interval = 6
-            else:
-                new_interval = max(1, round(interval * new_ef))
-            new_repetitions = repetitions + 1
+            new_reps = repetitions + 1
             new_box = min(5, box + 1)
             c_cnt += 1
+            q_equiv = 3 if r_val == 2 else (4 if r_val == 3 else 5)
+            ef_prime = ef + (0.1 - (5 - q_equiv) * (0.08 + (5 - q_equiv) * 0.02))
+            new_ef = max(1.3, round(ef_prime, 2))
 
-        next_date = (datetime.date.today() + datetime.timedelta(days=new_interval)).isoformat()
-        now_iso = datetime.datetime.now().isoformat()
-        is_mastered = (new_box >= 5 or new_interval >= 21)
+        next_date = (datetime.date.today() + datetime.timedelta(days=next_interval)).isoformat()
+        is_mastered = (new_card.stability >= 21.0 or new_card.reps >= 5 or new_box >= 5)
 
         conn.execute(
             """
             UPDATE progress SET
+                fsrs_stability = ?,
+                fsrs_difficulty = ?,
+                fsrs_reps = ?,
+                fsrs_lapses = ?,
+                fsrs_state = ?,
                 ease_factor = ?,
                 interval_days = ?,
                 repetitions = ?,
@@ -1023,40 +1158,194 @@ def record_sm2_review(word_id: int, quality: int) -> dict:
                 next_review = ?
             WHERE word_id = ?
             """,
-            (new_ef, new_interval, new_repetitions, new_box, c_cnt, w_cnt, now_iso, next_date, word_id),
+            (
+                round(new_card.stability, 4),
+                round(new_card.difficulty, 2),
+                new_card.reps,
+                new_card.lapses,
+                int(new_card.state),
+                new_ef,
+                next_interval,
+                new_reps,
+                new_box,
+                c_cnt,
+                w_cnt,
+                now_iso,
+                next_date,
+                word_id,
+            ),
         )
 
-        status = "mastered" if is_mastered else ("learning" if new_box > 0 else "new")
+        status = "mastered" if is_mastered else ("learning" if (new_card.reps > 0 or new_box > 0) else "new")
         conn.execute("UPDATE words SET status=? WHERE id=?", (status, word_id))
 
     bump_daily_stat(practiced=1, correct=1 if is_correct else 0, wrong=0 if is_correct else 1)
     _invalidate_cache()
     return {
         "word_id": word_id,
+        "rating": r_val,
+        "fsrs_stability": round(new_card.stability, 2),
+        "fsrs_difficulty": round(new_card.difficulty, 2),
+        "fsrs_reps": new_card.reps,
+        "fsrs_lapses": new_card.lapses,
+        "fsrs_state": int(new_card.state),
         "ease_factor": new_ef,
-        "interval_days": new_interval,
-        "repetitions": new_repetitions,
+        "interval_days": next_interval,
+        "repetitions": new_reps,
         "box_level": new_box,
         "next_review": next_date,
         "status": status,
     }
 
 
+def record_sm2_review(word_id: int, quality: int) -> dict:
+    """
+    Anki SM-2 Spaced Repetition algoritmi (FSRS v5 ga silliq yo'naltirilgan):
+    quality:
+      5: Easy (Juda oson) -> FSRS Easy (4)
+      4: Good (Yaxshi)    -> FSRS Good (3)
+      3: Hard (Qiyin)     -> FSRS Hard (2)
+      0..2: Again (Xato)  -> FSRS Again (1)
+    """
+    if quality >= 5:
+        r = 4
+    elif quality == 4:
+        r = 3
+    elif quality == 3:
+        r = 2
+    else:
+        r = 1
+    return record_fsrs_review(word_id, rating=r)
+
+
 def record_answer(word_id: int, correct: bool):
-    """Anki SM-2 ga muvofiqlashtirilgan javob yozish."""
-    record_sm2_review(word_id, quality=4 if correct else 0)
+    """FSRS v5 ga muvofiqlashtirilgan javob yozish."""
+    return record_fsrs_review(word_id, rating=3 if correct else 1)
 
 
 def record_flashcard_answer(word_id: int, quality: str):
     """
-    Flashcard javobini Anki SM-2 reytingi bo'yicha yozish:
-    - 'hard': qiyin (quality=3)
-    - 'good': yaxshi (quality=4)
-    - 'easy': oson (quality=5)
+    Flashcard javobini FSRS v5 reytingi bo'yicha yozish:
+    - 'again' / 'wrong': xato (Rating.AGAIN = 1)
+    - 'hard': qiyin (Rating.HARD = 2)
+    - 'good': yaxshi (Rating.GOOD = 3)
+    - 'easy': oson (Rating.EASY = 4)
     """
-    q_map = {"hard": 3, "good": 4, "easy": 5}
-    q_val = q_map.get(quality, 0)
-    record_sm2_review(word_id, quality=q_val)
+    q_map = {"again": 1, "wrong": 1, "hard": 2, "good": 3, "easy": 4}
+    r_val = q_map.get(str(quality).lower(), 3)
+    return record_fsrs_review(word_id, rating=r_val)
+
+
+def get_fsrs_card(word_id: int):
+    """Berilgan word_id bo'yicha FSRSCard xotira modelini qaytarish."""
+    if FSRSCard is None:
+        return None
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT fsrs_stability, fsrs_difficulty, fsrs_reps, fsrs_lapses, fsrs_state,
+                   last_reviewed, next_review, ease_factor, interval_days, repetitions, wrong_count
+            FROM progress WHERE word_id = ?
+            """,
+            (word_id,),
+        ).fetchone()
+        if not row:
+            return None
+
+        card_s = row["fsrs_stability"]
+        if (card_s is None or card_s == 0.0) and (row["repetitions"] or 0) > 0:
+            return FSRSv5.from_sm2(
+                ease_factor=row["ease_factor"] or 2.5,
+                interval_days=row["interval_days"] or 0,
+                repetitions=row["repetitions"] or 0,
+                wrong_count=row["wrong_count"] or 0,
+                last_reviewed_str=row["last_reviewed"],
+            )
+
+        last_dt = None
+        if row["last_reviewed"]:
+            for fmt in ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                try:
+                    last_dt = datetime.datetime.strptime(row["last_reviewed"].strip(), fmt)
+                    break
+                except Exception:
+                    pass
+
+        due_dt = None
+        if row["next_review"]:
+            try:
+                due_dt = datetime.datetime.strptime(row["next_review"].strip(), "%Y-%m-%d")
+            except Exception:
+                pass
+
+        return FSRSCard(
+            stability=float(card_s or 0.0),
+            difficulty=float(row["fsrs_difficulty"] if row["fsrs_difficulty"] is not None else 5.0),
+            reps=int(row["fsrs_reps"] or 0),
+            lapses=int(row["fsrs_lapses"] or 0),
+            state=CardState(row["fsrs_state"]) if row["fsrs_state"] in (0, 1, 2, 3) else CardState.NEW,
+            last_review=last_dt,
+            due=due_dt,
+        )
+
+
+def get_fsrs_stats() -> dict:
+    """FSRS v5 bo'yicha global xotira tahlili va samaradorlik statistikasi."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT fsrs_stability, fsrs_difficulty, fsrs_reps, fsrs_lapses, fsrs_state, last_reviewed
+            FROM progress
+            WHERE fsrs_reps > 0 OR fsrs_stability > 0
+            """
+        ).fetchall()
+
+        if not rows:
+            return {
+                "total_learned": 0,
+                "avg_stability_days": 0.0,
+                "avg_difficulty": 5.0,
+                "avg_retention_pct": 100.0,
+                "relearning_count": 0,
+                "review_count": 0,
+            }
+
+        stabs = [r["fsrs_stability"] or 0.0 for r in rows if r["fsrs_stability"] and r["fsrs_stability"] > 0]
+        diffs = [r["fsrs_difficulty"] or 5.0 for r in rows if r["fsrs_difficulty"]]
+        relearn = sum(1 for r in rows if r["fsrs_state"] == 3)
+        review = sum(1 for r in rows if r["fsrs_state"] == 2)
+
+        scheduler = FSRSv5() if FSRSv5 else None
+        now = datetime.datetime.now()
+        retentions = []
+
+        if scheduler:
+            for r in rows:
+                if r["fsrs_stability"] and r["fsrs_stability"] > 0 and r["last_reviewed"]:
+                    last_dt = None
+                    for fmt in ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                        try:
+                            last_dt = datetime.datetime.strptime(r["last_reviewed"].strip(), fmt)
+                            break
+                        except Exception:
+                            pass
+                    if last_dt:
+                        card = FSRSCard(stability=r["fsrs_stability"], last_review=last_dt, state=CardState.REVIEW)
+                        ret = scheduler.get_retrievability(card, now)
+                        retentions.append(ret)
+
+        avg_s = sum(stabs) / len(stabs) if stabs else 0.0
+        avg_d = sum(diffs) / len(diffs) if diffs else 5.0
+        avg_r = (sum(retentions) / len(retentions) * 100.0) if retentions else 92.0
+
+        return {
+            "total_learned": len(rows),
+            "avg_stability_days": round(avg_s, 1),
+            "avg_difficulty": round(avg_d, 1),
+            "avg_retention_pct": round(avg_r, 1),
+            "relearning_count": relearn,
+            "review_count": review,
+        }
 
 
 def get_due_words(limit: int = 50) -> list[sqlite3.Row]:
