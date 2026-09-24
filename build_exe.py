@@ -136,12 +136,21 @@ def build():
     spec_path = root_dir / "VocabMaster.spec"
     dist_dir = root_dir / "dist"
     build_dir = root_dir / "build"
+    temp_dir = root_dir / ".build_temp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    # C: disk to'lib qolganida xatolik chiqmasligi uchun TEMP ni D: loyiha papkasiga yo'naltirish
+    os.environ["TEMP"] = str(temp_dir)
+    os.environ["TMP"] = str(temp_dir)
+    os.environ["PYINSTALLER_CONFIG_DIR"] = str(temp_dir / "pyinstaller")
 
     # 2. PyInstaller ishga tushirish
     cmd = [
         str(py_exe), "-m", "PyInstaller",
         "--noconfirm",
         "--clean",
+        "--workpath", str(build_dir),
+        "--distpath", str(dist_dir),
         str(spec_path)
     ]
 
@@ -207,6 +216,9 @@ def build():
     print("Bu papkani yoki ZIP faylni istalgan Windows kompyuterga yuborib,")
     print("to'g'ridan-to'g'ri hech narsa o'rnatmasdan ishlatish mumkin!")
     print("=" * 65)
+
+    # 6. Vaqtinchalik fayllarni tozalash
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
     return True
 
