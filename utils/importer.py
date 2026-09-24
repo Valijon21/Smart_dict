@@ -56,8 +56,11 @@ _LEADING_NUM_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Fonetik transkripsiyalarni aniqlash: [ə'bændən] yoki /ə'bændən/
-_TRANSCRIPTION_PATTERN = re.compile(r"(\[[^\]]+\]|/[^/]+/)")
+# Ko'rinmas va xalaqit beruvchi belgilar (Zero-Width Space, BOM va h.k.)
+_INVISIBLE_CHARS = re.compile(r"[\u200b-\u200f\ufeff\u202a-\u202e\xa0]")
+
+# Fonetik transkripsiyalarni aniqlash: [ə'bændən] yoki /ə'bændən/ (probellarsiz, chiziqchasiz)
+_TRANSCRIPTION_PATTERN = re.compile(r"(\[[^\]]+\]|/(?!\s)[^/\-–—:=|;\r\n\t]{1,35}(?<!\s)/)")
 
 # So'z turkumi belgilari: (v.), (n.), (adj.), (verb), (noun)
 _POS_PATTERN = re.compile(
@@ -83,11 +86,26 @@ _TITLE_PATTERN = re.compile(
 )
 
 
+def strip_enclosing(s: str) -> str:
+    """Faqat butun matnni o'rab turgan tashqi qavs/qo'shtirnoqlarni olib tashlaydi."""
+    s = s.strip()
+    for o, c in [('"', '"'), ("'", "'"), ('“', '”'), ('‘', '’'), ('[', ']'), ('(', ')')]:
+        if s.startswith(o) and s.endswith(c) and len(s) >= 2:
+            inner = s[1:-1].strip()
+            if o == '(' and inner.count('(') != inner.count(')'):
+                continue
+            s = inner
+    return s.strip()
+
+
 def clean_result(eng: str, uz: str, example: str = "", phonetic: str = "") -> tuple:
     """Inglizcha va o'zbekcha so'zlarni ortiqcha belgi va qo'shtirnoqlardan tozalaydi."""
-    eng = re.sub(r"^[\"'\(\[]+|[\"'\]\)]+$", "", eng).strip()
-    uz = re.sub(r"^[\"'\(\[]+|[\"'\]\)]+$", "", uz).strip()
-    # O'zbekcha tarjima boshidagi tasodifiy ajratuvchilarni tozalash
+    eng = _INVISIBLE_CHARS.sub("", eng).strip()
+    uz = _INVISIBLE_CHARS.sub("", uz).strip()
+    example = _INVISIBLE_CHARS.sub("", example).strip()
+
+    eng = strip_enclosing(eng)
+    uz = strip_enclosing(uz)
     uz = re.sub(r"^[-–—:=~|>]\s*", "", uz).strip()
 
     # O'zbekcha qism ichida misol gap bo'lsa (masalan: "olma — He ate an apple")
@@ -100,6 +118,12 @@ def clean_result(eng: str, uz: str, example: str = "", phonetic: str = "") -> tu
         uz = u_parts[0].strip()
         example = u_parts[1].strip()
 
+    # Qavslar balansi buzilgan bo'lsa to'g'rilash (masalan: "Think (have an opinion" -> "Think (have an opinion)")
+    if eng.count("(") > eng.count(")"):
+        eng += ")"
+    if uz.count("(") > uz.count(")"):
+        uz += ")"
+
     if example:
         return eng, uz, example
     return eng, uz
@@ -107,12 +131,16 @@ def clean_result(eng: str, uz: str, example: str = "", phonetic: str = "") -> tu
 
 def parse_line(raw_line: str) -> tuple | None:
     """Bitta qatordan (english, uzbek) yoki (english, uzbek, example) ni aqlli ajratadi."""
-    line = raw_line.strip()
+    line = _INVISIBLE_CHARS.sub("", raw_line).strip()
     if not line or line.startswith("#"):
         return None
 
     # Bo'lim sarlavhalarini o'tkazib yuborish (masalan: "Unit 1: Vocabulary")
     if _TITLE_PATTERN.match(line):
+        return None
+
+    # Raqamli sarlavhalar: masalan "2. Feelings & Emotions", "3. Possession & Relationship"
+    if re.match(r"^\d+[\.\)]\s*[A-Z][a-zA-Z\s&/]+\b$", line) and not any(d in line for d in ["-", "–", "—", ":", "=", "|", ";"]):
         return None
 
     # 1. Boshidagi raqamlash va markerlarni tozalash ("1. apple - olma" -> "apple - olma")
@@ -198,14 +226,14 @@ def parse_line(raw_line: str) -> tuple | None:
     # 10. Hech qanday belgisiz, faqat probel bilan ajratilgan so'zlar
     # Masalan: "apple olma", "book kitob", "give up taslim bo'lmoq"
     words = line.split()
-    if len(words) >= 2:
-        first_word = words[0].strip(".,;:?!")
-        if re.match(r"^[a-zA-Z\'-]+$", first_word):
+    if len(words) >= 2 and not re.search(r"[&/]", line):
+        w0 = words[0].strip(".,;:?!")
+        if re.match(r"^[a-zA-Z\'-]+$", w0) and w0.lower() not in ("sport", "vaqt", "kundalik"):
             if len(words) == 2:
                 return clean_result(words[0], words[1], example, phonetic)
             if len(words) >= 3:
-                second_word = words[1].strip(".,;:?!")
-                if re.match(r"^[a-zA-Z\'-]+$", second_word) and len(words) >= 4:
+                w1 = words[1].strip(".,;:?!")
+                if re.match(r"^[a-zA-Z\'-]+$", w1) and len(words) >= 4:
                     eng = f"{words[0]} {words[1]}"
                     uz = " ".join(words[2:])
                     return clean_result(eng, uz, example, phonetic)
@@ -393,7 +421,7 @@ def parse_docx(path: str | Path) -> list[tuple]:
                     seen.add(key)
                     pairs.append(parsed)
 
-    # 2. Paragraflarni o'qish
+    # 2. Paragraflarni o'qish (har bir paragraf ichidagi \n va \r qatorlarini ham ajratamiz)
     para_lines = []
     for p in doc.paragraphs:
         txt = p.text.strip()
@@ -402,13 +430,17 @@ def parse_docx(path: str | Path) -> list[tuple]:
         style_name = str(getattr(p.style, "name", "") or "").lower()
         if "heading" in style_name or "title" in style_name or "subtitle" in style_name:
             continue
-        para_lines.append(txt)
-        parsed = parse_line(txt)
-        if parsed:
-            key = parsed[0].lower()
-            if key not in seen:
-                seen.add(key)
-                pairs.append(parsed)
+        for raw_line in re.split(r"[\r\n]+", txt):
+            line = _INVISIBLE_CHARS.sub("", raw_line).strip()
+            if not line:
+                continue
+            para_lines.append(line)
+            parsed = parse_line(line)
+            if parsed:
+                key = parsed[0].lower()
+                if key not in seen:
+                    seen.add(key)
+                    pairs.append(parsed)
 
     # Agar jadvallar bo'lmasa va oddiy qatordan kam chiqsa, navbatma-navbat tekshiramiz
     if not pairs and para_lines:

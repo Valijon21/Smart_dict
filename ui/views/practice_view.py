@@ -15,7 +15,10 @@ import core.gamification as gamification
 import ui.theme_manager as theme_manager
 import core.phonetics as phonetics
 import services.global_dict_service as global_dict_service
-from ui.views.practice_helpers import prepare_cloze_data, prepare_scramble_chars
+from ui.views.practice_helpers import (
+    prepare_cloze_data, prepare_scramble_chars,
+    check_user_answer, get_best_match_target, extract_answer_options
+)
 try:
     from utils import text_search_utils
 except ImportError:
@@ -1583,9 +1586,8 @@ class PracticeWidget(QWidget):
 
         target_lang = "uzbek" if self.direction == "en_uz" else "english"
         expected = self.current[target_lang]
-        expected_options = [e.strip().lower() for e in expected.split(",")]
 
-        is_correct = chosen_answer.strip().lower() in expected_options
+        is_correct = check_user_answer(chosen_answer, expected)
         db.record_answer(self.current["id"], is_correct)
         self.phonetic_row_widget.setVisible(True)
         self._show_example()
@@ -1594,7 +1596,7 @@ class PracticeWidget(QWidget):
         for i, opt in enumerate(self.current_options):
             btn = self.choice_buttons[i]
             btn.setEnabled(False)
-            if opt.strip().lower() in expected_options:
+            if check_user_answer(opt, expected):
                 btn.setStyleSheet(self._choice_btn_style("correct"))
             elif i == chosen_idx and not is_correct:
                 btn.setStyleSheet(self._choice_btn_style("wrong"))
@@ -1645,21 +1647,22 @@ class PracticeWidget(QWidget):
         if self.quiz_mode == "scramble":
             user_answer = "".join([x["char"] for x in self.scramble_typed_chars]).strip().lower()
             expected_display = self.current["english"]
-            expected_options = [expected_display.strip().replace(" ", "").lower()]
+            is_correct = (user_answer == expected_display.strip().replace(" ", "").lower())
         elif self.quiz_mode == "cloze":
             user_answer = self.cloze_input.text().strip().lower()
             expected_display = self.cloze_data["target_token"] if hasattr(self, "cloze_data") and self.cloze_data else self.current["english"]
             expected_options = self.cloze_data["correct_tokens"] if hasattr(self, "cloze_data") and self.cloze_data else [self.current["english"].lower()]
+            is_correct = user_answer in expected_options or check_user_answer(user_answer, expected_display)
         elif self.quiz_mode == "listening":
-            user_answer = self.answer_input.text().strip().lower()
+            user_answer = self.answer_input.text().strip()
             expected_display = self.current["english"]
-            expected_options = [expected_display.strip().lower()]
+            is_correct = check_user_answer(user_answer, expected_display)
         else:
-            user_answer = self.answer_input.text().strip().lower()
+            user_answer = self.answer_input.text().strip()
             expected_display = (
                 self.current["uzbek"] if self.direction == "en_uz" else self.current["english"]
             )
-            expected_options = [e.strip().lower() for e in expected_display.split(",")]
+            is_correct = check_user_answer(user_answer, expected_display)
 
         if not user_answer:
             return
@@ -1672,7 +1675,6 @@ class PracticeWidget(QWidget):
             self.cloze_hint_btn.setEnabled(False)
         self.submit_btn.setEnabled(False)
 
-        is_correct = user_answer in expected_options
         db.record_answer(self.current["id"], is_correct)
         self.phonetic_row_widget.setVisible(True)
         if self.quiz_mode != "cloze":
@@ -1706,13 +1708,14 @@ class PracticeWidget(QWidget):
             self.badge_wrong.setText(f"❌ Xato: {self.session_wrong}")
 
             # Feature 1: Harfma-harf Visual Diff va Typo (imlo xatosi) hisoblash
-            diff_res = text_search_utils.compute_visual_diff(user_answer, expected_display)
+            target_for_diff = get_best_match_target(user_answer, expected_display)
+            diff_res = text_search_utils.compute_visual_diff(user_answer, target_for_diff)
             diff_badge = ""
             if diff_res["is_typo"]:
                 diff_badge = f"<div style='margin-top: 4px; color: #FBBF24; font-size: 13px; font-weight: 600;'>{diff_res['tip_message']}</div>"
 
             diff_comparison = ""
-            if len(user_answer) >= 2 and len(expected_display) >= 2:
+            if len(user_answer) >= 2 and len(target_for_diff) >= 2:
                 diff_comparison = (
                     f"<div style='margin-top: 4px; font-size: 14px; font-family: monospace;'>"
                     f"<span style='color: #94A3B8;'>Siz: </span>{diff_res['user_diff_html']}"

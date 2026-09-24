@@ -395,17 +395,27 @@ def _invalidate_cache():
             pass
 
 
+_INVISIBLE_CHARS = re.compile(r"[\u200b-\u200f\ufeff\u202a-\u202e\xa0]")
+
+
 def normalize(word: str) -> str:
-    return " ".join(word.strip().lower().split())
+    cleaned = _INVISIBLE_CHARS.sub("", str(word or "")).strip().lower()
+    cleaned = cleaned.replace("‘", "'").replace("’", "'").replace("`", "'")
+    return " ".join(cleaned.split())
 
 
 def add_word(english: str, uzbek: str, source: str = "manual", example: str = "") -> int | None:
     """Yangi so'z qo'shadi. Muvaffaqiyatli bo'lsa word_id, dublikat bo'lsa None qaytaradi."""
     english_n = normalize(english)
-    uzbek_n = uzbek.strip()
-    example_n = example.strip()
+    uzbek_n = _INVISIBLE_CHARS.sub("", str(uzbek or "")).strip()
+    example_n = _INVISIBLE_CHARS.sub("", str(example or "")).strip()
     if not english_n or not uzbek_n:
         return None
+
+    if uzbek_n.count("(") > uzbek_n.count(")"):
+        uzbek_n += ")"
+    if english_n.count("(") > english_n.count(")"):
+        english_n += ")"
 
     info = phonetics.get_word_info(english_n)
     phonetic_val = info["phonetic"]
@@ -473,8 +483,13 @@ def bulk_add_words(pairs: list[tuple], source: str = "import") -> dict:
             ex = item[2] if len(item) >= 3 else ""
 
             key = normalize(str(eng or ""))
-            uz_str = str(uz or "").strip()
-            ex_str = str(ex or "").strip()
+            uz_str = _INVISIBLE_CHARS.sub("", str(uz or "")).strip()
+            ex_str = _INVISIBLE_CHARS.sub("", str(ex or "")).strip()
+
+            if uz_str.count("(") > uz_str.count(")"):
+                uz_str += ")"
+            if key.count("(") > key.count(")"):
+                key += ")"
 
             if not key or not uz_str:
                 invalid += 1

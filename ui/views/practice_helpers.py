@@ -92,3 +92,104 @@ def prepare_scramble_chars(word: str) -> list[str]:
     if "".join(scrambled) == target.replace(" ", "") and len(scrambled) > 2:
         scrambled.reverse()
     return scrambled
+
+
+def normalize_answer_token(text: str) -> str:
+    """Apostroflar, ko'rinmas belgilar va ortiqcha bo'shliqlarni standartlashtirish."""
+    if not text:
+        return ""
+    # Ko'rinmas zero-width belgilarni tozalash
+    text = re.sub(r"[\u200b-\u200f\ufeff\u202a-\u202e\xa0]", "", text)
+    # Barcha turdagi apostroflarni bitta standart ' ga keltirish
+    text = re.sub(r"['‘’ʻʼ`´\?\ufffd]", "'", text)
+    # Ortiqcha bo'shliqlarni bittaga keltirish
+    text = re.sub(r"\s+", " ", text).strip().lower()
+    return text
+
+
+def extract_answer_options(raw_text: str) -> list[str]:
+    """
+    Kiritilgan javob yoki kutilayotgan so'zdan barcha mumkin bo'lgan to'g'ri variantlarni ajratib olish.
+    Qo'llab-quvvatlaydi:
+    - Vergul va nuqta-vergul bilan ajratilgan sinonimlar: 'eslamoq, yodlamoq'
+    - Slesh (/) bilan ajratilgan muqobillar: 'Seem / Appear', 'eslamoq / yodda tutmoq'
+    - Qavs ichidagi izohlar: 'Think (have an opinion)' -> 'think', 'think (have an opinion)'
+    - 'to' yuklamasi bilan boshlanuvchi fe'llar: 'to think' -> 'think'
+    - Har xil turdagi apostroflarni birlashtirish
+    """
+    if not raw_text:
+        return []
+
+    cleaned_raw = re.sub(r"[\u200b-\u200f\ufeff\u202a-\u202e\xa0]", "", raw_text).strip()
+    parts = [p.strip() for p in re.split(r"[,;]+", cleaned_raw) if p.strip()]
+    all_options: set[str] = set()
+
+    for part in parts:
+        subparts = [sp.strip() for sp in part.split("/") if sp.strip()]
+        norm_part = normalize_answer_token(part)
+        if norm_part:
+            all_options.add(norm_part)
+            no_paren = re.sub(r"\(.*?\)", "", norm_part).strip()
+            no_paren = re.sub(r"\s+", " ", no_paren)
+            if no_paren:
+                all_options.add(no_paren)
+                if no_paren.startswith("to "):
+                    all_options.add(no_paren[3:].strip())
+            if norm_part.startswith("to "):
+                all_options.add(norm_part[3:].strip())
+
+        for sub in subparts:
+            norm_sub = normalize_answer_token(sub)
+            if norm_sub:
+                all_options.add(norm_sub)
+                no_paren_sub = re.sub(r"\(.*?\)", "", norm_sub).strip()
+                no_paren_sub = re.sub(r"\s+", " ", no_paren_sub)
+                if no_paren_sub:
+                    all_options.add(no_paren_sub)
+                    if no_paren_sub.startswith("to "):
+                        all_options.add(no_paren_sub[3:].strip())
+                if norm_sub.startswith("to "):
+                    all_options.add(norm_sub[3:].strip())
+
+    return [opt for opt in all_options if opt]
+
+
+def check_user_answer(user_input: str, expected_text: str) -> bool:
+    """Foydalanuvchi javobini barcha variantlar (sinonimlar, qavslar, apostroflar) bo'yicha tekshirish."""
+    user_norm = normalize_answer_token(user_input)
+    if not user_norm:
+        return False
+
+    valid_options = extract_answer_options(expected_text)
+    if user_norm in valid_options:
+        return True
+
+    # Agar foydalanuvchi 'to think' deb yozgan bo'lsa, 'think' kutilgan bo'lsa
+    if user_norm.startswith("to ") and user_norm[3:].strip() in valid_options:
+        return True
+
+    # Kutilgan variantlar ichida 'to ...' bo'lsa yoki apostrofsiz yozilgan bo'lsa
+    user_no_apostrophe = user_norm.replace("'", "")
+    for opt in valid_options:
+        if opt.startswith("to ") and opt[3:].strip() == user_norm:
+            return True
+        if opt.replace("'", "") == user_no_apostrophe:
+            return True
+
+    return False
+
+
+def get_best_match_target(user_input: str, expected_display: str) -> str:
+    """Typo (visual diff) uchun kutilgan so'zning foydalanuvchi javobiga eng yaqin qismini topish."""
+    import difflib
+    options = extract_answer_options(expected_display)
+    if not options:
+        return expected_display
+    u_norm = normalize_answer_token(user_input)
+    # Eng yuqori o'xshashlikka ega bo'lgan variantni tanlash
+    best = max(
+        options,
+        key=lambda opt: (difflib.SequenceMatcher(None, u_norm, opt).ratio(), -abs(len(opt) - len(u_norm)))
+    )
+    return best
+
