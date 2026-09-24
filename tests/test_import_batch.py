@@ -12,7 +12,6 @@ from ui.games.match_game import MatchGameWidget
 from ui.games.blitz_game import BlitzGameWidget
 from ui.games.word_fall_game import WordFallGameWidget
 from ui.games.crossword_game import CrosswordGameWidget
-from ui.views.speaking_view import SpeakingWidget
 from ui.main_window import MainWindow
 
 
@@ -130,21 +129,15 @@ def test_game_word_provider_imported_source(temp_import_db):
     assert "fire" in eng_words
 
 
-def test_custom_words_in_games_and_speaking(app_instance, temp_import_db):
-    """O'yinlar va Speaking vidjetlarida set_custom_words ishlashini tekshirish."""
+def test_custom_words_in_games(app_instance, temp_import_db):
+    """O'yinlar vidjetlarida set_custom_words ishlashini tekshirish."""
     id1 = db.add_word("tree", "daraxt")
     id2 = db.add_word("flower", "gul")
     id3 = db.add_word("forest", "o'rmon")
     id4 = db.add_word("leaf", "barg")
     ids = [id1, id2, id3, id4]
 
-    # 1. SpeakingWidget
-    sp_widget = SpeakingWidget()
-    sp_widget.set_custom_words(ids)
-    assert len(sp_widget.words_list) == 4
-    assert sp_widget.words_list[0]["english"] == "tree"
-
-    # 2. MatchGameWidget
+    # 1. MatchGameWidget
     match_game = MatchGameWidget()
     match_game.set_custom_words(ids)
     assert hasattr(match_game, "_custom_words")
@@ -187,10 +180,6 @@ def test_main_window_custom_practice_dispatch(app_instance, temp_import_db):
     win.start_custom_practice(ids, "flashcard")
     assert win.current_page_key == "en_uz"
     assert win.get_or_create_page("en_uz").quiz_mode == "flashcard"
-
-    # Speaking
-    win.start_custom_practice(ids, "speaking")
-    assert win.current_page_key == "speaking"
 
     # Match Game
     win.start_custom_practice(ids, "match")

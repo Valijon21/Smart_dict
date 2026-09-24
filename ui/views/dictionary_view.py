@@ -697,7 +697,6 @@ class DictionaryWidget(QWidget):
         self.practice_menu.addAction("🇬🇧→🇺🇿 EN → UZ Test", lambda: self._launch_practice_for_current_words("en_uz"))
         self.practice_menu.addAction("🇺🇿→🇬🇧 UZ → EN Test", lambda: self._launch_practice_for_current_words("uz_en"))
         self.practice_menu.addAction("🎴 Flashcard (Anki uslubi)", lambda: self._launch_practice_for_current_words("flashcard"))
-        self.practice_menu.addAction("🎙️ Speaking Trenajyori", lambda: self._launch_practice_for_current_words("speaking"))
         self.practice_btn.setMenu(self.practice_menu)
         top_row.addWidget(self.practice_btn)
 
@@ -1296,11 +1295,6 @@ class DictionaryWidget(QWidget):
         btn_flash.clicked.connect(lambda: self._launch_practice_for_current_words("flashcard"))
         self.import_banner_layout.addWidget(btn_flash)
 
-        btn_speak = QPushButton("🎙️ Speaking")
-        btn_speak.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_speak.setStyleSheet("background-color: #E11D48; color: white; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
-        btn_speak.clicked.connect(lambda: self._launch_practice_for_current_words("speaking"))
-        self.import_banner_layout.addWidget(btn_speak)
 
         btn_match = QPushButton("🎮 Juftlash")
         btn_match.setCursor(Qt.CursorShape.PointingHandCursor)

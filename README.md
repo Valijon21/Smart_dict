@@ -168,7 +168,7 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 
 ---
 
-### v3.5 — 2026-09-24 🧠 FSRS v5 Algoritmi, 🎙️ Speaking Trenajyori & ⚡ Noto'g'ri Fe'llar Moduli
+### v3.5 — 2026-09-24 🧠 FSRS v5 Algoritmi & ⚡ Noto'g'ri Fe'llar Moduli
 
 #### 🧠 Anki 24 FSRS v5 (Free Spaced Repetition Scheduler) Integratsiyasi
 - Eski SuperMemo SM-2 o'rniga eng so'nggi FSRS-5 algoritmi joriy etildi (`core/fsrs.py`);
@@ -176,14 +176,6 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 - Har bir so'z uchun mustaqil Barqarorlik ($S$, kunlarda), Qiyinlik ($D$, 1-10), Reps va Lapses parametrlari;
 - So'zlarni 30-40% kamroq takrorlab, 90%+ xotirada saqlash darajasiga erishish;
 - `migrate_sm2_to_fsrs_if_needed`: mavjud foydalanuvchilarning oldingi SM-2 natijalari avtomatik ravishda FSRS ga o'tkaziladi (nol ma'lumot yo'qotilishi).
-
-#### 🎙️ Yangi Asosiy Bo'lim: Speaking & Talaffuz Trenajyori
-- Chap asosiy menyuga yangi `🎙️ Speaking Trenajyori` sahifasi qo'shildi (`ui/views/speaking_view.py`);
-- 4 xil manba (barcha so'zlar, qiyin so'zlar, noto'g'ri fe'llar, yangi so'zlar);
-- Dual-speed TTS: 1.0x normal (`R`) va 0.75x sekin (`S`) namunaviy audio;
-- 4 soniyalik jonli mikrofon yozuvi, vizual taymer va progress bar;
-- Windows System.Speech va WAV akustik tahlili orqali 0-100% ballik baholash;
-- `P` tugmasi bilan o'z ovozini darhol qayta eshitish va namunaga solishtirish.
 
 #### ⚡ Noto'g'ri Fe'llar (Irregular Verbs) To'liq Bo'limi
 - Chap asosiy menyuda "Lug'at" ostiga `⚡ Noto'g'ri fe'llar` bo'limi qo'shildi (`ui/views/irregular_verbs_view.py`);
@@ -382,7 +374,6 @@ Smart_dict/
 │   │   ├── dictionary_view.py    # Lug'at jadvali, 60 FPS delegat va qidiruv
 │   │   ├── practice_view.py      # 6 xil mashq trenajyori
 │   │   ├── irregular_verbs_view.py # ⚡ Noto'g'ri fe'llar (6 ta rejimli modul)
-│   │   ├── speaking_view.py      # 🎙️ Speaking & Talaffuz trenajyori
 │   │   ├── audio_player_view.py  # Hands-Free audio pleyer
 │   │   ├── reader_view.py        # Aqlli kitob o'quvchi
 │   │   ├── topic_words_view.py   # Mavzuli so'zlar bo'limi
@@ -409,9 +400,8 @@ Smart_dict/
 │   ├── reader_data.py            # Badiiy matnlar namunalari
 │   └── single_instance.py        # IPC QLocalServer yagona instansiya boshqaruvi
 │
-├── tests/                        # 🧪 Avtomatlashtirilgan testlar to'plami (172 ta test)
+├── tests/                        # 🧪 Avtomatlashtirilgan testlar to'plami
 │   ├── test_fsrs.py              # FSRS-5 algoritmi va xotira regressiya testlari
-│   ├── test_speaking_view.py     # SpeakingWidget navigatsiya va baholash testlari
 │   ├── test_irregular_verbs.py   # Noto'g'ri fe'llar bazasi va o'yinlar testlari
 │   ├── test_database.py          # Baza, migratsiyalar va SQL xavfsizlik testlari
 │   └── ...                       # Boshqa modul va servis testlari
