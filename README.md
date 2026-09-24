@@ -5,13 +5,16 @@
 ![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![PyQt6 / PySide6](https://img.shields.io/badge/GUI-PyQt6%20%2F%20PySide6-41CD52?style=for-the-badge&logo=qt&logoColor=white)
 ![SQLite3](https://img.shields.io/badge/Database-SQLite%20WAL-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![FSRS-5](https://img.shields.io/badge/FSRS-v5%20Spaced%20Repetition-7C3AED?style=for-the-badge)
+![Speech](https://img.shields.io/badge/Speech-Recognition%20&%20Evaluation-059669?style=for-the-badge)
+![Irregular Verbs](https://img.shields.io/badge/Verbs-115%20Irregular%20Verbs-E11D48?style=for-the-badge)
 ![TTS Engine](https://img.shields.io/badge/TTS-Offline%20SAPI5-FF6F00?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20Desktop-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
-**Ingliz va O'zbek tillari uchun professional, 100% oflayn intellektual lug'at, Spaced Repetition (SM-2) trenajyori va audio o'rganish platformasi.**
+**Ingliz va O'zbek tillari uchun professional, 100% oflayn intellektual lug'at, FSRS v5 (Anki 24+) xotira algoritmi, Speaking talaffuz trenajyori va audio o'rganish platformasi.**
 
-*A commercial-grade, fully offline desktop English-Uzbek vocabulary mastery suite powered by SuperMemo SM-2, Leitner 5-Box progression, and native speech synthesis.*
+*A commercial-grade, fully offline desktop English-Uzbek vocabulary mastery suite powered by Anki 24 FSRS v5, SuperMemo SM-2, Leitner 5-Box progression, offline speech recognition, and native audio synthesis.*
 
 [Imkoniyatlar](#-imkoniyatlar-key-features) • [Yangilanishlar](#-songgi-yangilanishlar--ozgarishlar-latest-updates--changelog) • [O'rnatish](#-ornatish-va-ishga-tushirish-quickstart) • [Loyiha Strukturasi](#-loyiha-strukturasi-architecture) • [EXE Yaratish](#-standalone-exe-yaratish) • [Muallif](#-muallif-va-litsenziya)
 
@@ -21,9 +24,9 @@
 
 ## 📖 Loyiha Haqida (Overview)
 
-**SmartDict (Vocab Master Pro)** — ingliz tilini mustaqil, tizimli va ilmiy asoslangan usullar bilan o'rganuvchilar uchun yaratilgan zamonaviy Windows desktop ilovasi. 
+**SmartDict (Vocab Master Pro)** — ingliz tilini mustaqil, tizimli va ilmiy asoslangan zamonaviy usullar bilan o'rganuvchilar uchun yaratilgan professional Windows desktop ilovasi. 
 
-Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat saqlash uchun **SuperMemo SM-2** va **Leitner 5-quti** algoritmlaridan foydalanadi, o'yinlashtirilgan interaktiv mashqlar, fon rejimida eshitib yodlash uchun **Hands-Free Audio Pleyer**, chop etiladigan vedomostlar (**Printable Worksheets**) va ko'zni charchatmaydigan 6 xil zamonaviy dizayn mavzulariga ega.
+Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat saqlash uchun eng so'nggi **FSRS v5 (Free Spaced Repetition Scheduler)** va **Leitner 5-quti** algoritmlaridan foydalanadi, mikrofondan talaffuzni aniq baholovchi **Speaking Trenajyori**, 6 xil mashq rejimiga ega **115 ta Noto'g'ri Fe'llar (Irregular Verbs)** moduli, fon rejimida eshitib yodlash uchun **Hands-Free Audio Pleyer**, chop etiladigan vedomostlar (**Printable Worksheets**) va ko'zni charchatmaydigan 8 xil zamonaviy dizayn mavzulariga ega.
 
 ---
 
@@ -35,8 +38,9 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 - **Filtrlar va Rejimlar:** Barcha so'zlar, Bugun takrorlanadigan (SM-2), Zaif so'zlar yoki yangi o'rganilayotganlar bo'yicha saralash.
 - **Tugmalar:** Keyingi/Oldingi (0ms kechikish bilan ekranda aks etish), Tasodifiy (Shuffle), Takrorlash (Loop) va animatsion Audio Vizualizator.
 
-### 2. 🧠 Ilmiy Xotira Algoritmlari (Spaced Repetition & Leitner)
-- **SuperMemo SM-2 Algoritmi:** Har bir so'zning eslab qolish qiyinlik koeffitsiyenti (*Ease Factor*), takrorlashlar soni va navbatdagi takrorlash sanasini aniq hisoblaydi.
+### 2. 🧠 Ilmiy Xotira Algoritmlari (FSRS v5 & SM-2 & Leitner)
+- **Anki 24+ FSRS v5 Algoritmi:** Zamonaviy *Free Spaced Repetition Scheduler*. Inson xotirasining Ebbinghaus egri chizig'i $R = (1 + \text{FACTOR} \cdot t / S)^{-\text{DECAY}}$ formulasi asosida har bir so'z uchun mustaqil Barqarorlik ($S$, kunlarda) va Qiyinlik ($D$, 1-10) parametrlarini yuritadi. So'zlarni 30-40% kamroq takrorlab 90%+ eslab qolish darajasini kafolatlaydi.
+- **Silliq Migratsiya (Zero Data Loss):** Baza ishga tushganda eski SuperMemo SM-2 ma'lumotlari (`ease_factor`, `interval_days`, `repetitions`) avtomatik tarzda FSRS parametrlariga o'tkaziladi.
 - **5 Qutili Leitner Tizimi:** So'zlar qutilar (Box 1 → Box 5) bo'ylab harakatlanadi; to'g'ri javob oldinga siljitadi, xato javob esa 1-qutiga qaytaradi.
 - **Zaif So'zlar Banki (Error Quarantine):** Foydalanuvchi eng ko'p xato qilgan so'zlar avtomatik karantin ro'yxatiga olinadi.
 
@@ -98,9 +102,12 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 - So'zlarni audio (.wav) faylga yozib olib, telefon yoki pleyeringizda yo'lda, sportda va internetsiz quloqchin orqali tinglang.
 - Oraliq pauzani (1.0s dan 8.0s gacha), o'zbekcha tarjimani va misol gaplarni qo'shish imkoniyati.
 
-### 12. 🎙️ Windows Native Talaffuzni Sinash va Baholash
-- 100% oflayn rejimda Windows System.Speech va Windows audio vositalari orqali mikrofondan talaffuzni yozib olish va baholash.
-- To'g'ri TTS talaffuzi namunasi bilan o'z ovozingizni yonma-yon tinglab solishtirish.
+### 12. 🎙️ Speaking & Talaffuz Trenajyori (Mustaqil Asosiy Bo'lim)
+- **Asosiy Chap Menyuda Mustaqil Trenajyor:** Foydalanuvchi to'g'ridan-to'g'ri yon panel orqali Speaking bo'limiga kirib talaffuzini mashq qiladi.
+- **4 Xil So'z Manbai:** Shaxsiy lug'at, xatosi ko'p so'zlar, 115 ta noto'g'ri fe'llar va yangi so'zlar to'plami.
+- **Dual-Speed TTS:** 1.0x normal tezlik (`R`) va 0.75x sekinlashtirilgan namuna (`S`) orqali urg'u va fonetikani aniq eshitish.
+- **Ovoz Yozish & Darhol Qayta Tinglash:** 4 soniyalik jonli taymer, mikrofon yozuvi va `P` tugmasi orqali o'z ovozini darhol tinglab, namunaga solishtirish.
+- **Windows Speech & Oflayn Akustik Baholash:** 0–100% aniqlik bali (A'lo, Yaxshi, Qayta sinash) va real vaqt tavsiyalari.
 
 ### 13. 🔍 Universal Spotlight & Levenshtein Fuzzy Qidiruv (`Alt + Space`)
 - **⚡ Imlo Xatolariga Chidamli (Universal Fuzzy Search):** Ham shaxsiy lug'atda, ham 64,000+ so'zlik Global akademik bazada foydalanuvchi so'zni xato yozsa ham (`wunderful` → `wonderful`, `beutiful` → `beautiful`, `accomodate` → `accommodate`), Levenshtein tahrir masofasi orqali eng yaqin so'zlar ~25-30ms da topiladi.
@@ -116,9 +123,47 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 ### 15. 🛡️ Mahalliy Data Vault (Formatdan Himoyalangan Avto-Zaxira)
 - Windows tizimi qayta o'rnatilganda (format qilinganda) foydalanuvchining oylar davomida yig'gan lug'ati va statistikasi yo'qolib ketmasligi uchun dastur yonidagi `backups/` papkasida 100% lokal xavfsiz avtomatik zaxira nusxalari yuritiladi. Hech qanday tashqi serverlarga ma'lumot yuborilmaydi.
 
+### 16. ⚡ Noto'g'ri Fe'llar Moduli (Irregular Verbs Mastery - 115 ta Fe'l)
+- **Asosiy Menyudagi Maxsus Bo'lim:** Ingliz tilidagi 115 ta eng muhim noto'g'ri fe'llarning barcha 3 ta shakli (V1, V2, V3) va o'zbekcha tarjimalari.
+- **6 ta Interaktiv O'quv Rejimi:**
+  1. *Jadval & Audio:* Barcha shakllarni alohida yoki ketma-ket tinglash, saralash, sevimlilarga qo'shish va CRUD tahrirlash.
+  2. *3-shakl Viktorinasi (Quiz):* Tasodifiy berilgan V1/V2/V3 shakli bo'yicha qolgan shakllarini 4 variantdan topish.
+  3. *Yozma Sinov (Typing):* Fe'l shakllarini klaviaturada terish orqali orfografiyani mukammallashtirish.
+  4. *Aylanuvchi Flashcardlar (3D Flip):* Old tomonida V1 shakli va audio, orqa tomonida V2, V3, tarjima va misol gaplar.
+  5. *So'z Juftlash O'yini (Match Game):* V1 va V2/V3 shakllari yoki tarjimalarini topish.
+  6. *Harflardan Yig'ish (Letter Scramble):* Chalkash harflardan to'g'ri fe'lni terish.
+
 ---
 
 ## 🆕 So'nggi Yangilanishlar & O'zgarishlar (Latest Updates & Changelog)
+
+### v3.5 — 2026-09-24 🧠 FSRS v5 Algoritmi, 🎙️ Speaking Trenajyori & ⚡ Noto'g'ri Fe'llar Moduli
+
+#### 🧠 Anki 24 FSRS v5 (Free Spaced Repetition Scheduler) Integratsiyasi
+- Eski SuperMemo SM-2 o'rniga eng so'nggi FSRS-5 algoritmi joriy etildi (`core/fsrs.py`);
+- Ebbinghaus retrievability formulasi $R = (1 + \text{FACTOR} \cdot t / S)^{-\text{DECAY}}$ bo'yicha aniq xotira hisob-kitobi;
+- Har bir so'z uchun mustaqil Barqarorlik ($S$, kunlarda), Qiyinlik ($D$, 1-10), Reps va Lapses parametrlari;
+- So'zlarni 30-40% kamroq takrorlab, 90%+ xotirada saqlash darajasiga erishish;
+- `migrate_sm2_to_fsrs_if_needed`: mavjud foydalanuvchilarning oldingi SM-2 natijalari avtomatik ravishda FSRS ga o'tkaziladi (nol ma'lumot yo'qotilishi).
+
+#### 🎙️ Yangi Asosiy Bo'lim: Speaking & Talaffuz Trenajyori
+- Chap asosiy menyuga yangi `🎙️ Speaking Trenajyori` sahifasi qo'shildi (`ui/views/speaking_view.py`);
+- 4 xil manba (barcha so'zlar, qiyin so'zlar, noto'g'ri fe'llar, yangi so'zlar);
+- Dual-speed TTS: 1.0x normal (`R`) va 0.75x sekin (`S`) namunaviy audio;
+- 4 soniyalik jonli mikrofon yozuvi, vizual taymer va progress bar;
+- Windows System.Speech va WAV akustik tahlili orqali 0-100% ballik baholash;
+- `P` tugmasi bilan o'z ovozini darhol qayta eshitish va namunaga solishtirish.
+
+#### ⚡ Noto'g'ri Fe'llar (Irregular Verbs) To'liq Bo'limi
+- Chap asosiy menyuda "Lug'at" ostiga `⚡ Noto'g'ri fe'llar` bo'limi qo'shildi (`ui/views/irregular_verbs_view.py`);
+- 115 ta noto'g'ri fe'llar bazasi (`assets/irregular_verbs.json` va SQLite `irregular_verbs` jadvali);
+- 6 ta interaktiv rejim: Jadval & Audio, Quiz, Typing, Aylanuvchi Flashcardlar, Juftlash va Harf terish o'yinlari;
+- Chiroyli scoped CSS dizayn, label border-bleed xatolaridan to'liq xoli.
+
+#### 🧪 172 ta Avtomatlashtirilgan Testlar (100% Yashil)
+- Loyiha bo'yicha barcha 172 ta test 100% muvaffaqiyatli o'tdi (`172 passed in 9.40s`).
+
+---
 
 ### v3.0 — 2026-09-14 🎯 Senior-Level Mashq Trenajyori & Universal Fuzzy Qidiruv
 
@@ -239,7 +284,9 @@ Ilova internetga ulanmasdan (**100% Offline**) ishlaydi, xotirada uzoq muddat sa
 |---|---|
 | **Dasturlash Tili** | Python 3.10+ / 3.11+ |
 | **Foydalanuvchi Interfeysi (GUI)** | PyQt6 / PySide6 |
+| **Xotira Algoritmi** | Anki 24 FSRS v5 + SuperMemo SM-2 + Leitner 5-Box |
 | **Ma'lumotlar Bazasi** | SQLite 3 (WAL rejimi, ACID, Tranzaksiyalar) |
+| **Nutqni Tanish (STT)** | Windows System.Speech + WAV Akustik Tahlil (100% oflayn) |
 | **Audio Talaffuz (TTS)** | Windows SAPI5 (win32com) + pyttsx3 + System.Speech |
 | **Ovoz Effektlari** | NumPy + Pygame / Wave sintez (100% oflayn SFX) |
 | **Distribyutsiya / Packaging** | PyInstaller (Standalone EXE) |
@@ -279,15 +326,17 @@ python main.py
 ```text
 Smart_dict/
 ├── core/                         # 🧠 Biznes-mantiq va ma'lumotlar bazasi
-│   ├── database.py               # SQLite WAL ulanishi, SM-2 va xavfsiz avto-zaxira
+│   ├── database.py               # SQLite WAL ulanishi, FSRS/SM-2 va avto-zaxira
+│   ├── fsrs.py                   # Anki 24 FSRS v5 xotira va takrorlash dvigateli
 │   ├── gamification.py           # XP tizimi, darajalar, streaklar va yutuqlar
 │   ├── retention_analytics.py    # Xotira egri chizig'i va takrorlash analitikasi
 │   ├── phonetics.py              # IPA transkripsiya va fonetik tahlil dvigateli
 │   └── word_packs.py             # Saralangan mavzuli to'plamlar bazasi
 │
 ├── services/                     # ⚙️ Tashqi tizimlar, Audio, Nutq va Servislar
-│   ├── tts_service.py            # SAPI5 & pyttsx3 oflayn nutq sintezi
-│   ├── speech_service.py         # Mikrofondan talaffuzni yozish va baholash
+│   ├── tts_service.py            # SAPI5 & pyttsx3 oflayn nutq sintezi (1.0x & 0.75x)
+│   ├── speech_service.py         # Windows Speech & WAV mikrofondan baholash
+│   ├── irregular_verbs_service.py# Noto'g'ri fe'llar test, quiz va o'yin generatorlari
 │   ├── sound_effects.py          # Oflayn sintetik audio effektlar (Wave SFX)
 │   ├── cefr_service.py           # CEFR (A1-C2) & IELTS 64,000+ so'zlik qidiruv xizmati
 │   ├── topic_service.py          # Mavzuli kategoriyalar xizmati
@@ -295,12 +344,14 @@ Smart_dict/
 │   └── global_dict_service.py    # Katta lug'at qidiruv xizmati
 │
 ├── ui/                           # 🎨 Foydalanuvchi Interfeysi (PyQt6)
-│   ├── main_window.py            # Asosiy oyna qobig'i, sidebar, tray
+│   ├── main_window.py            # Asosiy oyna qobig'i, sidebar, lazy factory, tray
 │   ├── theme_manager.py          # 8 xil rang mavzulari va dinamik CSS
 │   ├── views/                    # Asosiy to'liq ekranli sahifalar
 │   │   ├── dashboard_view.py     # Analitika va faollik taqvimi (Heatmap)
 │   │   ├── dictionary_view.py    # Lug'at jadvali, 60 FPS delegat va qidiruv
 │   │   ├── practice_view.py      # 6 xil mashq trenajyori
+│   │   ├── irregular_verbs_view.py # ⚡ Noto'g'ri fe'llar (6 ta rejimli modul)
+│   │   ├── speaking_view.py      # 🎙️ Speaking & Talaffuz trenajyori
 │   │   ├── audio_player_view.py  # Hands-Free audio pleyer
 │   │   ├── reader_view.py        # Aqlli kitob o'quvchi
 │   │   ├── topic_words_view.py   # Mavzuli so'zlar bo'limi
@@ -327,12 +378,14 @@ Smart_dict/
 │   ├── reader_data.py            # Badiiy matnlar namunalari
 │   └── single_instance.py        # IPC QLocalServer yagona instansiya boshqaruvi
 │
-├── tests/                        # 🧪 Avtomatlashtirilgan testlar to'plami (145 ta test)
-│   ├── test_advanced_features.py # v3.0 Levenshtein, Visual Diff va trenajyor testlari
-│   ├── test_core.py              # SM-2, ma'lumotlar bazasi va xavfsizlik testlari
+├── tests/                        # 🧪 Avtomatlashtirilgan testlar to'plami (172 ta test)
+│   ├── test_fsrs.py              # FSRS-5 algoritmi va xotira regressiya testlari
+│   ├── test_speaking_view.py     # SpeakingWidget navigatsiya va baholash testlari
+│   ├── test_irregular_verbs.py   # Noto'g'ri fe'llar bazasi va o'yinlar testlari
+│   ├── test_database.py          # Baza, migratsiyalar va SQL xavfsizlik testlari
 │   └── ...                       # Boshqa modul va servis testlari
 │
-├── assets/                       # Rasmlar, piktogrammalar va tovushlar
+├── assets/                       # Rasmlar, piktogrammalar va irregular_verbs.json
 ├── backups/                      # Avtomatik zaxira nusxalari
 ├── logs/                         # Dastur ishlash loglari
 ├── main.py                       # Toza kirish nuqtasi va ishga tushirish
@@ -344,12 +397,12 @@ Smart_dict/
 
 ## 🧪 Avtomatlashtirilgan Testlar (Quality Assurance)
 
-Loyiha barqarorligi va regressiya xatolarining oldini olish uchun 145 ta avtomatik pytest testlari bilan ta'minlangan:
+Loyiha barqarorligi va regressiya xatolarining oldini olish uchun 172 ta avtomatik pytest testlari bilan ta'minlangan:
 
 ```powershell
 python -m pytest tests -v
 ```
-Barcha 145 ta test 100% muvaffaqiyatli o'tadi (`145 passed`).
+Barcha 172 ta test 100% muvaffaqiyatli o'tadi (`172 passed in 9.40s`).
 
 ---
 
@@ -369,8 +422,11 @@ Yig'ish yakunlangach, tayyor `SmartDict.exe` fayli `dist/` papkasida paydo bo'la
 | Tugmalar | Vazifasi |
 |---|---|
 | `Ctrl + F` / `Alt + Space` | 🔍 Aqlli universal qidiruv paneli (Spotlight Search, Typo-tolerant) |
-| `Space` | Mashqda to'g'ri talaffuzni qayta tinglash / Flashcard ag'darish / Pleyerda Play-Pause |
+| `Space` | Mashqda talaffuzni qayta tinglash / Flashcard ag'darish / Pleyerda Play-Pause / Speakingda yozish |
 | `Enter` | 1-Enter: Javobni tekshirish / 2-Enter: Xatoni o'rgangach keyingi so'zga o'tish |
+| `R` | Speaking trenajyorida to'g'ri talaffuz namunasini tinglash |
+| `S` | Speaking trenajyorida sekinlashtirilgan (0.75x) namunani tinglash |
+| `P` | Speaking trenajyorida o'z ovozini darhol qayta eshitish |
 | `Ctrl + Shift + A` | Tezkor so'z qo'shish (Quick Capture) |
 | `1, 2, 3, 4` | 4 Variantli test rejimida variantni tanlash |
 | `Esc` | Modal oynalarni yopish |
