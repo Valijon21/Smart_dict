@@ -140,11 +140,12 @@ def _ensure_dir():
 @contextmanager
 def get_conn():
     _ensure_dir()
-    conn = sqlite3.connect(str(DB_PATH), timeout=15.0)
+    conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA busy_timeout = 30000")
     try:
         yield conn
         conn.commit()
@@ -291,8 +292,11 @@ def init_db():
         # Mavjud so'zlarga bo'sh bo'lgan IPA va POS qiymatlarini faqat birinchi startda to'ldirish (Tezkor yuklanish)
         bf_row = conn.execute("SELECT value FROM settings WHERE key='phonetics_backfilled_v1'").fetchone()
         if not bf_row or bf_row["value"] != "true":
-            backfill_phonetics()
-            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('phonetics_backfilled_v1', 'true')")
+            try:
+                backfill_phonetics(conn)
+                conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('phonetics_backfilled_v1', 'true')")
+            except Exception as bf_err:
+                logger.warning(f"Fonetikani to'ldirishda ogohlantirish: {bf_err}")
 
 
 def migrate_sm2_to_fsrs_if_needed(conn: sqlite3.Connection) -> int:
@@ -349,23 +353,29 @@ def migrate_sm2_to_fsrs_if_needed(conn: sqlite3.Connection) -> int:
         return 0
 
 
-def backfill_phonetics() -> int:
+def backfill_phonetics(conn: sqlite3.Connection | None = None) -> int:
     """Mavjud bazadagi so'zlarga bo'sh bo'lgan fonetik va POS qiymatlarini avtomatik to'ldirish."""
-    with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT id, english FROM words WHERE phonetic IS NULL OR phonetic = ''"
-        ).fetchall()
-        if not rows:
-            return 0
-        updates = []
-        for r in rows:
-            info = phonetics.get_word_info(r["english"])
-            updates.append((info["phonetic"], info["part_of_speech"], r["id"]))
-        conn.executemany(
-            "UPDATE words SET phonetic = ?, part_of_speech = ? WHERE id = ?",
-            updates,
-        )
-        updated = len(updates)
+    if conn is not None:
+        return _do_backfill_phonetics(conn)
+    with get_conn() as c:
+        return _do_backfill_phonetics(c)
+
+
+def _do_backfill_phonetics(conn: sqlite3.Connection) -> int:
+    rows = conn.execute(
+        "SELECT id, english FROM words WHERE phonetic IS NULL OR phonetic = ''"
+    ).fetchall()
+    if not rows:
+        return 0
+    updates = []
+    for r in rows:
+        info = phonetics.get_word_info(r["english"])
+        updates.append((info["phonetic"], info["part_of_speech"], r["id"]))
+    conn.executemany(
+        "UPDATE words SET phonetic = ?, part_of_speech = ? WHERE id = ?",
+        updates,
+    )
+    updated = len(updates)
     if updated > 0:
         logger.info(f"{updated} ta so'zga IPA transkripsiya va so'z turkumlari muvaffaqiyatli kiritildi.")
     return updated
