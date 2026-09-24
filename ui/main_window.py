@@ -15,6 +15,7 @@ from ui.views.reader_view import ReaderWidget
 from ui.views.topic_words_view import TopicWordsWidget
 from ui.views.settings_view import SettingsWidget
 from ui.views.irregular_verbs_view import IrregularVerbsWidget
+from ui.views.speaking_view import SpeakingWidget
 
 from ui.games.match_game import MatchGameWidget
 from ui.games.blitz_game import BlitzGameWidget
@@ -39,6 +40,7 @@ NAV_ITEMS = [
     ("🇺🇿→🇬🇧  UZ → EN mashq", "uz_en"),
     ("📖  Lug'at", "dictionary"),
     ("⚡  Noto'g'ri fe'llar", "irregular_verbs"),
+    ("🎙️  Speaking Trenajyori", "speaking"),
     ("🗂️  Mavzuli so'zlar", "topic_words"),
     ("📚  Aqlli o'qish", "reader"),
     ("🎮  So'z juftlash", "match"),
@@ -134,6 +136,7 @@ class MainWindow(QMainWindow):
             "dashboard": "dashboard",
             "dictionary": "dictionary",
             "irregular_verbs": "irregular_verbs_widget",
+            "speaking": "speaking_widget",
             "topic_words": "topic_words",
             "reader": "reader_widget",
             "en_uz": "practice_en_uz",
@@ -157,6 +160,7 @@ class MainWindow(QMainWindow):
         # Qolgan og'ir yoki kamroq ishlatiladigan sahifalar talab bo'yicha (lazy) ochiladi
         self._page_factories = {
             "irregular_verbs": lambda: IrregularVerbsWidget(self),
+            "speaking": lambda: SpeakingWidget(self),
             "topic_words": lambda: TopicWordsWidget(
                 self,
                 on_words_changed=self._on_words_changed,
@@ -574,6 +578,9 @@ class MainWindow(QMainWindow):
             page.load_best_score()
         elif key == "audio_player":
             if not getattr(page.worker, "playlist", None):
+                page.load_words()
+        elif key == "speaking":
+            if hasattr(page, "load_words"):
                 page.load_words()
         elif key == "settings":
             page.load_settings()

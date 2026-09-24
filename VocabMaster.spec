@@ -45,6 +45,7 @@ hiddenimports = [
     # Core Biznes Logikasi
     'core',
     'core.database',
+    'core.fsrs',
     'core.gamification',
     'core.retention_analytics',
     'core.phonetics',
@@ -86,6 +87,7 @@ hiddenimports = [
     'ui.views.topic_words_view',
     'ui.views.settings_view',
     'ui.views.irregular_verbs_view',
+    'ui.views.speaking_view',
     'ui.games',
     'ui.games.blitz_game',
     'ui.games.match_game',
