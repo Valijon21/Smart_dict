@@ -1,5 +1,5 @@
 # ==============================================================================
-# Vocab Master Pro (SmartDict) - Git Ignore Configuration
+# Vocab Master Pro (SmartDict) - Senior-Grade Git Ignore Configuration
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -63,6 +63,33 @@ tmp/
 temp/
 *.tmp
 *.temp
+*.bak
+*.backup
+*~
+
+# ------------------------------------------------------------------------------
+# Working Notes, Architecture Plans & Internal Brain Artifacts
+# (Faqat rasmiy README.md va CODEBASE.md repozitoriyda saqlanadi)
+# ------------------------------------------------------------------------------
+*-plan.md
+*implementation*.md
+audit-*.md
+TODO.md
+todo.md
+NOTES.md
+notes.md
+.brain/
+brain/
+.system_generated/
+
+# ------------------------------------------------------------------------------
+# Working Office Documents (Faqat assets ichidagi resurslar ruxsat etiladi)
+# ------------------------------------------------------------------------------
+*.docx
+*.doc
+*.xlsx
+*.xls
+*.pptx
 
 # ------------------------------------------------------------------------------
 # IDEs, Code Editors & Tooling
@@ -73,7 +100,6 @@ temp/
 *.sublime-workspace
 *.swp
 *.swo
-*~
 .project
 .pydevproject
 .settings/
@@ -101,7 +127,8 @@ Desktop.ini
 $RECYCLE.BIN/
 
 # ------------------------------------------------------------------------------
-# AI Agent Configuration (Antigravity / AG Kit — faqat lokal ish muhiti uchun)
+# AI Agent Workflows & Workspace Tooling (AG Kit / Antigravity / Gemini)
+# Faqat dasturchining lokal muhitida qoladi, GitHub repozitoriyga yuklanmaydi
 # ------------------------------------------------------------------------------
 .agents/
 .gemini/
