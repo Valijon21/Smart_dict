@@ -13,7 +13,7 @@ import ui.theme_manager as theme_manager
 import services.tts_service as tts
 import services.global_dict_service as global_dict_service
 import core.retention_analytics as retention_analytics
-from ui.achievements_dialog import AchievementsDialog
+from ui.dialogs.achievements_dialog import AchievementsDialog
 from utils.logger import get_logger
 
 logger = get_logger("dashboard")
@@ -1452,7 +1452,7 @@ class DashboardWidget(QWidget):
 
     def _open_cefr_dialog(self):
         """CEFR (A1-C2) & IELTS akademik to'plamlar modalini ochish."""
-        from ui.word_packs_dialog import WordPacksDialog
+        from ui.dialogs.word_packs_dialog import WordPacksDialog
         dlg = WordPacksDialog(self, on_words_imported=self.refresh, on_start_practice=self.on_start_practice)
         dlg.exec()
 
@@ -1693,7 +1693,7 @@ class DashboardWidget(QWidget):
 
     def _open_word_details(self, english: str):
         try:
-            from ui.dictionary import WordDetailsDialog
+            from ui.views.dictionary_view import WordDetailsDialog
             dlg = WordDetailsDialog(self, english=english, on_added=self.refresh)
             dlg.exec()
             self.refresh()

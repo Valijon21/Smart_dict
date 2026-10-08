@@ -12,25 +12,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QColor
 
-try:
-    from core import database as db
-except ImportError:
-    import database as db
-
-try:
-    from utils import importer
-except ImportError:
-    import importer
-
-try:
-    from ui import theme_manager
-except ImportError:
-    import theme_manager
-
-try:
-    from utils.logger import get_logger
-except ImportError:
-    from logger import get_logger
+import core.database as db
+import utils.importer as importer
+import ui.theme_manager as theme_manager
+from utils.logger import get_logger
 
 logger = get_logger("import")
 
@@ -767,7 +752,7 @@ class ImportWidget(QWidget):
 
     def open_word_packs(self):
         """Tayyor so'z to'plamlari oynasini ochish."""
-        from ui.word_packs_dialog import WordPacksDialog
+        from ui.dialogs.word_packs_dialog import WordPacksDialog
         dlg = WordPacksDialog(self, on_words_imported=self.on_words_changed, on_start_practice=self.on_start_practice)
         dlg.exec()
         if self.on_words_changed:

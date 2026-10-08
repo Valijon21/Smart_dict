@@ -13,8 +13,8 @@ import core.phonetics as phonetics
 import services.global_dict_service as global_dict_service
 from utils.logger import get_logger
 
-from ui.word_packs_dialog import WordPacksDialog
-from ui.worksheet_generator import WorksheetGeneratorDialog
+from ui.dialogs.word_packs_dialog import WordPacksDialog
+from ui.dialogs.worksheet_dialog import WorksheetGeneratorDialog
 
 logger = get_logger("dictionary")
 
@@ -556,7 +556,7 @@ class WordDetailsDialog(QDialog):
     def _open_pronunciation_test(self):
         """Ushbu so'z uchun talaffuzni sinash va baholash dialogini ochish."""
         try:
-            import speech_recognizer
+            import services.speech_service as speech_service
             ph_info = phonetics.get_word_info(self.english)
             uz_text = ""
             if self.details and self.details.get("uzbek_translations"):
@@ -569,7 +569,7 @@ class WordDetailsDialog(QDialog):
                 "uzbek": uz_text,
                 "phonetic": ph_info.get("phonetic", ""),
             }
-            speech_recognizer.open_pronunciation_dialog(word_data, parent=self)
+            speech_service.open_pronunciation_dialog(word_data, parent=self)
         except Exception as e:
             logger.error(f"Talaffuz dialogini ochishda xatolik: {e}")
 

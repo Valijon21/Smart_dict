@@ -17,12 +17,8 @@ import services.topic_service as topic_service
 import services.global_dict_service as global_dict_service
 import services.tts_service as tts
 import ui.theme_manager as theme_manager
-try:
-    from utils.logger import get_logger, get_resource_path
-except ImportError:
-    from logger import get_logger, get_resource_path
-
-from ui.dictionary import WordDetailsDialog
+from utils.logger import get_logger, get_resource_path
+from ui.views.dictionary_view import WordDetailsDialog
 
 logger = get_logger("topic_words_page")
 
@@ -676,8 +672,8 @@ class TopicWordsWidget(QWidget):
     def _open_speech_test(self, row: dict):
         """Mavzu so'zi uchun ovozli talaffuzni sinash dialogini ochish."""
         try:
-            import speech_recognizer
-            speech_recognizer.open_pronunciation_dialog(row, parent=self)
+            import services.speech_service as speech_service
+            speech_service.open_pronunciation_dialog(row, parent=self)
         except Exception as e:
             logger.error(f"Talaffuz sinovida xatolik: {e}")
 
