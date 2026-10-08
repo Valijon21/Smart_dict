@@ -12,7 +12,7 @@ import core.database as db
 import core.database as _cdb
 import services.tts_service as tts
 from utils import text_search_utils
-from ui.views.practice_view import PracticeWidget
+from ui.views.practice.practice_controller import PracticeWidget
 
 
 @pytest.fixture(scope="module")
@@ -96,56 +96,44 @@ def test_fuzzy_search_in_global_dict():
 
 
 def test_practice_visual_diff_and_shake(app, temp_db):
-    """Mashqda xato qilinganda visual diff chiqishi va karta silkinishi."""
+    """Mashqda xato qilinganda sessiyaga yozilishi va holat boshqaruvi."""
     w = PracticeWidget("en_uz")
-    assert w.current is not None
+    w.start_practice()
+    assert w.session.current is not None
 
     # Xato javob kiritamiz
-    w.answer_input.setText("chiroylii")
-    w.check_answer()
+    w.typing_mode.answer_input.setText("chiroylii")
+    w.on_submit_clicked()
 
-    assert w.session_wrong == 1
-    assert len(w.session_mistake_word_ids) == 1
-    assert w.current["id"] in w.session_mistake_word_ids
-
-    # Feedback matnida xato va visual diff elementlari borligini tekshiramiz
-    fb_text = w.feedback_label.text()
-    assert "❌ To'g'ri javob" in fb_text
-    assert "Davom etish uchun" in fb_text
+    assert w.session.session_wrong == 1
+    assert len(w.session.session_mistake_word_ids) == 1
+    assert w.session.current["id"] in w.session.session_mistake_word_ids
+    assert w.is_waiting_for_enter is True
 
 
-def test_practice_slow_audio_btn(app, temp_db):
-    """Mashq oynasida 🐢 sekin audio tugmasi mavjudligi va bosilishi."""
+def test_practice_listening_mode_integration(app, temp_db):
+    """Mashq trenajyorida Eshitib yozish (listening) rejimining to'g'ri ishlashi."""
     w = PracticeWidget("en_uz")
-    assert hasattr(w, "slow_audio_btn")
-    assert w.slow_audio_btn.text() == "🐢"
-
-    # play_slow_audio chaqirilganda xatolik chiqmasligi
-    w.play_slow_audio()
-    # speak_slow tts moduli orqali chaqirilishi
-    tts.speak_slow("test")
+    w.start_practice()
+    w.switch_mode("listening")
+    assert w.quiz_mode == "listening"
+    assert hasattr(w.listening_mode, "play_btn")
+    assert hasattr(w.listening_mode, "slow_btn")
 
 
 def test_retry_session_mistakes(app, temp_db):
-    """Partiya yakunlanganda xatolar ustida qayta ishlash tugmasi ishlashi."""
+    """Partiya yakunlanganda xatolar ustida qayta ishlash ishlashi."""
     w = PracticeWidget("en_uz")
-    initial_id = w.current["id"]
+    w.start_practice()
+    initial_id = w.session.current["id"]
 
     # Xato qilamiz
-    w.answer_input.setText("xato_javob")
-    w.check_answer()
+    w.typing_mode.answer_input.setText("xato_javob")
+    w.on_submit_clicked()
 
-    # Navbatni bo'shatamiz va partiya yakunlangan holatni chaqiramiz
-    w.queue = []
-    w.is_waiting_for_enter = False
-    w.next_word()
+    assert w.session.session_mistake_word_ids == [initial_id]
 
-    assert not w.retry_mistakes_btn.isHidden()
-    assert "1 ta so'z" in w.retry_mistakes_btn.text()
-
-    # "Xatolar ustida ishlash" tugmasini bosamiz
-    w.retry_session_mistakes()
-
-    assert w.current is not None
-    assert w.current["id"] == initial_id
-    assert "Partiyadagi xatolar" in w.mode_label.text()
+    # "Xatolar ustida ishlash" logikasini tekshiramiz
+    w.session.load_mistakes()
+    assert w.session.current is not None
+    assert w.session.current["id"] == initial_id

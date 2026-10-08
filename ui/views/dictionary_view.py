@@ -320,7 +320,8 @@ class WordDetailsDialog(QDialog):
 
         # 1. Ma'lumotlarni olish
         self.details = global_dict_service.get_word_full_details(english=self.english)
-        local_word = db.get_word_by_english(self.english)
+        self.local_word = db.get_word_by_english(self.english)
+        local_word = self.local_word
 
         # 2. Header Card (So'z nomi, fonetika, audio va qo'shish holati)
         header_card = QFrame()
@@ -694,8 +695,8 @@ class DictionaryWidget(QWidget):
         self.practice_btn = QPushButton("⚡ Mashq qilish ▾")
         self.practice_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.practice_menu = QMenu(self)
-        self.practice_menu.addAction("🇬🇧→🇺🇿 EN → UZ Test", lambda: self._launch_practice_for_current_words("en_uz"))
-        self.practice_menu.addAction("🇺🇿→🇬🇧 UZ → EN Test", lambda: self._launch_practice_for_current_words("uz_en"))
+        self.practice_menu.addAction("🔤 EN → UZ Test", lambda: self._launch_practice_for_current_words("en_uz"))
+        self.practice_menu.addAction("🔄 UZ → EN Test", lambda: self._launch_practice_for_current_words("uz_en"))
         self.practice_menu.addAction("🎴 Flashcard (Anki uslubi)", lambda: self._launch_practice_for_current_words("flashcard"))
         self.practice_btn.setMenu(self.practice_menu)
         top_row.addWidget(self.practice_btn)
@@ -1277,13 +1278,13 @@ class DictionaryWidget(QWidget):
         lbl.setStyleSheet("color: #6EE7B7; font-size: 13px; font-weight: 700;")
         self.import_banner_layout.addWidget(lbl)
 
-        btn_en = QPushButton("🇬🇧 EN → UZ")
+        btn_en = QPushButton("🔤 EN → UZ")
         btn_en.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_en.setStyleSheet("background-color: #4F46E5; color: white; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
         btn_en.clicked.connect(lambda: self._launch_practice_for_current_words("en_uz"))
         self.import_banner_layout.addWidget(btn_en)
 
-        btn_uz = QPushButton("🇺🇿 UZ → EN")
+        btn_uz = QPushButton("🔄 UZ → EN")
         btn_uz.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_uz.setStyleSheet("background-color: #6366F1; color: white; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600;")
         btn_uz.clicked.connect(lambda: self._launch_practice_for_current_words("uz_en"))
@@ -1335,6 +1336,12 @@ class DictionaryWidget(QWidget):
             if self.on_words_changed:
                 self.on_words_changed()
             QMessageBox.information(self, "Muvaffaqiyatli", f"'{eng}' so'zi o'rganish rejangizga qo'shildi!")
+
+    def _on_word_added_from_details(self):
+        """WordDetailsDialog orqali so'z o'rganish rejasiga qo'shilganda lug'atni yangilash."""
+        self.load_words()
+        if self.on_words_changed:
+            self.on_words_changed()
 
     def open_word_details(self, english: str):
         """So'zning to'liq ensiklopedik tahlil modalini ochish."""

@@ -22,10 +22,13 @@ def prepare_cloze_data(word_data: dict, global_example_fetcher=None) -> ClozeDat
     if not word_data:
         return None
 
-    eng = word_data.get("english", "").strip()
-    uz = word_data.get("uzbek", "").strip()
-    ex = word_data.get("example", "") or ""
-    ex = ex.strip()
+    if hasattr(word_data, "keys") and not isinstance(word_data, dict):
+        word_data = dict(word_data)
+
+    eng = str(word_data.get("english", "") if isinstance(word_data, dict) else word_data["english"]).strip()
+    uz = str(word_data.get("uzbek", "") if isinstance(word_data, dict) else word_data["uzbek"]).strip()
+    ex = (word_data.get("example", "") or "") if isinstance(word_data, dict) else (word_data["example"] or "")
+    ex = str(ex).strip()
 
     # Agar misol gap bo'lmasa yoki juda qisqa bo'lsa, global qidiruvdan foydalanish
     if (not ex or len(ex) < 10) and global_example_fetcher:

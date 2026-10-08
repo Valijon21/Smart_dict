@@ -18,6 +18,7 @@ from ui.views.practice.flashcard_mode import FlashcardModeWidget
 from ui.views.practice.choice_mode import ChoiceModeWidget
 from ui.views.practice.scramble_mode import ScrambleModeWidget
 from ui.views.practice.cloze_mode import ClozeModeWidget
+from ui.views.practice.listening_mode import ListeningModeWidget
 
 class PracticeWidget(QWidget):
     def __init__(self, direction="en_uz", on_finish_refresh=None):
@@ -62,6 +63,27 @@ class PracticeWidget(QWidget):
         self.progress_bar.setTextVisible(False)
         self.main_layout.addWidget(self.progress_bar)
 
+        # Mode selector buttons
+        self.mode_buttons = {}
+        modes_info = [
+            ("typing", "✏️ Yozma"),
+            ("choice", "🎯 4 ta variant"),
+            ("flashcard", "🎴 Flashcard"),
+            ("listening", "🎧 Eshitib yozish"),
+            ("scramble", "🔤 Harf terish"),
+            ("cloze", "🧩 Bo'sh joy"),
+        ]
+        self.modes_row = QHBoxLayout()
+        self.modes_row.setSpacing(8)
+        self.modes_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        for mode_key, mode_title in modes_info:
+            btn = QPushButton(mode_title)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda checked, mk=mode_key: self.switch_mode(mk))
+            self.modes_row.addWidget(btn)
+            self.mode_buttons[mode_key] = btn
+        self.main_layout.addLayout(self.modes_row)
+
         # Asosiy Word Card
         self.card_frame = QFrame()
         self.card_layout = QVBoxLayout(self.card_frame)
@@ -79,12 +101,14 @@ class PracticeWidget(QWidget):
         self.typing_mode = TypingModeWidget(self.direction)
         self.flashcard_mode = FlashcardModeWidget()
         self.choice_mode = ChoiceModeWidget()
+        self.listening_mode = ListeningModeWidget(self.direction)
         self.scramble_mode = ScrambleModeWidget()
         self.cloze_mode = ClozeModeWidget()
         
         self.mode_stack.addWidget(self.typing_mode)
         self.mode_stack.addWidget(self.flashcard_mode)
         self.mode_stack.addWidget(self.choice_mode)
+        self.mode_stack.addWidget(self.listening_mode)
         self.mode_stack.addWidget(self.scramble_mode)
         self.mode_stack.addWidget(self.cloze_mode)
         
@@ -92,6 +116,7 @@ class PracticeWidget(QWidget):
             "typing": self.typing_mode,
             "flashcard": self.flashcard_mode,
             "choice": self.choice_mode,
+            "listening": self.listening_mode,
             "scramble": self.scramble_mode,
             "cloze": self.cloze_mode
         }
@@ -99,6 +124,7 @@ class PracticeWidget(QWidget):
         self.typing_mode.answer_submitted.connect(lambda c: self.on_answer_submitted(c, "typing"))
         self.flashcard_mode.flashcard_rated.connect(self.on_flashcard_rated)
         self.choice_mode.answer_submitted.connect(lambda c: self.on_answer_submitted(c, "choice"))
+        self.listening_mode.answer_submitted.connect(lambda c: self.on_answer_submitted(c, "listening"))
         self.scramble_mode.answer_submitted.connect(lambda c: self.on_answer_submitted(c, "scramble"))
         self.cloze_mode.answer_submitted.connect(lambda c: self.on_answer_submitted(c, "cloze"))
         
@@ -138,11 +164,34 @@ class PracticeWidget(QWidget):
     def set_quiz_mode(self, mode_name: str):
         self.quiz_mode = mode_name
         
+    def _update_mode_buttons(self):
+        curr = self._forced_mode or "typing"
+        theme_id = db.get_setting("theme", "midnight")
+        t = get_theme(theme_id)
+        for k, btn in getattr(self, "mode_buttons", {}).items():
+            if k == curr:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background-color: {t.primary}; color: white; border: none; "
+                    f"border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 700; }}"
+                )
+            else:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background-color: {t.bg_card}; color: {t.text_muted}; border: 1px solid {t.border}; "
+                    f"border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 500; }} "
+                    f"QPushButton:hover {{ background-color: {t.primary_light}; color: white; }}"
+                )
+
     def switch_mode(self, mode_name: str):
         if mode_name in self.modes:
             self._forced_mode = mode_name
             self.mode_stack.setCurrentWidget(self.modes[mode_name])
+            self._update_mode_buttons()
             if self.session.current:
+                if mode_name == "listening":
+                    self.word_label.setText("🎧 Tinglang va yozing")
+                else:
+                    source_text = self.session.current["english"] if self.direction == "en_uz" else self.session.current["uzbek"]
+                    self.word_label.setText(source_text)
                 self.modes[mode_name].set_word(self.session.current, direction=self.direction)
                 focus = self.modes[mode_name].get_focus_widget()
                 if focus: focus.setFocus()
@@ -188,8 +237,13 @@ class PracticeWidget(QWidget):
         quiz_mode = self._forced_mode or "typing" 
         
         source_text = c["english"] if self.direction == "en_uz" else c["uzbek"]
-        self.word_label.setText(source_text)
+        if quiz_mode == "listening":
+            self.word_label.setText("🎧 Tinglang va yozing")
+        else:
+            self.word_label.setText(source_text)
         
+        self._update_mode_buttons()
+
         if quiz_mode in self.modes:
             self.mode_stack.setCurrentWidget(self.modes[quiz_mode])
             self.modes[quiz_mode].set_word(c, direction=self.direction)
@@ -199,7 +253,7 @@ class PracticeWidget(QWidget):
         self.update_stats()
         
         # TTS autoplay
-        if self.direction == "en_uz" and db.get_setting("tts_autoplay", "true") == "true":
+        if quiz_mode != "listening" and self.direction == "en_uz" and db.get_setting("tts_autoplay", "true") == "true":
             self.tts.speak(c["english"])
 
     def on_submit_clicked(self):
@@ -233,6 +287,12 @@ class PracticeWidget(QWidget):
         else:
             self.submit_btn.setStyleSheet("background-color: #EF4444; color: white;")
             
+        if mode_name == "listening" and self.session.current:
+            eng = self.session.current.get("english", "")
+            self.word_label.setText(f"✅ {eng}" if is_correct else f"❌ {eng}")
+            if not is_correct:
+                self.tts.speak(eng)
+
         self.update_stats()
 
     def on_flashcard_rated(self, quality):
@@ -278,5 +338,7 @@ class PracticeWidget(QWidget):
         self.typing_mode.apply_theme(t)
         self.flashcard_mode.apply_theme(t)
         self.choice_mode.apply_theme(t)
+        self.listening_mode.apply_theme(t)
         self.scramble_mode.apply_theme(t)
         self.cloze_mode.apply_theme(t)
+        self._update_mode_buttons()

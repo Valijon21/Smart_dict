@@ -371,13 +371,13 @@ class ImportWidget(QWidget):
         quick_row1 = QHBoxLayout()
         quick_row1.setSpacing(8)
 
-        self.quick_btn_en = QPushButton("🇬🇧→🇺🇿 EN → UZ")
+        self.quick_btn_en = QPushButton("🔤 EN → UZ")
         self.quick_btn_en.setCursor(Qt.CursorShape.PointingHandCursor)
         self.quick_btn_en.setStyleSheet("background-color: #4F46E5; color: white; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;")
         self.quick_btn_en.clicked.connect(lambda: self.launch_quick_practice("en_uz"))
         quick_row1.addWidget(self.quick_btn_en)
 
-        self.quick_btn_uz = QPushButton("🇺🇿→🇬🇧 UZ → EN")
+        self.quick_btn_uz = QPushButton("🔄 UZ → EN")
         self.quick_btn_uz.setCursor(Qt.CursorShape.PointingHandCursor)
         self.quick_btn_uz.setStyleSheet("background-color: #6366F1; color: white; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;")
         self.quick_btn_uz.clicked.connect(lambda: self.launch_quick_practice("uz_en"))
