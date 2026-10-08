@@ -1,3 +1,4 @@
+import core.db.connection as _conn
 """
 Vocab Master Pro — GUI Smoke Tests.
 Verifies MainWindow lifecycle, page navigation, and crash resilience.
@@ -25,8 +26,8 @@ def app():
 @pytest.fixture
 def temp_db(tmp_path):
     test_db = tmp_path / "test_vocab_smoke.db"
-    orig_path = _cdb.DB_PATH
-    _cdb.DB_PATH = test_db
+    orig_path = _conn.DB_PATH
+    _conn.DB_PATH = test_db
     _cdb.init_db()
 
     # Namunaviy so'zlar qo'shamiz
@@ -35,7 +36,7 @@ def temp_db(tmp_path):
     _cdb.add_word("courage", "jasorat")
 
     yield test_db
-    _cdb.DB_PATH = orig_path
+    _conn.DB_PATH = orig_path
 
 
 def test_main_window_creation(app, temp_db):

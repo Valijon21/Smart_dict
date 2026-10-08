@@ -1,3 +1,4 @@
+import core.db.connection as _conn
 """
 tests/test_fsrs.py
 FSRS v5 (Free Spaced Repetition Scheduler) testi.
@@ -75,11 +76,11 @@ def test_from_sm2_conversion():
 @pytest.fixture
 def temp_db(tmp_path):
     test_db = tmp_path / "fsrs_test.db"
-    orig_path = db.DB_PATH
-    db.DB_PATH = test_db
+    orig_path = _conn.DB_PATH
+    _conn.DB_PATH = test_db
     db.init_db()
     yield test_db
-    db.DB_PATH = orig_path
+    _conn.DB_PATH = orig_path
 
 
 def test_fsrs_database_integration(temp_db):

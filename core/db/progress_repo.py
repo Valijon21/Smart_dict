@@ -1,3 +1,6 @@
+from core.db.cache import _invalidate_cache
+from core.db.word_repo import get_words_by_ids
+from core.db.connection import get_conn, _safe_order_by
 """
 Vocab Master — ma'lumotlar bazasi qatlami.
 SQLite orqali so'zlar, progress va statistika saqlanadi.
@@ -12,6 +15,7 @@ import re
 import shutil
 from pathlib import Path
 from contextlib import contextmanager
+from core.db.stats_repo import bump_daily_stat
 try:
     from core import phonetics
 except ImportError:

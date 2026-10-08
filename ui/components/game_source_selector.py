@@ -8,16 +8,10 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
-try:
-    from core import database as db
-    from services import game_word_provider as gwp
-    import theme_manager
-    from utils.logger import get_logger
-except ImportError:
-    import database as db
-    import game_word_provider as gwp
-    import theme_manager
-    from logger import get_logger
+import core.database as db
+import services.game_word_provider as gwp
+import ui.theme_manager as theme_manager
+from utils.logger import get_logger
 
 logger = get_logger("game_source_selector")
 

@@ -1,3 +1,4 @@
+import core.db.connection as _conn
 """
 Unit tests for services/cefr_service.py.
 Verifies CEFR level definitions, AWL academic vocabulary,
@@ -80,8 +81,8 @@ def test_get_words_for_level():
 def test_import_cefr_words_to_study(tmp_path):
     """Imports words from CEFR level directly into database study queue."""
     test_db = tmp_path / "cefr_test_vocab.db"
-    orig_path = db.DB_PATH
-    db.DB_PATH = test_db
+    orig_path = _conn.DB_PATH
+    _conn.DB_PATH = test_db
     db.init_db()
 
     try:
@@ -92,4 +93,4 @@ def test_import_cefr_words_to_study(tmp_path):
         added2, skipped2 = import_cefr_words_to_study("cefr_a1_a2", count=5)
         assert added2 >= 0
     finally:
-        db.DB_PATH = orig_path
+        _conn.DB_PATH = orig_path

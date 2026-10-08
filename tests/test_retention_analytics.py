@@ -1,3 +1,4 @@
+import core.db.connection as _conn
 """
 Unit tests for core/retention_analytics.py.
 Verifies Hermann Ebbinghaus Forgetting Curve formula calculations,
@@ -88,8 +89,8 @@ def test_get_memory_retention_overview_empty_db(tmp_path):
     """When words database is empty, overview returns structured 100% baseline."""
     # Arrange: Isolated temporary database
     test_db = tmp_path / "empty_vocab.db"
-    orig_path = db.DB_PATH
-    db.DB_PATH = test_db
+    orig_path = _conn.DB_PATH
+    _conn.DB_PATH = test_db
     db.init_db()
     invalidate_retention_cache()
 
@@ -103,15 +104,15 @@ def test_get_memory_retention_overview_empty_db(tmp_path):
         assert overview["vulnerable_count"] == 0
         assert len(overview["forecast"]) == 4
     finally:
-        db.DB_PATH = orig_path
+        _conn.DB_PATH = orig_path
         invalidate_retention_cache()
 
 
 def test_get_memory_retention_overview_with_words(tmp_path):
     """Accurately calculates retention categories when database has active words."""
     test_db = tmp_path / "active_vocab.db"
-    orig_path = db.DB_PATH
-    db.DB_PATH = test_db
+    orig_path = _conn.DB_PATH
+    _conn.DB_PATH = test_db
     db.init_db()
     invalidate_retention_cache()
 
@@ -138,5 +139,5 @@ def test_get_memory_retention_overview_with_words(tmp_path):
         assert len(overview["forecast"]) == 4
         assert "recommendation" in overview
     finally:
-        db.DB_PATH = orig_path
+        _conn.DB_PATH = orig_path
         invalidate_retention_cache()

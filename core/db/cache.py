@@ -1,3 +1,4 @@
+from core.db.connection import get_conn, _safe_order_by
 """
 Vocab Master — ma'lumotlar bazasi qatlami.
 SQLite orqali so'zlar, progress va statistika saqlanadi.

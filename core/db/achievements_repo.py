@@ -1,3 +1,6 @@
+from core.db.cache import _invalidate_cache
+from core.db.settings_repo import get_setting, set_setting
+from core.db.connection import get_conn, _safe_order_by
 """
 Vocab Master — ma'lumotlar bazasi qatlami.
 SQLite orqali so'zlar, progress va statistika saqlanadi.

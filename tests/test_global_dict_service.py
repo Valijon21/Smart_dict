@@ -1,3 +1,4 @@
+import core.db.connection as _conn
 """
 Unit tests for services/global_dict_service.py.
 Verifies offline dictionary search, HTML cleaning, example formatting,
@@ -69,8 +70,8 @@ def test_search_global_words_and_details():
 def test_add_to_study_list(tmp_path):
     """Adds a word from the global dictionary directly to user vocabulary database."""
     test_db = tmp_path / "global_dict_test_vocab.db"
-    orig_path = db.DB_PATH
-    db.DB_PATH = test_db
+    orig_path = _conn.DB_PATH
+    _conn.DB_PATH = test_db
     db.init_db()
 
     try:
@@ -82,4 +83,4 @@ def test_add_to_study_list(tmp_path):
         success2, msg2, w_id2 = add_to_study_list("diligent", "tirishqoq", "")
         assert success2 is False
     finally:
-        db.DB_PATH = orig_path
+        _conn.DB_PATH = orig_path

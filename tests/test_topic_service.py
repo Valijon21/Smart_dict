@@ -1,3 +1,4 @@
+import core.db.connection as _conn
 """
 Unit tests for services/topic_service.py.
 Verifies thematic topics registry, progress calculations,
@@ -80,8 +81,8 @@ def test_get_topic_words_details():
 def test_batch_add_topic_to_study(tmp_path):
     """Imports an entire topic category into user study database."""
     test_db = tmp_path / "topic_test_vocab.db"
-    orig_path = db.DB_PATH
-    db.DB_PATH = test_db
+    orig_path = _conn.DB_PATH
+    _conn.DB_PATH = test_db
     db.init_db()
 
     try:
@@ -96,4 +97,4 @@ def test_batch_add_topic_to_study(tmp_path):
         added2, total2 = batch_add_topic_to_study(t0_id)
         assert added2 == 0
     finally:
-        db.DB_PATH = orig_path
+        _conn.DB_PATH = orig_path

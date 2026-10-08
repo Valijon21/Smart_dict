@@ -214,7 +214,7 @@ class MainWindow(QMainWindow):
         self.setup_reminder_timer()
 
         # Global Clipboard avto-qidiruv monitoring (Ctrl+C popup)
-        from clipboard_monitor import ClipboardMonitor
+        from ui.components.clipboard_monitor import ClipboardMonitor
         self.clipboard_monitor = ClipboardMonitor(parent=self, on_words_changed=self._on_words_changed)
 
         # Fondagi navbat: oyna ochilgach, ikkinchi darajali sahifalarni orqa fonda tayyorlash

@@ -1,3 +1,4 @@
+import core.db.connection as _conn
 import sys
 import time
 from pathlib import Path
@@ -23,8 +24,8 @@ def app():
 @pytest.fixture
 def temp_db(tmp_path):
     test_db = tmp_path / "test_vocab.db"
-    orig_path = _cdb.DB_PATH
-    _cdb.DB_PATH = test_db
+    orig_path = _conn.DB_PATH
+    _conn.DB_PATH = test_db
     _cdb.init_db()
 
     # So'zlar qo'shamiz
@@ -35,7 +36,7 @@ def temp_db(tmp_path):
     db.add_word("elephant", "fil")
 
     yield test_db
-    _cdb.DB_PATH = orig_path
+    _conn.DB_PATH = orig_path
 
 
 def test_practice_session_persistence(app, temp_db):

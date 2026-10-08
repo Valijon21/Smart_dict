@@ -258,6 +258,7 @@ def init_db():
             pass
 
         # Agar bazada eski SM-2 so'zlari bo'lsa, ularni FSRS v5 ga silliq o'tkazamiz
+        from core.db.progress_repo import migrate_sm2_to_fsrs_if_needed
         migrate_sm2_to_fsrs_if_needed(conn)
 
         conn.executemany(
@@ -287,12 +288,14 @@ def init_db():
         if not iv_count or iv_count["cnt"] < 50:
             if iv_count and iv_count["cnt"] > 0:
                 conn.execute("DELETE FROM irregular_verbs")
+            from core.db.irregular_verbs_repo import seed_irregular_verbs_from_json
             seed_irregular_verbs_from_json(conn)
 
         # Mavjud so'zlarga bo'sh bo'lgan IPA va POS qiymatlarini faqat birinchi startda to'ldirish (Tezkor yuklanish)
         bf_row = conn.execute("SELECT value FROM settings WHERE key='phonetics_backfilled_v1'").fetchone()
         if not bf_row or bf_row["value"] != "true":
             try:
+                from core.db.progress_repo import backfill_phonetics
                 backfill_phonetics(conn)
                 conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('phonetics_backfilled_v1', 'true')")
             except Exception as bf_err:

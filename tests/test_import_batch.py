@@ -1,3 +1,4 @@
+import core.db.connection as _conn
 """
 Tests for unified import batch resolution (new + existing words) and multi-game practice integration.
 """
@@ -27,7 +28,7 @@ def app_instance():
 def temp_import_db(tmp_path, monkeypatch):
     """Izolyatsiya qilingan vaqtinchalik test ma'lumotlar bazasi."""
     db_file = tmp_path / "import_test.db"
-    monkeypatch.setattr(db, "DB_PATH", db_file)
+    monkeypatch.setattr(_conn, "DB_PATH", db_file)
     db.init_db()
     gwp.invalidate_cache()
     yield db_file

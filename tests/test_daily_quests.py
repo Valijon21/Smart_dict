@@ -1,3 +1,4 @@
+import core.db.connection as _conn
 """
 tests/test_daily_quests.py
 core/daily_quests.py uchun pytest smoke testlari.
@@ -23,18 +24,18 @@ import core.database as _cdb
 def temp_db(tmp_path_factory):
     tmp = tmp_path_factory.mktemp("quests_db")
     test_db = tmp / "test_quests.db"
-    original_path = _cdb.DB_PATH
-    _cdb.DB_PATH = test_db
+    original_path = _conn.DB_PATH
+    _conn.DB_PATH = test_db
     _cdb.init_db()
     yield test_db
-    _cdb.DB_PATH = original_path
+    _conn.DB_PATH = original_path
 
 
 @pytest.fixture(autouse=True)
 def clean_db(temp_db):
     """Har bir test oldidan DB tozalanadi va qayta initsializatsiya."""
-    original = _cdb.DB_PATH
-    _cdb.DB_PATH = temp_db
+    original = _conn.DB_PATH
+    _conn.DB_PATH = temp_db
     with _cdb.get_conn() as conn:
         conn.execute("DELETE FROM words")
         conn.execute("DELETE FROM progress")
@@ -43,7 +44,7 @@ def clean_db(temp_db):
         conn.execute("DELETE FROM achievements")
     _cdb.init_db()
     yield
-    _cdb.DB_PATH = original
+    _conn.DB_PATH = original
 
 
 # ---------------------------------------------------------------------------

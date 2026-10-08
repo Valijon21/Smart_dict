@@ -1,3 +1,4 @@
+import core.db.connection as _conn
 """
 core/database.py uchun pytest smoke testlar.
 
@@ -39,27 +40,27 @@ def temp_db(tmp_path_factory):
     test_db = tmp / "test_vocab.db"
 
     # core.database.DB_PATH ni vaqtinchalik fayl bilan almashtirish
-    original_path = db.DB_PATH
+    original_path = _conn.DB_PATH
     import core.database as _cdb
-    _cdb.DB_PATH = test_db
+    _conn.DB_PATH = test_db
     _cdb.init_db()
     yield test_db
     # Qayta tiklash
-    _cdb.DB_PATH = original_path
+    _conn.DB_PATH = original_path
 
 
 @pytest.fixture(autouse=True)
 def clean_db(temp_db):
     """Har bir test oldidan words jadvali tozalanadi."""
     import core.database as _cdb
-    original = _cdb.DB_PATH
-    _cdb.DB_PATH = temp_db
+    original = _conn.DB_PATH
+    _conn.DB_PATH = temp_db
     with _cdb.get_conn() as conn:
         conn.execute("DELETE FROM words")
         conn.execute("DELETE FROM progress")
         conn.execute("DELETE FROM daily_stats")
     yield
-    _cdb.DB_PATH = original
+    _conn.DB_PATH = original
 
 
 # ---------------------------------------------------------------------------
@@ -71,20 +72,20 @@ class TestAddWord:
 
     def test_add_simple_word(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         word_id = db.add_word("apple", "olma")
         assert word_id is not None and word_id > 0
 
     def test_add_duplicate_returns_none(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         db.add_word("book", "kitob")
         result = db.add_word("book", "kitob")
         assert result is None, "Dublikat so'z None qaytarishi kerak"
 
     def test_add_word_with_example(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         wid = db.add_word("run", "yugurmoq", example="She runs every morning.")
         assert wid is not None
         row = db.get_word_by_english("run")
@@ -94,7 +95,7 @@ class TestAddWord:
     def test_add_word_case_insensitive_unique(self, temp_db):
         """COLLATE NOCASE — katta/kichik harf farqi dublikat hisoblanishi kerak."""
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         db.add_word("Hello", "Salom")
         result = db.add_word("hello", "salom")
         assert result is None, "Katta harfli variant ham dublikat sifatida tanilishi kerak"
@@ -105,14 +106,14 @@ class TestGetWords:
 
     def test_get_all_words_empty(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         rows = db.get_all_words()
         assert isinstance(rows, list)
         assert len(rows) == 0
 
     def test_get_all_words_after_insert(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         db.add_word("cat", "mushuk")
         db.add_word("dog", "it")
         rows = db.get_all_words()
@@ -120,7 +121,7 @@ class TestGetWords:
 
     def test_get_words_limit(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         for i in range(10):
             db.add_word(f"word{i}", f"so'z{i}")
         rows = db.get_words(limit=5)
@@ -128,7 +129,7 @@ class TestGetWords:
 
     def test_word_count_returns_dict(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         db.add_word("tree", "daraxt")
         result = db.word_count()
         assert isinstance(result, dict)
@@ -141,7 +142,7 @@ class TestDeleteWord:
 
     def test_delete_existing_word(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         wid = db.add_word("table", "stol")
         assert wid is not None
         deleted = db.delete_word(wid)
@@ -150,7 +151,7 @@ class TestDeleteWord:
 
     def test_delete_nonexistent_word_returns_false(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         result = db.delete_word(999999)
         assert result is False
 
@@ -160,7 +161,7 @@ class TestGetWordByEnglish:
 
     def test_found(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         db.add_word("mountain", "tog'")
         row = db.get_word_by_english("mountain")
         assert row is not None
@@ -168,13 +169,13 @@ class TestGetWordByEnglish:
 
     def test_not_found_returns_none(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         row = db.get_word_by_english("nonexistent_xyz_word")
         assert row is None
 
     def test_case_insensitive_lookup(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         db.add_word("River", "daryo")
         row = db.get_word_by_english("river")
         assert row is not None
@@ -185,7 +186,7 @@ class TestSearchWords:
 
     def test_search_by_english(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         db.add_word("school", "maktab")
         db.add_word("teacher", "o'qituvchi")
         results = db.search_words("school")
@@ -193,7 +194,7 @@ class TestSearchWords:
 
     def test_search_empty_query_returns_all(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         db.add_word("sun", "quyosh")
         db.add_word("moon", "oy")
         results = db.search_words("")
@@ -201,7 +202,7 @@ class TestSearchWords:
 
     def test_search_no_results(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         results = db.search_words("xxxxxxxxxnotarealword")
         assert results == []
 
@@ -247,7 +248,7 @@ class TestSM2Review:
 
     def _add_and_get_id(self, temp_db, english="test_word", uzbek="sinov"):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         wid = db.add_word(english, uzbek)
         return wid
 
@@ -284,7 +285,7 @@ class TestBackup:
 
     def test_backup_creates_file(self, temp_db, tmp_path):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         backup_path = tmp_path / "backup_test.db"
         result = db.backup_database(backup_path)
         assert result is True
@@ -294,7 +295,7 @@ class TestBackup:
     def test_backup_is_valid_sqlite(self, temp_db, tmp_path):
         """Zaxira fayli to'g'ri SQLite formatida bo'lishi kerak."""
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         backup_path = tmp_path / "backup_valid.db"
         db.backup_database(backup_path)
         conn = sqlite3.connect(str(backup_path))
@@ -314,13 +315,13 @@ class TestGetWordsWithProgress:
 
     def test_returns_list(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         result = db.get_words_with_progress()
         assert isinstance(result, list)
 
     def test_includes_added_word(self, temp_db):
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         db.add_word("ocean", "okean")
         rows = db.get_words_with_progress()
         english_values = [r["english"] for r in rows]
@@ -329,7 +330,7 @@ class TestGetWordsWithProgress:
     def test_box_level_default_zero(self, temp_db):
         """Yangi qo'shilgan so'z box_level=0 bo'lishi kerak."""
         import core.database as _cdb
-        _cdb.DB_PATH = temp_db
+        _conn.DB_PATH = temp_db
         db.add_word("wind", "shamol")
         rows = db.get_words_with_progress()
         wind = next((r for r in rows if r["english"] == "wind"), None)
