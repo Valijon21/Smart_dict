@@ -9,7 +9,7 @@ from PyQt6.QtGui import QIcon, QAction, QKeySequence, QShortcut
 
 from ui.views.dashboard_view import DashboardWidget
 from ui.views.dictionary_view import DictionaryWidget
-from ui.views.practice_view import PracticeWidget
+from ui.views.practice.practice_controller import PracticeWidget
 from ui.views.audio_player_view import AudioPlayerWidget
 from ui.views.reader_view import ReaderWidget
 from ui.views.topic_words_view import TopicWordsWidget
