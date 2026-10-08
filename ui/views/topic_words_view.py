@@ -13,10 +13,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QCursor, QFont, QPixmap
 
-import topic_service
-import global_dict_service
-import tts
-import theme_manager
+import services.topic_service as topic_service
+import services.global_dict_service as global_dict_service
+import services.tts_service as tts
+import ui.theme_manager as theme_manager
 try:
     from utils.logger import get_logger, get_resource_path
 except ImportError:

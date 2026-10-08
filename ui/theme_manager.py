@@ -5,8 +5,8 @@ Dasturni qayta ishga tushirmasdan dinamik uslublarni yangilaydi.
 """
 from dataclasses import dataclass
 from typing import Callable
-import database as db
-from logger import get_logger
+import core.database as db
+from utils.logger import get_logger
 
 logger = get_logger("theme_manager")
 

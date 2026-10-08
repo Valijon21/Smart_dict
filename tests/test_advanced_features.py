@@ -7,9 +7,9 @@ from PyQt6.QtWidgets import QApplication
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import database as db
+import core.database as db
 import core.database as _cdb
-import tts
+import services.tts_service as tts
 from utils import text_search_utils
 from ui.views.practice_view import PracticeWidget
 

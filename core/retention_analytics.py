@@ -15,8 +15,8 @@ import datetime
 import time
 from typing import Any
 
-import database as db
-from logger import get_logger
+import core.database as db
+from utils.logger import get_logger
 
 logger = get_logger("retention_analytics")
 

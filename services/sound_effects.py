@@ -8,8 +8,8 @@ import math
 import struct
 import threading
 import wave
-from logger import get_logger
-import database as db
+from utils.logger import get_logger
+import core.database as db
 
 logger = get_logger("sound_effects")
 

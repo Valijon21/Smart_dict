@@ -6,9 +6,9 @@ import datetime
 import hashlib
 import json
 from typing import Any
-import database as db
-import gamification
-from logger import get_logger
+import core.database as db
+import core.gamification as gamification
+from utils.logger import get_logger
 
 logger = get_logger("daily_quests")
 

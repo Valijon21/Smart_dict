@@ -17,12 +17,12 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QRectF
 from PyQt6.QtGui import QPainter, QColor, QBrush, QPainterPath
 
-import database as db
-import tts
-import theme_manager
+import core.database as db
+import services.tts_service as tts
+import ui.theme_manager as theme_manager
 from ui.components.game_source_selector import GameSourceSelector
 import services.game_word_provider as gwp
-from logger import get_logger
+from utils.logger import get_logger
 
 logger = get_logger("audio_player")
 

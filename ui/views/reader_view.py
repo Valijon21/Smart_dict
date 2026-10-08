@@ -10,12 +10,12 @@ from PyQt6.QtWidgets import (
     QTextEdit, QDialog, QMessageBox
 )
 from PyQt6.QtCore import Qt, QUrl, QTimer
-import database as db
-import tts
-import reader_data
-import theme_manager
-import phonetics
-from logger import get_logger
+import core.database as db
+import services.tts_service as tts
+import utils.reader_data as reader_data
+import ui.theme_manager as theme_manager
+import core.phonetics as phonetics
+from utils.logger import get_logger
 
 logger = get_logger("reader")
 

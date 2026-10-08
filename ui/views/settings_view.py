@@ -7,11 +7,11 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTime, QTimer
 
-import database as db
-import tts
-import logger
-import theme_manager
-from logger import get_logger
+import core.database as db
+import services.tts_service as tts
+from utils.logger import get_logger
+import ui.theme_manager as theme_manager
+from utils.logger import get_logger
 
 log = get_logger("settings")
 

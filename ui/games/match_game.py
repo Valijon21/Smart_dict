@@ -15,11 +15,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 
-import database as db
-import theme_manager
-import sound_effects
-import gamification
-from logger import get_logger
+import core.database as db
+import ui.theme_manager as theme_manager
+import services.sound_effects as sound_effects
+import core.gamification as gamification
+from utils.logger import get_logger
 from ui.components.game_source_selector import GameSourceSelector
 from services import game_word_provider as gwp
 

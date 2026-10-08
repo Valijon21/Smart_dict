@@ -13,7 +13,7 @@ import subprocess
 import threading
 import queue
 import weakref
-from logger import get_logger
+from utils.logger import get_logger
 
 logger = get_logger("tts")
 

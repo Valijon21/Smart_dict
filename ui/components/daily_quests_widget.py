@@ -8,10 +8,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
-import theme_manager
-import sound_effects
-import daily_quests_service
-from logger import get_logger
+import ui.theme_manager as theme_manager
+import services.sound_effects as sound_effects
+import services.daily_quests_service as daily_quests_service
+from utils.logger import get_logger
 
 logger = get_logger("daily_quests_widget")
 

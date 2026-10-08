@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 # Shim orqali import (core.database'ga yo'naltiriladi)
-import database as db
+import core.database as db
 from core.database import _safe_order_by, _ALLOWED_ORDER_BY
 
 

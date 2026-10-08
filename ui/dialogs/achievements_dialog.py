@@ -7,9 +7,9 @@ from PyQt6.QtWidgets import (
     QFrame, QScrollArea, QWidget, QProgressBar
 )
 from PyQt6.QtCore import Qt
-import database as db
-import gamification
-import theme_manager
+import core.database as db
+import core.gamification as gamification
+import ui.theme_manager as theme_manager
 
 
 class AchievementsDialog(QDialog):

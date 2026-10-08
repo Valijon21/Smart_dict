@@ -21,9 +21,9 @@ from PyQt6.QtMultimedia import (
     QAudioSource, QAudioFormat, QMediaDevices, QMediaPlayer, QAudioOutput
 )
 
-import tts
-import theme_manager
-from logger import get_logger
+import services.tts_service as tts
+import ui.theme_manager as theme_manager
+from utils.logger import get_logger
 
 logger = get_logger("speech_recognizer")
 

@@ -3,8 +3,8 @@ Vocab Master Pro — Gamifikatsiya Tizimi (XP, Darajalar, Yutuqlar/Badges).
 Foydalanuvchi motivatsiyasini oshirish uchun ballar, darajalar va sovrinlar tizimi.
 """
 import math
-import database as db
-from logger import get_logger
+import core.database as db
+from utils.logger import get_logger
 
 logger = get_logger("gamification")
 

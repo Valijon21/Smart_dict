@@ -12,9 +12,9 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QTextDocument
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 
-import database as db
-import theme_manager
-from logger import get_logger
+import core.database as db
+import ui.theme_manager as theme_manager
+from utils.logger import get_logger
 
 logger = get_logger("worksheet_generator")
 

@@ -10,11 +10,11 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-import database as db
-import word_packs
-import cefr_service
-import theme_manager
-from logger import get_logger
+import core.database as db
+import core.word_packs as word_packs
+import services.cefr_service as cefr_service
+import ui.theme_manager as theme_manager
+from utils.logger import get_logger
 
 logger = get_logger("word_packs_ui")
 

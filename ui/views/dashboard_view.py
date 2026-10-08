@@ -7,14 +7,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QRectF, QTimer
 from PyQt6.QtGui import QPainter, QColor, QFont, QPen, QBrush, QPainterPath
 
-import database as db
-import gamification
-import theme_manager
-import tts
-import global_dict_service
-import retention_analytics
+import core.database as db
+import core.gamification as gamification
+import ui.theme_manager as theme_manager
+import services.tts_service as tts
+import services.global_dict_service as global_dict_service
+import core.retention_analytics as retention_analytics
 from ui.achievements_dialog import AchievementsDialog
-from logger import get_logger
+from utils.logger import get_logger
 
 logger = get_logger("dashboard")
 

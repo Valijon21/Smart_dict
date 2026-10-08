@@ -12,15 +12,15 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QPoint, QSize
 from PyQt6.QtGui import QColor, QKeyEvent, QGuiApplication
 
-import database as db
-import tts
-import theme_manager
-import global_dict_service
+import core.database as db
+import services.tts_service as tts
+import ui.theme_manager as theme_manager
+import services.global_dict_service as global_dict_service
 try:
     from utils import text_search_utils
 except ImportError:
     import text_search_utils
-from logger import get_logger
+from utils.logger import get_logger
 
 logger = get_logger("spotlight_search")
 

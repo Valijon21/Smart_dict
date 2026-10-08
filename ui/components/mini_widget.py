@@ -11,11 +11,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QPoint, QTimer
 from PyQt6.QtGui import QColor, QFont, QMouseEvent
 
-import database as db
-import phonetics
-import theme_manager
-import tts
-from logger import get_logger
+import core.database as db
+import core.phonetics as phonetics
+import ui.theme_manager as theme_manager
+import services.tts_service as tts
+from utils.logger import get_logger
 
 logger = get_logger("mini_widget")
 
